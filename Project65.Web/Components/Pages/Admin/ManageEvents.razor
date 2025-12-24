@@ -8,9 +8,9 @@
 @rendermode RenderMode.InteractiveServer
 
 <div class="admin-container" style="max-width: 1000px; margin: 2rem auto; padding: 0 1rem;">
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+    <div class="admin-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
         <h1 style="font-size: 2rem; margin: 0;">Manage Events</h1>
-        <div style="display: flex; gap: 1rem;">
+        <div class="admin-actions" style="display: flex; gap: 1rem;">
             <a href="/admin/settings" class="btn-secondary" style="text-decoration: none;">⚙️ Settings</a>
             <a href="/admin/upload" class="btn-primary" style="text-decoration: none;">+ Upload New Clip</a>
         </div>
@@ -32,7 +32,7 @@
     else
     {
         <div style="background: var(--bg-dark-800); border-radius: var(--radius-lg); border: 1px solid var(--border-color); overflow: hidden;">
-            <table style="width: 100%; border-collapse: collapse;">
+            <table class="responsive-table" style="width: 100%; border-collapse: collapse;">
                 <thead>
                     <tr style="background: rgba(255,255,255,0.05); border-bottom: 1px solid var(--border-color);">
                         <th style="padding: 1rem; text-align: left; color: var(--text-secondary); font-weight: 500;">Event Name</th>
@@ -45,9 +45,9 @@
                     @foreach (var evt in _events)
                     {
                         <tr style="border-bottom: 1px solid var(--border-color); transition: background 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.02)'" onmouseout="this.style.background='transparent'">
-                            <td style="padding: 1rem; font-weight: 600;">@evt.Name</td>
-                            <td style="padding: 1rem; color: var(--text-secondary);">@evt.Date.ToShortDateString()</td>
-                            <td style="padding: 1rem; text-align: center;">@evt.Clips.Count</td>
+                            <td data-label="Event Name" style="padding: 1rem; font-weight: 600;">@evt.Name</td>
+                            <td data-label="Date" style="padding: 1rem; color: var(--text-secondary);">@evt.Date.ToShortDateString()</td>
+                            <td data-label="Clips" style="padding: 1rem; text-align: center;">@evt.Clips.Count</td>
                             <td style="padding: 1rem; text-align: right;">
                                 <div style="display: flex; gap: 0.5rem; justify-content: flex-end;">
                                     <a href="/events/@evt.Id" class="btn-secondary btn-sm" style="font-size: 0.8rem; padding: 0.25rem 0.75rem;">View</a>

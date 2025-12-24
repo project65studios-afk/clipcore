@@ -28,13 +28,13 @@ else
         </div>
         <p style="max-width: 600px; color: var(--text-secondary);">@_event.Summary</p>
         
-        <div style="margin-top: 1.5rem; display: flex; gap: 1rem;">
+        <div class="event-header-actions" style="margin-top: 1.5rem;">
              <button class="btn-primary">Share Event</button>
              <button class="btn-secondary">Copy Link</button>
         </div>
     </div>
     
-    <div class="mb-4" style="display: flex; justify-content: space-between; align-items: center;">
+    <div class="mb-4 event-details-header" style="display: flex; justify-content: space-between; align-items: center;">
         <h3 class="section-title">All Clips</h3>
         <select class="form-control" style="width: auto;" @onchange="OnSortChanged" value="@_sortBy">
             <option value="TimeUsedAsc">Time Used: Oldest First</option>

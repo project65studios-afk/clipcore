@@ -26,9 +26,9 @@ else
             <a href="/events/@_clip.EventId" style="color: var(--text-secondary);">← Back to Event</a>
         </div>
         
-        <div style="display: grid; grid-template-columns: 1fr 350px; gap: 2rem;">
+        <div class="clip-layout" style="display: grid; gap: 2rem;">
              <div>
-                 <div id="player-container" class="video-player-container" style="border: 1px solid var(--border-color); box-shadow: 0 0 40px rgba(0,0,0,0.5); position: relative;">
+                 <div id="player-container" class="video-player-container mobile-full-width" style="border: 1px solid var(--border-color); box-shadow: 0 0 40px rgba(0,0,0,0.5); position: relative;">
                     @if (!string.IsNullOrEmpty(_watermarkUrl))
                     {
                         <div class="watermark-overlay">
@@ -76,7 +76,7 @@ else
                 </div>
             
             <h1 style="margin-top: 1.5rem; font-size: 1.5rem; margin-bottom: 0.25rem;">@_clip.Title</h1>
-                <div style="display: flex; gap: 1rem; align-items: center; margin-bottom: 1rem;">
+                <div class="clip-meta-row">
                     <p style="color: var(--text-secondary); margin: 0;">Published on @_clip.PublishedAt.ToString("MMMM dd, yyyy")</p>
                     @if (_clip.RecordingStartedAt.HasValue)
                     {
