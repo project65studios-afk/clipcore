@@ -82,7 +82,7 @@ else
                          }
                          @if (!string.IsNullOrEmpty(previewId) && !previewId.StartsWith("mock"))
                          {
-                              <div id="preview-container-@clip.Id" class="video-player-container preview-player" style="position: relative;">
+                              <div id="preview-container-@clip.Id" class="video-player-container preview-player">
                                   @if (!string.IsNullOrEmpty(_watermarkUrl))
                                   {
                                       <div class="watermark-overlay">
