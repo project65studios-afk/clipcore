@@ -353,3 +353,41 @@ h3 {
     border-color: var(--accent-cyan);
     background: var(--bg-dark-800);
 }
+
+/* Watermark & Player Overlays */
+.video-player-container {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    background: #000;
+}
+
+.watermark-overlay {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+    z-index: 9999;
+    /* Ensure it's above everything */
+    opacity: 0.4;
+    /* Slightly increased visibility */
+    transition: opacity 0.3s;
+}
+
+.watermark-overlay img {
+    max-height: 120px;
+    /* Larger in center */
+    width: auto;
+}
+
+.preview-player .watermark-overlay img {
+    max-height: 48px;
+}
+
+.video-player-container:hover .watermark-overlay {
+    opacity: 0.2;
+    /* Fade out slightly on hover to not block controls */
+}

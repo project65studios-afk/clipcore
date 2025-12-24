@@ -1,0 +1,142 @@
+@page "/admin/settings"
+@rendermode RenderMode.InteractiveServer
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Forms
+@using Microsoft.AspNetCore.Hosting
+@using Project65.Core.Interfaces
+@attribute [Authorize(Roles = "Admin")]
+@inject ISettingsRepository SettingsRepository
+@inject IWebHostEnvironment Environment
+
+<div class="mb-4">
+    <div class="d-flex justify-content-between align-items-center">
+        <div>
+            <h1 style="font-size: 2rem; margin-bottom: 0.5rem;">Settings</h1>
+            <p class="text-secondary">Configure global storefront options.</p>
+        </div>
+        <a href="/admin/events" class="btn-secondary">Back to Events</a>
+    </div>
+</div>
+
+<div class="grid-card" style="max-width: 600px; padding: 2rem;">
+    <h3 class="mb-4">Video Watermark</h3>
+    
+    <div class="mb-4">
+        <label class="form-label" style="color: var(--text-secondary);">Watermark Source</label>
+        <div class="d-flex gap-3 mb-3">
+            <button class="btn @(_useUpload ? "btn-primary" : "btn-secondary")" @onclick="() => _useUpload = true">Upload File</button>
+            <button class="btn @(!_useUpload ? "btn-primary" : "btn-secondary")" @onclick="() => _useUpload = false">Image URL</button>
+        </div>
+
+        @if (_useUpload)
+        {
+            <div class="input-group">
+                <InputFile OnChange="HandleFileSelected" class="form-control" style="background: var(--bg-dark-800); border-color: var(--border-color); color: var(--text-primary);" />
+            </div>
+            <p class="text-muted mt-2" style="font-size: 0.85rem;">
+                Select a transparent PNG or JPG from your computer.
+            </p>
+        }
+        else
+        {
+            <div class="input-group">
+                <input type="text" class="form-control" @bind="_watermarkUrl" placeholder="https://example.com/logo.png" style="background: var(--bg-dark-800); border-color: var(--border-color); color: var(--text-primary);" />
+            </div>
+            <p class="text-muted mt-2" style="font-size: 0.85rem;">
+                Provide a URL to a transparent PNG or JPG image.
+            </p>
+        }
+    </div>
+
+    @if (!string.IsNullOrEmpty(_watermarkUrl))
+    {
+        <div class="mb-4">
+            <label class="form-label" style="color: var(--text-secondary);">Preview</label>
+            <div style="background: #000; padding: 1rem; border-radius: var(--radius-md); text-align: center; border: 1px solid var(--border-color);">
+                <img src="@_watermarkUrl" style="max-height: 50px; opacity: 0.7;" />
+            </div>
+        </div>
+    }
+
+    <div class="mt-4">
+        <button class="btn-primary" @onclick="SaveSettings" disabled="@_isSaving">
+            @(_isSaving ? "Saving..." : "Save Settings")
+        </button>
+        @if (_showSuccess)
+        {
+            <span class="text-success ms-3 animate-fade-in">Settings saved successfully!</span>
+        }
+    </div>
+</div>
+
+@code {
+    private string? _watermarkUrl;
+    private bool _isSaving;
+    private bool _showSuccess;
+    private bool _useUpload = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _watermarkUrl = await SettingsRepository.GetValueAsync("WatermarkUrl");
+        if (!string.IsNullOrEmpty(_watermarkUrl) && _watermarkUrl.StartsWith("/uploads/"))
+        {
+            _useUpload = true;
+        }
+        else if (!string.IsNullOrEmpty(_watermarkUrl))
+        {
+            _useUpload = false;
+        }
+    }
+
+    private async Task HandleFileSelected(InputFileChangeEventArgs e)
+    {
+        var file = e.File;
+        if (file != null)
+        {
+            _isSaving = true;
+            try
+            {
+                var folderPath = Path.Combine(Environment.WebRootPath, "uploads", "watermark");
+                if (!Directory.Exists(folderPath))
+                {
+                    Directory.CreateDirectory(folderPath);
+                }
+
+                var fileName = $"watermark_{DateTime.UtcNow.Ticks}{Path.GetExtension(file.Name)}";
+                var filePath = Path.Combine(folderPath, fileName);
+
+                using var stream = file.OpenReadStream(maxAllowedSize: 1024 * 1024 * 5); // 5MB limit
+                using var fileStream = new FileStream(filePath, FileMode.Create);
+                await stream.CopyToAsync(fileStream);
+
+                _watermarkUrl = $"/uploads/watermark/{fileName}";
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error uploading file: {ex.Message}");
+            }
+            finally
+            {
+                _isSaving = false;
+            }
+        }
+    }
+
+    private async Task SaveSettings()
+    {
+        _isSaving = true;
+        _showSuccess = false;
+        
+        try 
+        {
+            await SettingsRepository.SetValueAsync("WatermarkUrl", _watermarkUrl ?? "");
+            _showSuccess = true;
+            // Hide success message after 3 seconds
+            _ = Task.Delay(3000).ContinueWith(_ => { _showSuccess = false; InvokeAsync(StateHasChanged); });
+        }
+        finally 
+        {
+            _isSaving = false;
+        }
+    }
+}

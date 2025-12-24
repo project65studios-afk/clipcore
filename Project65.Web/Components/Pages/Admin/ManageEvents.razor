@@ -10,7 +10,10 @@
 <div class="admin-container" style="max-width: 1000px; margin: 2rem auto; padding: 0 1rem;">
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
         <h1 style="font-size: 2rem; margin: 0;">Manage Events</h1>
-        <a href="/admin/upload" class="btn-primary" style="text-decoration: none;">+ Upload New Clip</a>
+        <div style="display: flex; gap: 1rem;">
+            <a href="/admin/settings" class="btn-secondary" style="text-decoration: none;">⚙️ Settings</a>
+            <a href="/admin/upload" class="btn-primary" style="text-decoration: none;">+ Upload New Clip</a>
+        </div>
     </div>
 
     @if (_events == null)

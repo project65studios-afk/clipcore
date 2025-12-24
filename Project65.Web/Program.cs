@@ -25,6 +25,7 @@ builder.Services.AddScoped<IClipRepository, ClipRepository>();
 builder.Services.AddScoped<IVideoService, MuxVideoService>();
 builder.Services.AddScoped<IPaymentService, StripePaymentService>();
 builder.Services.AddScoped<IPurchaseRepository, PurchaseRepository>();
+builder.Services.AddScoped<ISettingsRepository, SettingsRepository>();
 
 var app = builder.Build();
 

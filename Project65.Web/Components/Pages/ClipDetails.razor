@@ -8,6 +8,8 @@
 @inject IPaymentService PaymentService
 @inject IPurchaseRepository PurchaseRepository
 @inject NavigationManager Navigation
+@inject ISettingsRepository SettingsRepository
+@inject IJSRuntime JSRuntime
 @rendermode RenderMode.InteractiveServer
 
 <PageTitle>@_clip?.Title - Project65</PageTitle>
@@ -25,12 +27,19 @@ else
         </div>
         
         <div style="display: grid; grid-template-columns: 1fr 350px; gap: 2rem;">
-            <!-- Player Column -->
-            <div>
-                 <div class="video-container" style="border: 1px solid var(--border-color); box-shadow: 0 0 40px rgba(0,0,0,0.5);">
+             <div>
+                 <div id="player-container" class="video-player-container" style="border: 1px solid var(--border-color); box-shadow: 0 0 40px rgba(0,0,0,0.5); position: relative;">
+                    @if (!string.IsNullOrEmpty(_watermarkUrl))
+                    {
+                        <div class="watermark-overlay">
+                            <img src="@_watermarkUrl" alt="Watermark" />
+                        </div>
+                    }
+
                     @if (_hasPurchased)
                     {
                          <mux-player
+                            id="purchased-player"
                             playback-id="@_clip.PlaybackIdSigned"
                             playback-token="@VideoService.GetPlaybackToken(_clip.PlaybackIdSigned, "v")"
                             thumbnail-token="@VideoService.GetPlaybackToken(_clip.PlaybackIdSigned, "t")"
@@ -38,11 +47,14 @@ else
                             metadata-video-title="@_clip.Title"
                             primary-color="#06b6d4"
                             accent-color="#ec4899"
+                            fullscreen-element="player-container"
+                            style="width: 100%; height: 100%;"
                          ></mux-player>
                     }
                     else if (GetPreviewId() is string previewId)
                     {
                         <mux-player
+                            id="preview-player"
                             playback-id="@previewId"
                             playback-token="@VideoService.GetPlaybackToken(previewId, "v", "480p")"
                             thumbnail-token="@VideoService.GetPlaybackToken(previewId, "t", "480p")"
@@ -51,6 +63,8 @@ else
                             loop
                             muted
                             autoplay
+                            fullscreen-element="player-container"
+                            style="width: 100%; height: 100%;"
                         ></mux-player>
                     }
                     else
@@ -60,8 +74,8 @@ else
                          </div>
                     }
                 </div>
-                
-                <h1 style="margin-top: 1.5rem; font-size: 1.5rem; margin-bottom: 0.25rem;">@_clip.Title</h1>
+            
+            <h1 style="margin-top: 1.5rem; font-size: 1.5rem; margin-bottom: 0.25rem;">@_clip.Title</h1>
                 <div style="display: flex; gap: 1rem; align-items: center; margin-bottom: 1rem;">
                     <p style="color: var(--text-secondary); margin: 0;">Published on @_clip.PublishedAt.ToString("MMMM dd, yyyy")</p>
                     @if (_clip.RecordingStartedAt.HasValue)
@@ -162,6 +176,7 @@ else
 
     private bool _isEditingPrice = false;
     private double _editingPrice;
+    private string? _watermarkUrl;
 
     [CascadingParameter]
     private Task<AuthenticationState> AuthenticationStateTask { get; set; } = null!;
@@ -189,6 +204,7 @@ else
 
     protected override async Task OnInitializedAsync()
     {
+        _watermarkUrl = await SettingsRepository.GetValueAsync("WatermarkUrl");
         
         if (AuthenticationStateTask != null)
         {
@@ -315,5 +331,27 @@ else
         var cancelUrl = Navigation.BaseUri + $"clips/{Id}";
         var url = await PaymentService.CreateCheckoutSessionAsync(_clip, successUrl, cancelUrl);
         Navigation.NavigateTo(url);
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender && _clip != null)
+        {
+            try
+            {
+                if (_hasPurchased)
+                {
+                    await JSRuntime.InvokeVoidAsync("setFullscreenElement", "#purchased-player", "player-container");
+                }
+                else if (GetPreviewId() != null)
+                {
+                    await JSRuntime.InvokeVoidAsync("setFullscreenElement", "#preview-player", "player-container");
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"JS Error: {ex.Message}");
+            }
+        }
     }
 }

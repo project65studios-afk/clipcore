@@ -3,6 +3,7 @@
 @using Project65.Core.Interfaces
 @inject IEventRepository EventRepository
 @inject IVideoService VideoService
+@inject ISettingsRepository SettingsRepository
 
 <PageTitle>@_event?.Name - Project65</PageTitle>
 
@@ -81,7 +82,14 @@ else
                          }
                          @if (!string.IsNullOrEmpty(previewId) && !previewId.StartsWith("mock"))
                          {
-                              <div class="preview-player">
+                              <div id="preview-container-@clip.Id" class="video-player-container preview-player" style="position: relative;">
+                                  @if (!string.IsNullOrEmpty(_watermarkUrl))
+                                  {
+                                      <div class="watermark-overlay">
+                                          <img src="@_watermarkUrl" alt="Watermark" />
+                                      </div>
+                                  }
+
                                   <mux-player
                                     playback-id="@previewId"
                                     playback-token="@VideoService.GetPlaybackToken(previewId, "v", "480p")"
@@ -91,6 +99,7 @@ else
                                     muted
                                     autoplay
                                     loop
+                                    fullscreen-element="preview-container-@clip.Id"
                                     style="width: 100%; height: 100%; object-fit: cover;"
                                     controls="false"
                                   ></mux-player>
@@ -130,9 +139,11 @@ else
 
     private Event? _event;
     private bool _loading = true;
+    private string? _watermarkUrl;
 
     protected override async Task OnInitializedAsync()
     {
+        _watermarkUrl = await SettingsRepository.GetValueAsync("WatermarkUrl");
         _event = await EventRepository.GetByIdAsync(Id);
         _loading = false;
     }

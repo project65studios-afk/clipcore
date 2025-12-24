@@ -13,6 +13,7 @@ public class AppDbContext : IdentityDbContext
     public DbSet<Event> Events { get; set; } = null!;
     public DbSet<Clip> Clips { get; set; } = null!;
     public DbSet<Purchase> Purchases { get; set; } = null!;
+    public DbSet<Setting> Settings { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
