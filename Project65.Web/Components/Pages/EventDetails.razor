@@ -4,6 +4,7 @@
 @inject IEventRepository EventRepository
 @inject IVideoService VideoService
 @inject ISettingsRepository SettingsRepository
+@rendermode RenderMode.InteractiveServer
 
 <PageTitle>@_event?.Name - Project65</PageTitle>
 
@@ -35,10 +36,13 @@ else
     
     <div class="mb-4" style="display: flex; justify-content: space-between; align-items: center;">
         <h3 class="section-title">All Clips</h3>
-        <select class="form-control" style="width: auto;">
-            <option>Latest</option>
-            <option>Oldest</option>
-            <option>Price: Low to High</option>
+        <select class="form-control" style="width: auto;" @onchange="OnSortChanged" value="@_sortBy">
+            <option value="TimeUsedAsc">Time Used: Oldest First</option>
+            <option value="TimeUsedDesc">Time Used: Newest First</option>
+            <option value="PriceLowHigh">Price: Low to High</option>
+            <option value="PriceHighLow">Price: High to Low</option>
+            <option value="DurationShortLong">Duration: Shortest First</option>
+            <option value="DurationLongShort">Duration: Longest First</option>
         </select>
     </div>
 
@@ -140,12 +144,50 @@ else
     private Event? _event;
     private bool _loading = true;
     private string? _watermarkUrl;
+    private string _sortBy = "TimeUsedAsc"; // Default sort
 
     protected override async Task OnInitializedAsync()
     {
         _watermarkUrl = await SettingsRepository.GetValueAsync("WatermarkUrl");
         _event = await EventRepository.GetByIdAsync(Id);
+        SortClips(); // Initial sort
         _loading = false;
+    }
+
+    private void OnSortChanged(ChangeEventArgs e)
+    {
+        _sortBy = e.Value?.ToString() ?? "TimeUsedAsc";
+        SortClips();
+    }
+
+    private void SortClips()
+    {
+        if (_event?.Clips == null || !_event.Clips.Any()) return;
+
+        switch (_sortBy)
+        {
+            case "TimeUsedAsc": // Default: Least to greatest time used
+                _event.Clips = _event.Clips.OrderBy(c => c.RecordingStartedAt ?? DateTime.MaxValue).ToList();
+                break;
+            case "TimeUsedDesc":
+                _event.Clips = _event.Clips.OrderByDescending(c => c.RecordingStartedAt ?? DateTime.MinValue).ToList();
+                break;
+            case "PriceLowHigh":
+                _event.Clips = _event.Clips.OrderBy(c => c.PriceCents).ToList();
+                break;
+            case "PriceHighLow":
+                _event.Clips = _event.Clips.OrderByDescending(c => c.PriceCents).ToList();
+                break;
+            case "DurationShortLong":
+                _event.Clips = _event.Clips.OrderBy(c => c.DurationSec ?? double.MaxValue).ToList();
+                break;
+            case "DurationLongShort":
+                _event.Clips = _event.Clips.OrderByDescending(c => c.DurationSec ?? double.MinValue).ToList();
+                break;
+            default:
+                _event.Clips = _event.Clips.OrderBy(c => c.RecordingStartedAt ?? DateTime.MaxValue).ToList();
+                break;
+        }
     }
 
     private string GetThumbnailId(Clip clip)
