@@ -1,0 +1,67 @@
+# .NET Core
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+
+# Visual Studio
+.vs/
+*.user
+*.userosscache
+*.sln.docstates
+.vs/
+
+# Visual Studio Code
+.vscode/
+
+# Rider
+.idea/
+
+# User-specific files
+*.rsuser
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# Build results
+[Dd]ebug/
+[Dd]ebugPublic/
+[Rr]elease/
+[Rr]eleases/
+x64/
+x86/
+build/
+bin/
+obj/
+
+# NuGet Packages
+*.nupkg
+# The packages folder can be ignored as of NuGet 3.0+
+# (if you are using NuGet 2.x repositories, remove this line)
+**/packages/*
+# except build/, which is used as an MSBuild target.
+!**/packages/build/
+# Uncomment if using NuGet 4.x+ with PackageReference, to ignore restoration artifacts.
+# **/obj/*
+# **/bin/*
+
+# SQLite
+*.db
+*.db-shm
+*.db-wal
+
+# Secrets
+appsettings.Development.json
+appsettings.json
+
+# Specialized directories
+.gemini/
+.agent/
+brain/
+logs/
+implementation_plan.md
+task.md
+walkthrough.md
+*.png
+*.gif
+*.log

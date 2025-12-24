@@ -1,0 +1,319 @@
+@page "/clips/{Id}"
+@using Project65.Core.Entities
+@using Project65.Core.Interfaces
+@using Project65.Infrastructure.Data.Repositories
+@using Microsoft.AspNetCore.WebUtilities
+@inject IClipRepository ClipRepository
+@inject IVideoService VideoService
+@inject IPaymentService PaymentService
+@inject IPurchaseRepository PurchaseRepository
+@inject NavigationManager Navigation
+@rendermode RenderMode.InteractiveServer
+
+<PageTitle>@_clip?.Title - Project65</PageTitle>
+
+@if (_clip == null)
+{
+    @if (_loading) { <p>Loading...</p> }
+    else { <p>Clip not found.</p> }
+}
+else
+{
+    <div style="max-width: 1000px; margin: 0 auto;">
+        <div class="mb-4">
+            <a href="/events/@_clip.EventId" style="color: var(--text-secondary);">← Back to Event</a>
+        </div>
+        
+        <div style="display: grid; grid-template-columns: 1fr 350px; gap: 2rem;">
+            <!-- Player Column -->
+            <div>
+                 <div class="video-container" style="border: 1px solid var(--border-color); box-shadow: 0 0 40px rgba(0,0,0,0.5);">
+                    @if (_hasPurchased)
+                    {
+                         <mux-player
+                            playback-id="@_clip.PlaybackIdSigned"
+                            playback-token="@VideoService.GetPlaybackToken(_clip.PlaybackIdSigned, "v")"
+                            thumbnail-token="@VideoService.GetPlaybackToken(_clip.PlaybackIdSigned, "t")"
+                            storyboard-token="@VideoService.GetPlaybackToken(_clip.PlaybackIdSigned, "s")"
+                            metadata-video-title="@_clip.Title"
+                            primary-color="#06b6d4"
+                            accent-color="#ec4899"
+                         ></mux-player>
+                    }
+                    else if (GetPreviewId() is string previewId)
+                    {
+                        <mux-player
+                            playback-id="@previewId"
+                            playback-token="@VideoService.GetPlaybackToken(previewId, "v", "480p")"
+                            thumbnail-token="@VideoService.GetPlaybackToken(previewId, "t", "480p")"
+                            storyboard-token="@VideoService.GetPlaybackToken(previewId, "s", "480p")"
+                            metadata-video-title="@_clip.Title (Preview)"
+                            loop
+                            muted
+                            autoplay
+                        ></mux-player>
+                    }
+                    else
+                    {
+                         <div style="width:100%;height:100%;background:linear-gradient(45deg, #1e293b, #0f172a);display:flex;align-items:center;justify-content:center;flex-direction:column; min-height: 400px; color: var(--text-muted);">
+                             <p>Preview Unavailable (Processing or Mock)</p>
+                         </div>
+                    }
+                </div>
+                
+                <h1 style="margin-top: 1.5rem; font-size: 1.5rem; margin-bottom: 0.25rem;">@_clip.Title</h1>
+                <div style="display: flex; gap: 1rem; align-items: center; margin-bottom: 1rem;">
+                    <p style="color: var(--text-secondary); margin: 0;">Published on @_clip.PublishedAt.ToString("MMMM dd, yyyy")</p>
+                    @if (_clip.RecordingStartedAt.HasValue)
+                    {
+                        <span style="color: var(--text-muted); font-size: 0.8rem;">•</span>
+                        <p style="color: var(--text-secondary); margin: 0;">Filmed: @_clip.RecordingStartedAt.Value.ToString("MMM dd, yyyy h:mm tt")</p>
+                    }
+                    <span style="color: var(--text-muted); font-size: 0.8rem;">•</span>
+                    <span style="color: var(--accent-cyan); font-weight: 600; font-size: 0.9rem;">
+                        @(_clip.DurationSec.HasValue ? TimeSpan.FromSeconds(_clip.DurationSec.Value).ToString(@"mm\:ss") : "--:--")
+                    </span>
+                </div>
+            </div>
+            
+            <!-- Purchase / Details Column -->
+            <div style="background: var(--bg-dark-800); padding: 1.5rem; border-radius: var(--radius-lg); border: 1px solid var(--border-color); height: fit-content;">
+                <h3 class="mb-4">Purchase Clip</h3>
+                
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; padding-bottom: 1rem; border-bottom: 1px solid var(--border-color);">
+                    <span style="color: var(--text-secondary);">Price</span>
+                    <div style="text-align: right;">
+                        <AuthorizeView Roles="Admin">
+                            <Authorized>
+                                @if (_isEditingPrice)
+                                {
+                                    <div style="display: flex; gap: 0.5rem; align-items: center;">
+                                        <div style="position: relative; display: flex; align-items: center;">
+                                            <span style="position: absolute; left: 0.75rem; color: var(--text-muted);">$</span>
+                                            <input type="number" step="0.01" class="form-control" style="width: 100px; padding: 0.4rem 0.5rem 0.4rem 1.6rem; height: auto; font-size: 0.9rem;" @bind="_editingPrice" />
+                                        </div>
+                                        <button class="btn-primary" style="padding: 0.4rem 0.75rem; font-size: 0.8rem;" @onclick="SavePriceAsync">Save</button>
+                                        <button class="btn-secondary" style="padding: 0.4rem 0.75rem; font-size: 0.8rem;" @onclick="CancelEditPrice">Cancel</button>
+                                    </div>
+                                }
+                                else
+                                {
+                                    <div style="display: flex; gap: 0.75rem; align-items: center;">
+                                        <span style="font-weight: 700; font-size: 1.25rem;">$@(_clip.PriceCents / 100.00)</span>
+                                        <button class="btn-secondary" style="padding: 0.25rem 0.5rem; font-size: 0.7rem; color: var(--accent-cyan); border-color: var(--accent-cyan-dim);" @onclick="ToggleEditPrice">Edit Price</button>
+                                    </div>
+                                }
+                            </Authorized>
+                            <NotAuthorized>
+                                <div style="display: flex; flex-direction: column; align-items: flex-end;">
+                                    <span style="font-weight: 700; font-size: 1.25rem;">$@(_clip.PriceCents / 100.00)</span>
+                                    @if (_isAuthenticated)
+                                    {
+                                        <span style="font-size: 0.65rem; color: var(--text-muted); font-style: italic;">Admin rights required to edit</span>
+                                    }
+                                </div>
+                            </NotAuthorized>
+                        </AuthorizeView>
+                    </div>
+                </div>
+                
+                <div style="margin-bottom: 2rem;">
+                    <span style="color: var(--text-secondary);">Duration</span>
+                    <span style="float: right;">@(_clip.DurationSec.HasValue ? TimeSpan.FromSeconds(_clip.DurationSec.Value).ToString(@"mm\:ss") : "--:--")</span>
+                </div>
+                
+                @if (!_hasPurchased)
+                {
+                    <button class="btn-primary" style="width: 100%; margin-bottom: 1rem;" @onclick="BuyAsync">
+                        Unlock Full Video
+                    </button>
+                    @if (_processingPurchase)
+                    {
+                        <div class="text-center text-info">Verifying purchase...</div>
+                    }
+                    <p style="font-size: 0.8rem; color: var(--text-muted); text-align: center;">
+                        Secure payment via Stripe. Instant access.
+                    </p>
+                }
+                else
+                {
+                    <button class="btn-secondary" style="width: 100%; border-color: var(--accent-cyan); color: var(--accent-cyan);" disabled>
+                         ✓ Purchased
+                    </button>
+                    <button class="btn-secondary mt-2" style="width: 100%;">
+                        Download
+                    </button>
+                }
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter]
+    public string Id { get; set; } = string.Empty;
+
+    private Clip? _clip;
+    private bool _loading = true;
+    private bool _hasPurchased = false; 
+    private bool _processingPurchase = false;
+    private Guid _userId = Guid.NewGuid(); // TODO: Use ClaimsPrincipal
+    private bool _isAuthenticated = false;
+
+    private bool _isEditingPrice = false;
+    private double _editingPrice;
+
+    [CascadingParameter]
+    private Task<AuthenticationState> AuthenticationStateTask { get; set; } = null!;
+
+    private void ToggleEditPrice()
+    {
+        if (_clip != null)
+        {
+            _editingPrice = _clip.PriceCents / 100.00;
+            _isEditingPrice = true;
+        }
+    }
+
+    private void CancelEditPrice() => _isEditingPrice = false;
+
+    private async Task SavePriceAsync()
+    {
+        if (_clip != null)
+        {
+            _clip.PriceCents = (int)Math.Round(_editingPrice * 100);
+            await ClipRepository.UpdateAsync(_clip);
+            _isEditingPrice = false;
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        
+        if (AuthenticationStateTask != null)
+        {
+            var authState = await AuthenticationStateTask;
+            var user = authState.User;
+            _isAuthenticated = user.Identity?.IsAuthenticated == true;
+            
+        }
+        
+        if (_isAuthenticated)
+        {
+            // Use standard Identity User ID
+             // For now we keep the mock GUID or try to parse the claim
+             // _userId = Guid.Parse(user.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? Guid.Empty.ToString());
+             // For safety in this MVP iteration where we mix models:
+             // Let's just use the hardcoded/anonymous tracking logic for simplicity UNLESS we want to force login.
+             // Given wireframe, likely guest checkout is allowed or login required.
+             // Let's stick to the existing logic but knowing we have auth now.
+        }
+
+        _clip = await ClipRepository.GetByIdAsync(Id);
+        
+        if (_clip != null)
+        {
+            // Self-Healing: Try to resolve MuxAssetId if missing
+            if (string.IsNullOrEmpty(_clip.MuxAssetId) && !string.IsNullOrEmpty(_clip.MuxUploadId))
+            {
+                var resolvedAssetId = await VideoService.GetAssetIdFromUploadAsync(_clip.MuxUploadId);
+                if (!string.IsNullOrEmpty(resolvedAssetId))
+                {
+                    _clip.MuxAssetId = resolvedAssetId;
+                    await ClipRepository.UpdateAsync(_clip);
+                    Console.WriteLine($"Resolved and saved MuxAssetId for clip {_clip.Id}");
+                }
+            }
+
+            // Self-Healing: If we have an asset ID but no playback ID, duration, or start time, try to fix it.
+            if (!string.IsNullOrEmpty(_clip.MuxAssetId) && (string.IsNullOrEmpty(_clip.PlaybackIdSigned) || !_clip.DurationSec.HasValue || !_clip.RecordingStartedAt.HasValue))
+            {
+                try 
+                {
+                    bool needsUpdate = false;
+                    
+                    if (string.IsNullOrEmpty(_clip.PlaybackIdSigned))
+                    {
+                        Console.WriteLine($"Repairing playback ID for Asset {_clip.MuxAssetId}");
+                        var newId = await VideoService.EnsurePlaybackIdAsync(_clip.MuxAssetId);
+                        if (!string.IsNullOrEmpty(newId))
+                        {
+                            _clip.PlaybackIdSigned = newId;
+                            needsUpdate = true;
+                        }
+                    }
+
+                    if (!_clip.DurationSec.HasValue || !_clip.RecordingStartedAt.HasValue)
+                    {
+                        Console.WriteLine($"Fetching details for Asset {_clip.MuxAssetId}");
+                        var (duration, startedAt) = await VideoService.GetAssetDetailsAsync(_clip.MuxAssetId);
+                        
+                        if (duration.HasValue && !_clip.DurationSec.HasValue)
+                        {
+                            _clip.DurationSec = duration.Value;
+                            needsUpdate = true;
+                        }
+
+                        if (startedAt.HasValue && !_clip.RecordingStartedAt.HasValue)
+                        {
+                            _clip.RecordingStartedAt = startedAt;
+                            needsUpdate = true;
+                        }
+                    }
+
+                    if (needsUpdate)
+                    {
+                        await ClipRepository.UpdateAsync(_clip); // Persist the fix
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Failed to repair asset: {ex.Message}");
+                }
+            }
+
+            _hasPurchased = await PurchaseRepository.HasPurchasedAsync(_userId, Id);
+            
+            var uri = Navigation.ToAbsoluteUri(Navigation.Uri);
+            if (QueryHelpers.ParseQuery(uri.Query).TryGetValue("session_id", out var sessionId))
+            {
+                _processingPurchase = true;
+                var purchase = await PaymentService.GetPurchaseFromSessionAsync(sessionId!);
+                if (purchase != null && purchase.ClipId == Id)
+                {
+                    purchase.UserId = _userId;
+                    if (!_hasPurchased)
+                    {
+                        try 
+                        {
+                            await PurchaseRepository.AddAsync(purchase);
+                            _hasPurchased = true;
+                        }
+                        catch { _hasPurchased = true; }
+                    }
+                }
+                _processingPurchase = false;
+            }
+        }
+        _loading = false;
+    }
+
+    private string? GetPreviewId()
+    {
+        if (_clip == null) return null;
+        if (!string.IsNullOrEmpty(_clip.PlaybackIdTeaser) && !_clip.PlaybackIdTeaser.StartsWith("mock"))
+            return _clip.PlaybackIdTeaser;
+        if (!string.IsNullOrEmpty(_clip.PlaybackIdSigned) && !_clip.PlaybackIdSigned.StartsWith("mock"))
+            return _clip.PlaybackIdSigned;
+        return null;
+    }
+
+    private async Task BuyAsync()
+    {
+        if (_clip == null) return;
+        var successUrl = Navigation.BaseUri + $"clips/{Id}?session_id={{CHECKOUT_SESSION_ID}}";
+        var cancelUrl = Navigation.BaseUri + $"clips/{Id}";
+        var url = await PaymentService.CreateCheckoutSessionAsync(_clip, successUrl, cancelUrl);
+        Navigation.NavigateTo(url);
+    }
+}

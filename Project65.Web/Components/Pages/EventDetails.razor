@@ -1,0 +1,150 @@
+@page "/events/{Id}"
+@using Project65.Core.Entities
+@using Project65.Core.Interfaces
+@inject IEventRepository EventRepository
+@inject IVideoService VideoService
+
+<PageTitle>@_event?.Name - Project65</PageTitle>
+
+@if (_event == null)
+{
+    @if (_loading) { <p>Loading...</p> }
+    else { <p>Event not found.</p> }
+}
+else
+{
+    <div class="mb-4">
+        <a href="/" style="color: var(--text-secondary); font-size: 0.9rem;">← Back to Events</a>
+    </div>
+
+    <div style="background: var(--bg-dark-800); border-radius: var(--radius-lg); padding: 2rem; margin-bottom: 3rem; border: 1px solid var(--border-color);">
+        <h1 style="font-size: 2.5rem; margin-bottom: 0.5rem;">@_event.Name</h1>
+        <div style="display: flex; gap: 1rem; color: var(--text-secondary); margin-bottom: 1.5rem;">
+            <span>@_event.Date.ToLongDateString()</span>
+            <span>•</span>
+            <span>@_event.Clips.Count clips</span>
+        </div>
+        <p style="max-width: 600px; color: var(--text-secondary);">@_event.Summary</p>
+        
+        <div style="margin-top: 1.5rem; display: flex; gap: 1rem;">
+             <button class="btn-primary">Share Event</button>
+             <button class="btn-secondary">Copy Link</button>
+        </div>
+    </div>
+    
+    <div class="mb-4" style="display: flex; justify-content: space-between; align-items: center;">
+        <h3 class="section-title">All Clips</h3>
+        <select class="form-control" style="width: auto;">
+            <option>Latest</option>
+            <option>Oldest</option>
+            <option>Price: Low to High</option>
+        </select>
+    </div>
+
+    @if (!_event.Clips.Any())
+    {
+        <p>No clips available yet.</p>
+    }
+    else
+    {
+        <div class="video-grid">
+            @foreach (var clip in _event.Clips)
+            {
+                <a href="/clips/@clip.Id" class="video-card">
+                    <div class="video-thumb">
+                        @if (clip.PlaybackIdTeaser?.StartsWith("mock") == true)
+                        {
+                             <div style="width: 100%; height: 100%; background: linear-gradient(45deg, #1e293b, #0f172a); display: flex; align-items: center; justify-content: center; color: var(--text-muted);">
+                                 <span>Mock Video</span>
+                             </div>
+                        }
+                        else if (string.IsNullOrEmpty(GetThumbnailId(clip)))
+                        {
+                             <div style="width: 100%; height: 100%; background: #0f172a; display: flex; align-items: center; justify-content: center; color: var(--text-muted); border-radius: 4px;">
+                                 <div class="text-center">
+                                     <div class="spinner-border spinner-border-sm mb-2" role="status"></div>
+                                     <div style="font-size: 0.7rem;">Processing...</div>
+                                 </div>
+                             </div>
+                        }
+                        else
+                        {
+                            <!-- Static Image (Thumbnail) - Use Signed URL if needed -->
+                            <img src="https://image.mux.com/@GetThumbnailId(clip)/thumbnail.jpg?token=@GetToken(clip)" 
+                                 alt="@clip.Title" 
+                                 style="width: 100%; aspect-ratio: 16/9; object-fit: cover; border-radius: 4px; border: 1px solid rgba(255,255,255,0.1);" />
+                        }
+                        
+                        <!-- Hover Preview -->
+                         @{
+                             var previewId = clip.PlaybackIdTeaser ?? clip.PlaybackIdSigned;
+                         }
+                         @if (!string.IsNullOrEmpty(previewId) && !previewId.StartsWith("mock"))
+                         {
+                              <div class="preview-player">
+                                  <mux-player
+                                    playback-id="@previewId"
+                                    playback-token="@VideoService.GetPlaybackToken(previewId, "v", "480p")"
+                                    thumbnail-token="@VideoService.GetPlaybackToken(previewId, "t", "480p")"
+                                    storyboard-token="@VideoService.GetPlaybackToken(previewId, "s", "480p")"
+                                    metadata-video-title="@clip.Title"
+                                    muted
+                                    autoplay
+                                    loop
+                                    style="width: 100%; height: 100%; object-fit: cover;"
+                                    controls="false"
+                                  ></mux-player>
+                              </div>
+                         }
+                    </div>
+                    <div class="video-info">
+                        <div style="flex-grow: 1; min-width: 0;">
+                            <div style="font-weight: 600; font-size: 1rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="@clip.Title">@clip.Title</div>
+                             <div style="font-size: 0.85rem; color: var(--accent-cyan); margin-top: 0.1rem; font-weight: 500; display: flex; gap: 0.5rem; align-items: center;">
+                                 @if (clip.RecordingStartedAt.HasValue)
+                                 {
+                                     <span style="color: var(--text-secondary);">@clip.RecordingStartedAt.Value.ToString("MMM dd, h:mm tt")</span>
+                                     <span style="color: var(--text-muted); font-size: 0.7rem;">•</span>
+                                 }
+                                 @if (clip.DurationSec.HasValue)
+                                 {
+                                     <span>@TimeSpan.FromSeconds(clip.DurationSec.Value).ToString(@"mm\:ss")</span>
+                                 }
+                                 else if (!clip.RecordingStartedAt.HasValue)
+                                 {
+                                     <span style="color: var(--text-muted); font-style: italic;">Processing...</span>
+                                 }
+                             </div>
+                        </div>
+                        <span class="price-tag" style="align-self: flex-start; margin-top: 0.2rem;">$@(clip.PriceCents / 100.00)</span>
+                    </div>
+                </a>
+            }
+        </div>
+    }
+}
+
+@code {
+    [Parameter]
+    public string Id { get; set; } = string.Empty;
+
+    private Event? _event;
+    private bool _loading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _event = await EventRepository.GetByIdAsync(Id);
+        _loading = false;
+    }
+
+    private string GetThumbnailId(Clip clip)
+    {
+        return clip.PlaybackIdTeaser ?? clip.PlaybackIdSigned;
+    }
+
+    private string GetToken(Clip clip)
+    {
+        var id = GetThumbnailId(clip);
+        return VideoService.GetPlaybackToken(id, "t");
+    }
+}

@@ -1,0 +1,50 @@
+@page
+@model Project65.Web.Pages.Account.RegisterModel
+@{
+    Layout = null; 
+}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Register - Project65</title>
+    <link rel="stylesheet" href="/app.css" />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" >
+</head>
+<body>
+    <div class="auth-container">
+        <div class="auth-box">
+            <h2 class="text-center mb-4">Create Account</h2>
+            <form method="post">
+                <div class="mb-4">
+                    <label class="section-title">Email</label>
+                    <input type="email" name="Input.Email" class="form-control" required />
+                </div>
+                <div class="mb-4">
+                    <label class="section-title">Password</label>
+                    <input type="password" name="Input.Password" class="form-control" required />
+                </div>
+                 <div class="mb-4">
+                    <label class="section-title">Confirm Password</label>
+                    <input type="password" name="Input.ConfirmPassword" class="form-control" required />
+                </div>
+                <button type="submit" class="btn-primary" style="width:100%">Register</button>
+            </form>
+            <div class="mt-4 text-center">
+                <a href="/Account/Login" style="color:var(--accent-cyan)">Already have an account? Login</a>
+            </div>
+            @if (!ModelState.IsValid)
+            {
+                <div style="color: var(--accent-pink); margin-top: 1rem; text-align: center;">
+                    @foreach (var error in ModelState.Values.SelectMany(v => v.Errors))
+                    {
+                        <p>@error.ErrorMessage</p>
+                    }
+                </div>
+            }
+        </div>
+    </div>
+</body>
+</html>

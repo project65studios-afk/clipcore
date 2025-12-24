@@ -1,0 +1,5 @@
+<Solution>
+  <Project Path="Project65.Core/Project65.Core.csproj" />
+  <Project Path="Project65.Infrastructure/Project65.Infrastructure.csproj" />
+  <Project Path="Project65.Web/Project65.Web.csproj" />
+</Solution>

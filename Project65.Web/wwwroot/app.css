@@ -1,0 +1,355 @@
+:root {
+    /* Neon / Dark Theme Palette */
+    --bg-dark-900: #0f1129;
+    /* Softer, slightly lighter deep navy */
+    --bg-dark-800: #171936;
+    /* Card background */
+    --bg-dark-700: #1e204a;
+    /* Hover/Input background */
+
+    --text-primary: #ffffff;
+    --text-secondary: #e2e8f0;
+    /* Very light slate */
+    --text-muted: #cbd5e1;
+    /* Light slate for contrast */
+
+    --accent-cyan: #06b6d4;
+    /* Neon Cyan */
+    --accent-cyan-dim: rgba(6, 182, 212, 0.1);
+    --accent-pink: #ec4899;
+    /* Neon Pink */
+
+    --border-color: #1e293b;
+    --border-active: #06b6d4;
+
+    --glass-bg: rgba(10, 11, 30, 0.8);
+    --glass-border: rgba(255, 255, 255, 0.05);
+
+    --radius-md: 12px;
+    --radius-lg: 16px;
+    --radius-full: 9999px;
+
+    /* Transition for theme switching */
+    --theme-transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+:root.light-theme {
+    --bg-dark-900: #f8fafc;
+    /* Lightest background */
+    --bg-dark-800: #ffffff;
+    /* Card background */
+    --bg-dark-700: #f1f5f9;
+    /* Hover/Input background */
+
+    --text-primary: #0f172a;
+    /* Slate 900 */
+    --text-secondary: #1e293b;
+    /* Slate 800 */
+    --text-muted: #334155;
+    /* Slate 700 */
+
+    --border-color: #e2e8f0;
+    /* Slate 200 */
+    --border-active: #06b6d4;
+
+    --glass-bg: rgba(255, 255, 255, 0.8);
+    --glass-border: rgba(0, 0, 0, 0.05);
+}
+
+body {
+    background-color: var(--bg-dark-900);
+    color: var(--text-primary);
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    margin: 0;
+    line-height: 1.5;
+    transition: var(--theme-transition);
+}
+
+a {
+    color: var(--text-primary);
+    text-decoration: none;
+    transition: all 0.2s ease;
+}
+
+/* Layout */
+.layout-container {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+}
+
+.top-nav {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.5rem 2rem;
+    background: transparent;
+}
+
+.brand {
+    font-size: 1.25rem;
+    font-weight: 800;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.brand span {
+    color: var(--accent-cyan);
+}
+
+.search-bar {
+    background: var(--bg-dark-700);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: 0.5rem 1rem;
+    color: var(--text-primary);
+    width: 400px;
+    max-width: 100%;
+}
+
+.cart-btn {
+    background: var(--bg-dark-700);
+    border: 1px solid var(--border-color);
+    padding: 0.5rem 1.5rem;
+    border-radius: var(--radius-md);
+    color: var(--text-primary);
+    cursor: pointer;
+    font-weight: 500;
+}
+
+.cart-btn:hover {
+    border-color: var(--text-secondary);
+}
+
+.content-wrapper {
+    padding: 0 2rem 2rem 2rem;
+    max-width: 1600px;
+    margin: 0 auto;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+/* Headings */
+h1,
+h2,
+h3 {
+    margin: 0;
+    font-weight: 600;
+}
+
+.section-title {
+    font-size: 1rem;
+    color: var(--text-secondary);
+    margin-bottom: 1rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+/* Cards */
+.event-card {
+    background: var(--bg-dark-800);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    display: flex;
+    flex-direction: row;
+    /* Horizontal style based on wireframe top section? Or grid? Wireframe shows both. */
+    align-items: center;
+    /* Adjust for grid usage */
+}
+
+/* Let's define a standard grid card */
+.card-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 1.5rem;
+}
+
+.grid-card {
+    background: var(--bg-dark-800);
+    border: 1px dashed var(--border-color);
+    /* Dashed border for empty/placeholder feel or sleek solid? */
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    cursor: pointer;
+    position: relative;
+}
+
+.grid-card:hover {
+    border-color: var(--accent-cyan);
+    box-shadow: 0 0 20px var(--accent-cyan-dim);
+    transform: translateY(-2px);
+}
+
+.grid-card.active {
+    border-color: var(--accent-cyan);
+    background: linear-gradient(180deg, rgba(6, 182, 212, 0.05) 0%, rgba(0, 0, 0, 0) 100%);
+}
+
+.card-title {
+    font-size: 1.1rem;
+    font-weight: 700;
+}
+
+.card-meta {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+}
+
+/* Neon Inputs */
+.form-control {
+    background: var(--bg-dark-700);
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
+    border-radius: var(--radius-md);
+    padding: 0.75rem 1rem;
+    width: 100%;
+    box-sizing: border-box;
+    transition: border-color 0.2s;
+}
+
+.form-control:focus {
+    outline: none;
+    border-color: var(--accent-cyan);
+}
+
+/* Buttons */
+.btn-primary {
+    background: linear-gradient(90deg, #0284c7 0%, #06b6d4 100%);
+    color: white;
+    border: none;
+    padding: 0.75rem 1.5rem;
+    border-radius: var(--radius-md);
+    font-weight: 600;
+    cursor: pointer;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+.btn-primary:hover {
+    opacity: 0.9;
+    box-shadow: 0 0 15px var(--accent-cyan-dim);
+}
+
+.btn-secondary {
+    background: var(--bg-dark-700);
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+    padding: 0.75rem 1.5rem;
+    border-radius: var(--radius-md);
+    cursor: pointer;
+}
+
+.btn-secondary:hover {
+    border-color: var(--text-secondary);
+}
+
+/* Video Grid and Hover */
+.video-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 1.5rem;
+}
+
+.video-card {
+    background: var(--bg-dark-800);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    position: relative;
+    border: 1px solid var(--border-color);
+}
+
+.video-thumb {
+    width: 100%;
+    aspect-ratio: 16/9;
+    background: black;
+    position: relative;
+    overflow: hidden;
+}
+
+.video-thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: opacity 0.3s;
+}
+
+.video-thumb .preview-player {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s;
+}
+
+.video-card:hover .video-thumb img {
+    opacity: 0;
+    /* Hide static thumb on hover */
+}
+
+.video-card:hover .video-thumb .preview-player {
+    opacity: 1;
+    /* Show preview player */
+}
+
+.video-info {
+    padding: 1rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.price-tag {
+    background: var(--bg-dark-700);
+    padding: 0.25rem 0.75rem;
+    border-radius: var(--radius-full);
+    font-size: 0.875rem;
+    border: 1px solid var(--border-active);
+}
+
+/* Login/Auth Layout Center */
+.auth-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 80vh;
+}
+
+.auth-box {
+    width: 100%;
+    max-width: 400px;
+    padding: 2rem;
+    background: var(--bg-dark-800);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+}
+
+.theme-toggle {
+    background: var(--bg-dark-700);
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
+    width: 40px;
+    height: 40px;
+    border-radius: var(--radius-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: var(--theme-transition);
+}
+
+.theme-toggle:hover {
+    border-color: var(--accent-cyan);
+    background: var(--bg-dark-800);
+}

@@ -1,0 +1,15 @@
+using System;
+using System.Collections.Generic;
+
+namespace Project65.Core.Entities;
+
+public class Event
+{
+    public string Id { get; set; } = Guid.NewGuid().ToString(); // Slug, e.g. "2025-11-30"
+    public string Name { get; set; } = string.Empty;
+    public DateOnly Date { get; set; }
+    public string? Summary { get; set; }
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+    public List<Clip> Clips { get; set; } = new();
+}

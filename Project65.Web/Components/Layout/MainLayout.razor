@@ -1,0 +1,39 @@
+﻿@inherits LayoutComponentBase
+@inject NavigationManager Navigation
+
+<div class="layout-container">
+    <header class="top-nav">
+        <a href="/" class="brand">
+            PROJECT<span>65</span> STUDIOS
+        </a>
+        
+        <input type="text" class="search-bar" placeholder="Search this event..." />
+        
+        <div style="display:flex; gap: 1rem; align-items: center;">
+            <ThemeToggle />
+
+            <AuthorizeView>
+                <Authorized>
+                    <a href="/admin/events" class="btn-secondary" style="padding: 0.5rem 1rem; font-size: 0.9rem;">Admin</a>
+                    <form action="/Account/Logout" method="post" style="display:inline;">
+                        <AntiforgeryToken />
+                        <input type="hidden" name="ReturnUrl" value="@("/" + Navigation.ToBaseRelativePath(Navigation.BaseUri))" />
+                        <button type="submit" class="btn-secondary" style="padding: 0.5rem 1rem; font-size: 0.9rem;">Logout</button>
+                    </form>
+                </Authorized>
+                <NotAuthorized>
+                     <a href="/Account/Login" class="btn-secondary" style="padding: 0.5rem 1rem; font-size: 0.9rem;">Login</a>
+                </NotAuthorized>
+            </AuthorizeView>
+            <button class="cart-btn">Cart</button>
+        </div>
+    </header>
+
+    <main class="content-wrapper">
+        @Body
+    </main>
+</div>
+
+@code {
+    // No logic needed here for theme anymore
+}
