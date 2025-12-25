@@ -37,6 +37,20 @@ public static class DataSeeder
             await userManager.AddToRoleAsync(user, adminRole);
         }
 
+        // Seed Regular User
+        var userEmail = "carandreyn@gmail.com";
+        var regularUser = await userManager.FindByEmailAsync(userEmail);
+        if (regularUser == null)
+        {
+            regularUser = new Microsoft.AspNetCore.Identity.IdentityUser
+            {
+                UserName = userEmail,
+                Email = userEmail,
+                EmailConfirmed = true
+            };
+            await userManager.CreateAsync(regularUser, "User123!");
+        }
+
         if (await context.Events.AnyAsync()) return;
 
         var events = new List<Event>

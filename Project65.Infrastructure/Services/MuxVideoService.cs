@@ -231,4 +231,56 @@ public class MuxVideoService : IVideoService
             return (null, null);
         }
     }
+    public async Task<string?> GetDownloadUrlAsync(string assetId, string? fileName = null)
+    {
+        if (string.IsNullOrEmpty(assetId)) return null;
+
+        try
+        {
+            var asset = await _assetsApi.GetAssetAsync(assetId);
+            
+            // Check Master Access Status
+            var masterStatus = asset.Data.Master?.Status;
+            var masterUrl = asset.Data.Master?.Url;
+
+            Console.WriteLine($"[MUX-DEBUG] Asset {assetId} Master Status: {masterStatus}");
+
+            if (masterStatus == AssetMaster.StatusEnum.Ready && !string.IsNullOrEmpty(masterUrl))
+            {
+                 // Master is ready.
+                 // If a filename is provided, append it to the URL.
+                 if (!string.IsNullOrEmpty(fileName))
+                 {
+                     // Ensure valid filename characters if needed, but Mux just needs it encoded.
+                     // Append &download=filename (or ? if it was the first param, but signed URLs have params)
+                     var separator = masterUrl.Contains("?") ? "&" : "?";
+                     var encodedName = Uri.EscapeDataString(fileName);
+                     return $"{masterUrl}{separator}download={encodedName}";
+                 }
+                 return masterUrl;
+            }
+
+            if (masterStatus == AssetMaster.StatusEnum.Preparing)
+            {
+                Console.WriteLine($"[MUX-DEBUG] Asset {assetId} master is preparing.");
+                return null; // Not ready yet
+            }
+
+            // If we are here, Master Access is likely "none" or "errored" (though error usually throws).
+            // Request Master Access
+            if (asset.Data.MasterAccess == Asset.MasterAccessEnum.None)
+            {
+                 Console.WriteLine($"[MUX-DEBUG] Enabling Master Access for {assetId}");
+                 var updateRequest = new UpdateAssetMasterAccessRequest(masterAccess: UpdateAssetMasterAccessRequest.MasterAccessEnum.Temporary);
+                 await _assetsApi.UpdateAssetMasterAccessAsync(assetId, updateRequest);
+            }
+
+            return null; // Request sent, user needs to wait.
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[MUX-ERROR] Error resolving Master URL for {assetId}: {ex.Message}");
+            return null;
+        }
+    }
 }

@@ -26,6 +26,8 @@ builder.Services.AddScoped<IVideoService, MuxVideoService>();
 builder.Services.AddScoped<IPaymentService, StripePaymentService>();
 builder.Services.AddScoped<IPurchaseRepository, PurchaseRepository>();
 builder.Services.AddScoped<ISettingsRepository, SettingsRepository>();
+builder.Services.AddScoped<IEmailService, ConsoleEmailService>();
+builder.Services.AddScoped<Project65.Web.Services.CartService>();
 
 var app = builder.Build();
 

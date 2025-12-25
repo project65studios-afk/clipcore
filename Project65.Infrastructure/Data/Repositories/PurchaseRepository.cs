@@ -8,6 +8,7 @@ public interface IPurchaseRepository
 {
     Task AddAsync(Purchase purchase);
     Task<bool> HasPurchasedAsync(Guid userId, string clipId);
+    Task<List<Purchase>> GetByUserIdAsync(Guid userId);
 }
 
 public class PurchaseRepository : IPurchaseRepository
@@ -29,5 +30,14 @@ public class PurchaseRepository : IPurchaseRepository
     {
         return await _context.Purchases
             .AnyAsync(p => p.UserId == userId && p.ClipId == clipId);
+    }
+
+    public async Task<List<Purchase>> GetByUserIdAsync(Guid userId)
+    {
+        return await _context.Purchases
+            .Include(p => p.Clip)
+            .Where(p => p.UserId == userId)
+            .OrderByDescending(p => p.CreatedAt)
+            .ToListAsync();
     }
 }

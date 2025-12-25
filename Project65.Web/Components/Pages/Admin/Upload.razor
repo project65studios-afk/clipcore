@@ -1,6 +1,8 @@
 @page "/admin/upload"
 @using Project65.Core.Entities
 @using Project65.Core.Interfaces
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize(Roles = "Admin")]
 @inject IVideoService VideoService
 @inject IEventRepository EventRepository
 @inject IClipRepository ClipRepository

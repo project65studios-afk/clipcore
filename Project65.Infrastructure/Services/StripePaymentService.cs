@@ -16,38 +16,49 @@ public class StripePaymentService : IPaymentService
         StripeConfiguration.ApiKey = _apiKey; // Global setting, simpler for MVP
     }
 
-    public async Task<string> CreateCheckoutSessionAsync(Clip clip, string successUrl, string cancelUrl)
+    public async Task<string> CreateCheckoutSessionAsync(IEnumerable<Clip> clips, string successUrl, string cancelUrl, string? userEmail = null)
     {
+        var lineItems = new List<SessionLineItemOptions>();
+        var clipIds = new List<string>();
+
+        foreach (var clip in clips)
+        {
+            clipIds.Add(clip.Id);
+            lineItems.Add(new SessionLineItemOptions
+            {
+                PriceData = new SessionLineItemPriceDataOptions
+                {
+                    UnitAmount = clip.PriceCents,
+                    Currency = "usd",
+                    ProductData = new SessionLineItemPriceDataProductDataOptions
+                    {
+                        Name = clip.Title,
+                        Description = $"Video Clip: {clip.Title}",
+                        Metadata = new Dictionary<string, string> { { "ClipId", clip.Id } }
+                    },
+                },
+                Quantity = 1,
+            });
+        }
+
         var options = new SessionCreateOptions
         {
             PaymentMethodTypes = new List<string> { "card" },
-            LineItems = new List<SessionLineItemOptions>
-            {
-                new SessionLineItemOptions
-                {
-                    PriceData = new SessionLineItemPriceDataOptions
-                    {
-                        UnitAmount = clip.PriceCents,
-                        Currency = "usd",
-                        ProductData = new SessionLineItemPriceDataProductDataOptions
-                        {
-                            Name = clip.Title,
-                            Description = $"Video Clip: {clip.Title}",
-                            // Metadata could go here
-                        },
-                    },
-                    Quantity = 1,
-                },
-            },
+            LineItems = lineItems,
             Mode = "payment",
             SuccessUrl = successUrl,
             CancelUrl = cancelUrl,
             Metadata = new Dictionary<string, string>
             {
-                { "ClipId", clip.Id },
-                { "EventId", clip.EventId }
-            }
+                { "ClipIds", string.Join(",", clipIds) }
+            },
+            InvoiceCreation = new SessionInvoiceCreationOptions { Enabled = true }
         };
+
+        if (!string.IsNullOrEmpty(userEmail))
+        {
+            options.CustomerEmail = userEmail;
+        }
 
         var service = new SessionService();
         Session session = await service.CreateAsync(options);
@@ -55,25 +66,46 @@ public class StripePaymentService : IPaymentService
         return session.Url;
     }
 
-    public async Task<Purchase?> GetPurchaseFromSessionAsync(string sessionId)
+    public async Task<List<Purchase>> GetPurchasesFromSessionAsync(string sessionId)
     {
         var service = new SessionService();
         var session = await service.GetAsync(sessionId);
+        var purchases = new List<Purchase>();
 
         if (session.PaymentStatus == "paid")
         {
-            // Extract metadata
-            if (session.Metadata.TryGetValue("ClipId", out var clipId))
+            // Try to get ClipIds from session metadata
+            if (session.Metadata.TryGetValue("ClipIds", out var clipIdsStr))
             {
-                 return new Purchase
+                var clipIds = clipIdsStr.Split(',', StringSplitOptions.RemoveEmptyEntries);
+                foreach (var id in clipIds)
+                {
+                    purchases.Add(new Purchase
+                    {
+                        ClipId = id,
+                        StripeSessionId = session.Id,
+                        CreatedAt = DateTime.UtcNow
+                    });
+                }
+            }
+            // Fallback for legacy single-item sessions
+            else if (session.Metadata.TryGetValue("ClipId", out var singleClipId))
+            {
+                 purchases.Add(new Purchase
                  {
-                     ClipId = clipId,
+                     ClipId = singleClipId,
                      StripeSessionId = session.Id,
-                     // UserId will be handled by the caller or passed in metadata? 
-                     // For now, caller sets UserId.
-                 };
+                     CreatedAt = DateTime.UtcNow
+                 });
             }
         }
-        return null;
+        return purchases;
+    }
+
+    public async Task<string?> GetCustomerEmailFromSessionAsync(string sessionId)
+    {
+        var service = new SessionService();
+        var session = await service.GetAsync(sessionId);
+        return session.CustomerDetails?.Email ?? session.CustomerEmail;
     }
 }

@@ -3,6 +3,7 @@
 @using Project65.Core.Interfaces
 @using Project65.Infrastructure.Data.Repositories
 @using Microsoft.AspNetCore.WebUtilities
+@using System.IO
 @inject IClipRepository ClipRepository
 @inject IVideoService VideoService
 @inject IPaymentService PaymentService
@@ -10,6 +11,7 @@
 @inject NavigationManager Navigation
 @inject ISettingsRepository SettingsRepository
 @inject IJSRuntime JSRuntime
+@inject Project65.Web.Services.CartService CartService
 @rendermode RenderMode.InteractiveServer
 
 <PageTitle>@_clip?.Title - Project65</PageTitle>
@@ -138,9 +140,31 @@ else
                 
                 @if (!_hasPurchased)
                 {
-                    <button class="btn-primary" style="width: 100%; margin-bottom: 1rem;" @onclick="BuyAsync">
-                        Unlock Full Video
-                    </button>
+                    <div class="d-flex gap-2 mb-3">
+                        <button class="btn-primary" style="width: 100%;" @onclick="BuyAsync">
+                            Buy Now
+                        </button>
+                        @if (_isInCart)
+                        {
+                            <a href="/cart" class="btn-secondary" style="width: 100%; text-align: center; text-decoration: none; display: flex; align-items: center; justify-content: center;">
+                                In Cart →
+                            </a>
+                        }
+                        else
+                        {
+                            <button class="btn-secondary" style="width: 100%;" @onclick="AddToCart" disabled="@_isAddingToCart">
+                                @if (_isAddingToCart)
+                                {
+                                    <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true" style="margin-right: 0.5rem;"></span>
+                                    <span>Adding...</span>
+                                }
+                                else
+                                {
+                                    <span>Add to Cart</span>
+                                }
+                            </button>
+                        }
+                    </div>
                     @if (_processingPurchase)
                     {
                         <div class="text-center text-info">Verifying purchase...</div>
@@ -154,9 +178,24 @@ else
                     <button class="btn-secondary" style="width: 100%; border-color: var(--accent-cyan); color: var(--accent-cyan);" disabled>
                          ✓ Purchased
                     </button>
-                    <button class="btn-secondary mt-2" style="width: 100%;">
-                        Download
+                    @if (!string.IsNullOrEmpty(_errorMessage))
+                    {
+                        <div class="alert alert-warning mt-2 mb-0" style="font-size: 0.85rem; padding: 0.5rem;">@_errorMessage</div>
+                    }
+                    <button class="btn-primary mt-2" style="width: 100%;" @onclick="DownloadOriginalAsync" disabled="@_isDownloading">
+                        @if (_isDownloading)
+                        {
+                             <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true" style="margin-right: 0.5rem;"></span>
+                             <span>Preparing Download...</span>
+                        }
+                        else
+                        {
+                             <span>Download Source (2048p)</span>
+                        }
                     </button>
+                    <p style="font-size: 0.8rem; color: var(--text-muted); text-align: center; margin-top: 0.5rem;">
+                        High-quality MP4 file.
+                    </p>
                 }
             </div>
         </div>
@@ -177,6 +216,7 @@ else
     private bool _isEditingPrice = false;
     private double _editingPrice;
     private string? _watermarkUrl;
+    private string _errorMessage = "";
 
     [CascadingParameter]
     private Task<AuthenticationState> AuthenticationStateTask { get; set; } = null!;
@@ -212,17 +252,14 @@ else
             var user = authState.User;
             _isAuthenticated = user.Identity?.IsAuthenticated == true;
             
-        }
-        
-        if (_isAuthenticated)
-        {
-            // Use standard Identity User ID
-             // For now we keep the mock GUID or try to parse the claim
-             // _userId = Guid.Parse(user.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? Guid.Empty.ToString());
-             // For safety in this MVP iteration where we mix models:
-             // Let's just use the hardcoded/anonymous tracking logic for simplicity UNLESS we want to force login.
-             // Given wireframe, likely guest checkout is allowed or login required.
-             // Let's stick to the existing logic but knowing we have auth now.
+            if (_isAuthenticated)
+            {
+                 var userIdClaim = user.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+                 if (Guid.TryParse(userIdClaim, out var parsed)) 
+                 {
+                     _userId = parsed;
+                 }
+            }
         }
 
         _clip = await ClipRepository.GetByIdAsync(Id);
@@ -294,8 +331,10 @@ else
             if (QueryHelpers.ParseQuery(uri.Query).TryGetValue("session_id", out var sessionId))
             {
                 _processingPurchase = true;
-                var purchase = await PaymentService.GetPurchaseFromSessionAsync(sessionId!);
-                if (purchase != null && purchase.ClipId == Id)
+                var purchases = await PaymentService.GetPurchasesFromSessionAsync(sessionId!);
+                var purchase = purchases.FirstOrDefault(p => p.ClipId == Id);
+                
+                if (purchase != null)
                 {
                     purchase.UserId = _userId;
                     if (!_hasPurchased)
@@ -324,19 +363,105 @@ else
         return null;
     }
 
+    private bool _isInCart = false;
+    private bool _isAddingToCart = false;
+
     private async Task BuyAsync()
     {
         if (_clip == null) return;
         var successUrl = Navigation.BaseUri + $"clips/{Id}?session_id={{CHECKOUT_SESSION_ID}}";
         var cancelUrl = Navigation.BaseUri + $"clips/{Id}";
-        var url = await PaymentService.CreateCheckoutSessionAsync(_clip, successUrl, cancelUrl);
+        
+        string? userEmail = null;
+        if (AuthenticationStateTask != null)
+        {
+            var authState = await AuthenticationStateTask;
+            var user = authState.User;
+            if (user.Identity?.IsAuthenticated == true)
+            {
+                userEmail = user.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value ?? user.Identity.Name;
+            }
+        }
+
+        // Pass single item as list
+        var url = await PaymentService.CreateCheckoutSessionAsync(new[] { _clip }, successUrl, cancelUrl, userEmail);
         Navigation.NavigateTo(url);
+    }
+
+    private bool _isDownloading = false;
+
+    private async Task DownloadOriginalAsync()
+    {
+        if (_clip == null || string.IsNullOrEmpty(_clip.MuxAssetId)) return;
+
+        _isDownloading = true;
+        _errorMessage = "";
+        StateHasChanged();
+
+        // Sanitize filename
+        var cleanTitle = string.Join("_", _clip.Title.Split(Path.GetInvalidFileNameChars()));
+        var url = await VideoService.GetDownloadUrlAsync(_clip.MuxAssetId, $"{cleanTitle}.mp4");
+        
+        if (!string.IsNullOrEmpty(url))
+        {
+            // Verify availability
+            using var client = new System.Net.Http.HttpClient();
+            try 
+            {
+                var request = new System.Net.Http.HttpRequestMessage(System.Net.Http.HttpMethod.Head, url);
+                var response = await client.SendAsync(request);
+                
+                if (response.IsSuccessStatusCode)
+                {
+                    await JSRuntime.InvokeVoidAsync("open", url, "_blank");
+                }
+                else
+                {
+                    _errorMessage = "Source file is verifying. Please try again in 1-2 minutes.";
+                }
+            }
+            catch
+            {
+                 // Fallback
+                 _errorMessage = "Source file check failed. Please retry shortly.";
+            }
+        }
+        else
+        {
+             _errorMessage = "Requesting source file from vault... Please wait 30-60s and try again.";
+        }
+
+        _isDownloading = false;
+        StateHasChanged();
+    }
+
+    private async Task AddToCart()
+    {
+        if (_clip != null && !_isAddingToCart)
+        {
+            _isAddingToCart = true;
+            try
+            {
+                await CartService.AddAsync(_clip);
+                _isInCart = true;
+            }
+            finally
+            {
+                _isAddingToCart = false;
+                StateHasChanged();
+            }
+        }
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender && _clip != null)
         {
+            await CartService.InitializeAsync();
+             // Check if already in cart
+            _isInCart = CartService.GetItems().Any(c => c.Id == _clip.Id);
+            StateHasChanged();
+
             try
             {
                 if (_hasPurchased)

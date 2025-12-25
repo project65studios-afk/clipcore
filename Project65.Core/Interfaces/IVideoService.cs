@@ -10,4 +10,5 @@ public interface IVideoService
     Task<string?> GetAssetIdFromUploadAsync(string uploadId);
     Task<double?> GetAssetDurationAsync(string assetId);
     Task<(double? duration, DateTime? startedAt)> GetAssetDetailsAsync(string assetId);
+    Task<string?> GetDownloadUrlAsync(string assetId, string? fileName = null);
 }

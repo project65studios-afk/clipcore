@@ -1,6 +1,8 @@
 @page "/admin/events"
 @using Project65.Core.Entities
 @using Project65.Core.Interfaces
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize(Roles = "Admin")]
 @inject IEventRepository EventRepository
 @inject IVideoService VideoService
 @inject IJSRuntime JS

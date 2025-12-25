@@ -1,0 +1,152 @@
+@page "/checkout/success"
+@using Project65.Core.Entities
+@using Project65.Core.Interfaces
+@using Project65.Infrastructure.Data.Repositories
+@inject IPaymentService PaymentService
+@inject IPurchaseRepository PurchaseRepository
+@inject Project65.Web.Services.CartService CartService
+@inject IEmailService EmailService
+@inject NavigationManager Navigation
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@rendermode RenderMode.InteractiveServer
+
+<PageTitle>Order Confirmed - Project65</PageTitle>
+
+<div style="max-width: 600px; margin: 4rem auto; padding: 2rem; background: var(--bg-dark-800); border-radius: var(--radius-lg); border: 1px solid var(--border-color); text-align: center;">
+    
+    @if (_isValidating)
+    {
+        <div class="spinner-border text-primary mb-3" role="status"></div>
+        <h3>Validating Order...</h3>
+    }
+    else if (_success)
+    {
+        <div style="font-size: 3rem; margin-bottom: 1rem;">🎉</div>
+        <h1 class="mb-3">Thank You!</h1>
+        <p style="color: var(--text-secondary); margin-bottom: 2rem;">
+            Your payment was successful. You now have full access to your clips.
+            <br/>A receipt has been sent to your email.
+        </p>
+        
+        <div style="text-align: left; margin-bottom: 2rem; background: rgba(0,0,0,0.2); padding: 1rem; border-radius: var(--radius-md);">
+            <h5 class="mb-3">Purchased Items:</h5>
+            <ul style="padding-left: 1.25rem; color: var(--text-secondary);">
+                @foreach (var p in _purchases)
+                {
+                    <li style="margin-bottom: 0.5rem;">
+                        Clip #@p.ClipId 
+                        <a href="/clips/@p.ClipId" style="color: var(--accent-cyan); margin-left: 0.5rem; font-size: 0.9rem;">View Now →</a>
+                    </li>
+                }
+            </ul>
+        </div>
+
+        <a href="/" class="btn-primary" style="text-decoration: none;">Continue Shopping</a>
+    }
+    else
+    {
+        <div style="font-size: 3rem; margin-bottom: 1rem;">⚠️</div>
+        <h1 class="mb-3">Something went wrong</h1>
+        <p style="color: var(--text-secondary); margin-bottom: 2rem;">
+             We couldn't verify your order details. If you were charged, please contact support.
+        </p>
+        <a href="/cart" class="btn-secondary">Return to Cart</a>
+    }
+</div>
+
+@code {
+    [SupplyParameterFromQuery(Name = "session_id")]
+    public string? SessionId { get; set; }
+
+    private bool _isValidating = true;
+    private bool _success = false;
+    private List<Purchase> _purchases = new();
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            if (string.IsNullOrEmpty(SessionId))
+            {
+                _isValidating = false;
+                StateHasChanged();
+                return;
+            }
+
+            await ProcessOrderAsync();
+            StateHasChanged();
+        }
+    }
+
+    private async Task ProcessOrderAsync()
+    {
+        try
+        {
+            // 1. Get Purchases from Stripe Session
+            var purchases = await PaymentService.GetPurchasesFromSessionAsync(SessionId!);
+            
+            if (purchases.Any())
+            {
+                // 2. Identify User
+                var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+                var user = authState.User;
+                Guid userId;
+
+                if (user.Identity != null && user.Identity.IsAuthenticated)
+                {
+                    // Try to parse the User ID claim
+                    var userIdClaim = user.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+                    if (Guid.TryParse(userIdClaim, out var parsedId))
+                    {
+                        userId = parsedId;
+                    }
+                    else
+                    {
+                        // Fallback if parsing fails (shouldn't happen with default Identity)
+                        userId = Guid.NewGuid();
+                    }
+                }
+                else
+                {
+                    // Anonymous user - generate new ID (or ideally read from cookie)
+                    userId = Guid.NewGuid();
+                }
+                
+                foreach (var p in purchases)
+                {
+                    p.UserId = userId; // In a real app, this should come from session metadata passed during checkout creation
+                    try 
+                    {
+                        // Check duplicate
+                        if (!await PurchaseRepository.HasPurchasedAsync(userId, p.ClipId))
+                        {
+                            await PurchaseRepository.AddAsync(p);
+                        }
+                    }
+                    catch { /* Ignore dupes */ }
+                }
+
+                _purchases = purchases;
+                _success = true;
+
+                // 3. Clear Cart
+                await CartService.InitializeAsync();
+                await CartService.ClearAsync();
+
+                // 4. Send Email
+                var customerEmail = await PaymentService.GetCustomerEmailFromSessionAsync(SessionId!) ?? "customer@example.com";
+                await EmailService.SendEmailAsync(customerEmail, "Order Receipt", $"You purchased {purchases.Count} items.");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Order processing error: {ex}");
+            _success = false;
+        }
+        finally
+        {
+            _isValidating = false;
+            // Force UI update since we are in AfterRender
+        }
+    }
+}

@@ -1,4 +1,6 @@
 @inject NavigationManager Navigation
+@inject Project65.Web.Services.CartService CartService
+@implements IDisposable
 @rendermode RenderMode.InteractiveServer
 
 <header class="top-nav">
@@ -28,7 +30,12 @@
 
             <AuthorizeView>
                 <Authorized>
-                    <a href="/admin/events" class="btn-secondary" style="padding: 0.5rem 1rem; font-size: 0.9rem;">Admin</a>
+                    <AuthorizeView Roles="Admin" Context="adminContext">
+                        <Authorized>
+                            <a href="/admin/events" class="btn-secondary" style="padding: 0.5rem 1rem; font-size: 0.9rem;">Admin</a>
+                        </Authorized>
+                    </AuthorizeView>
+                    <a href="/my-purchases" class="btn-secondary" style="padding: 0.5rem 1rem; font-size: 0.9rem;">My Purchases</a>
                     <form action="/Account/Logout" method="post" style="display:inline; width: 100%;">
                         <AntiforgeryToken />
                         <input type="hidden" name="ReturnUrl" value="@("/" + Navigation.ToBaseRelativePath(Navigation.BaseUri))" />
@@ -39,7 +46,13 @@
                         <a href="/Account/Login" class="btn-secondary" style="padding: 0.5rem 1rem; font-size: 0.9rem;">Login</a>
                 </NotAuthorized>
             </AuthorizeView>
-            <button class="cart-btn">Cart</button>
+            <a href="/cart" class="cart-btn" style="text-decoration: none; position: relative; display: inline-flex; justify-content: center; align-items: center;">
+                Cart
+                @if (CartService.Count > 0)
+                {
+                    <span style="background: var(--accent-pink); color: white; font-size: 0.7rem; padding: 2px 6px; border-radius: 10px; margin-left: 0.5rem; font-weight: bold;">@CartService.Count</span>
+                }
+            </a>
         </div>
     </div>
 </header>
@@ -48,21 +61,37 @@
     private bool _isNavOpen = false;
     private string NavOpenClass => _isNavOpen ? "active" : "";
 
+    protected override async Task OnInitializedAsync()
+    {
+        CartService.OnChange += StateHasChanged;
+        // Initialize logic moved to AfterRender to avoid prerendering storage issues if needed, 
+        // but ProtectedStorage works in OnAfterRender mostly.
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await CartService.InitializeAsync();
+            Navigation.LocationChanged += CloseNav;
+            StateHasChanged();
+        }
+    }
+
     private void ToggleNav()
     {
         _isNavOpen = !_isNavOpen;
     }
 
-    protected override void OnAfterRender(bool firstRender)
+    private void CloseNav(object? sender, LocationChangedEventArgs e)
     {
-        if (firstRender)
-        {
-                // Reset nav on navigation
-                Navigation.LocationChanged += (s, e) => 
-                {
-                    _isNavOpen = false;
-                    StateHasChanged();
-                };
-        }
+        _isNavOpen = false;
+        StateHasChanged();
+    }
+
+    public void Dispose()
+    {
+        CartService.OnChange -= StateHasChanged;
+        Navigation.LocationChanged -= CloseNav;
     }
 }
