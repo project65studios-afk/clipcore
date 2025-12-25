@@ -36,6 +36,7 @@ public class PurchaseRepository : IPurchaseRepository
     {
         return await _context.Purchases
             .Include(p => p.Clip)
+            .ThenInclude(c => c.Event)
             .Where(p => p.UserId == userId)
             .OrderByDescending(p => p.CreatedAt)
             .ToListAsync();

@@ -162,7 +162,7 @@
             <h1>PROJECT<span>65</span> STUDIOS</h1>
         </div>
 
-        <form method="post">
+        <form method="post" asp-route-returnUrl="@Model.ReturnUrl">
             <div class="form-group">
                 <label class="form-label">Email Address</label>
                 <input type="email" name="Input.Email" class="form-input" placeholder="name@example.com" required autofocus />

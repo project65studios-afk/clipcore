@@ -33,23 +33,33 @@
         <div style="display: flex; flex-direction: column; gap: 1rem;">
             @foreach (var purchase in _purchases)
             {
-                <div class="bg-dark-800 rounded-lg p-3 border border-gray-700 flex flex-col md:flex-row gap-4 items-center">
-                    <!-- Thumbnail -->
-                    <div style="width: 160px; aspect-ratio: 16/9; background: #000; border-radius: 4px; overflow: hidden; flex-shrink: 0; position: relative;">
+                <div class="purchase-card">
+                    <div class="purchase-thumbnail">
                          @if (GetThumbnailUrl(purchase.Clip) is string thumbUrl) 
                          {
-                             <img src="@thumbUrl" style="width: 100%; height: 100%; object-fit: cover;" />
+                             <img src="@thumbUrl" alt="@purchase.Clip.Title" />
                          }
                     </div>
                     
-                    <div class="flex-grow text-center md:text-left">
-                        <h4 style="margin: 0 0 0.5rem 0;">@purchase.Clip.Title</h4>
-                        <div style="font-size: 0.85rem; color: var(--text-muted);">
+                    <div class="purchase-info">
+                        <h4 class="purchase-title">@purchase.Clip.Title</h4>
+                        @if (purchase.Clip.Event != null)
+                        {
+                            <div>
+                                <a href="/events/@purchase.Clip.EventId" class="purchase-event-link">
+                                    @purchase.Clip.Event.Name
+                                </a>
+                                <span class="purchase-date">
+                                    @purchase.Clip.Event.Date.ToString("MMM dd, yyyy")
+                                </span>
+                            </div>
+                        }
+                        <div class="purchase-meta">
                              Purchased on @purchase.CreatedAt.ToLocalTime().ToString("MMM dd, yyyy")
                         </div>
                     </div>
 
-                    <div class="flex gap-2">
+                    <div class="purchase-actions">
                         <a href="/clips/@purchase.ClipId" class="btn-secondary" style="font-size: 0.9rem; padding: 0.5rem 1rem;">
                             View
                         </a>

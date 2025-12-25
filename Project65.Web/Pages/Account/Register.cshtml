@@ -17,7 +17,7 @@
     <div class="auth-container">
         <div class="auth-box">
             <h2 class="text-center mb-4">Create Account</h2>
-            <form method="post">
+            <form method="post" asp-route-returnUrl="@Model.ReturnUrl">
                 <div class="mb-4">
                     <label class="section-title">Email</label>
                     <input type="email" name="Input.Email" class="form-control" required />
