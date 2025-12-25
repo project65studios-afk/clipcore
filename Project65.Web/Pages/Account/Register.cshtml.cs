@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using System.ComponentModel.DataAnnotations;
+using Microsoft.AspNetCore.Authentication;
 
 namespace Project65.Web.Pages.Account;
 
@@ -38,14 +39,19 @@ public class RegisterModel : PageModel
         public string ConfirmPassword { get; set; } = "";
     }
 
-    public void OnGet(string? returnUrl = null)
+    public IList<AuthenticationScheme> ExternalLogins { get; set; }
+
+    public async Task OnGetAsync(string? returnUrl = null)
     {
         ReturnUrl = returnUrl;
+        ExternalLogins = (await _signInManager.GetExternalAuthenticationSchemesAsync()).ToList();
     }
 
     public async Task<IActionResult> OnPostAsync(string? returnUrl = null)
     {
         returnUrl ??= Url.Content("~/");
+        ExternalLogins = (await _signInManager.GetExternalAuthenticationSchemesAsync()).ToList();
+        
         if (ModelState.IsValid)
         {
             var user = new IdentityUser { UserName = Input.Email, Email = Input.Email };
@@ -61,5 +67,13 @@ public class RegisterModel : PageModel
             }
         }
         return Page();
+    }
+
+    public IActionResult OnPostExternalLogin(string provider, string returnUrl = null)
+    {
+        // Request a redirect to the external login provider.
+        var redirectUrl = Url.Page("./ExternalLogin", pageHandler: "Callback", values: new { returnUrl });
+        var properties = _signInManager.ConfigureExternalAuthenticationProperties(provider, redirectUrl);
+        return Challenge(properties, provider);
     }
 }

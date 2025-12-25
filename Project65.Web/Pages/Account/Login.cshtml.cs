@@ -31,15 +31,23 @@ public class LoginModel : PageModel
         public string Password { get; set; } = "";
     }
 
+    public IList<AuthenticationScheme> ExternalLogins { get; set; }
+
     public async Task OnGetAsync(string? returnUrl = null)
     {
         ReturnUrl = returnUrl ?? Url.Content("~/");
+
+        // Clear the existing external cookie to ensure a clean login process
         await HttpContext.SignOutAsync(IdentityConstants.ExternalScheme);
+
+        ExternalLogins = (await _signInManager.GetExternalAuthenticationSchemesAsync()).ToList();
     }
 
     public async Task<IActionResult> OnPostAsync(string? returnUrl = null)
     {
         returnUrl ??= Url.Content("~/");
+
+        ExternalLogins = (await _signInManager.GetExternalAuthenticationSchemesAsync()).ToList();
 
         if (ModelState.IsValid)
         {
@@ -56,5 +64,13 @@ public class LoginModel : PageModel
         }
 
         return Page();
+    }
+
+    public IActionResult OnPostExternalLogin(string provider, string returnUrl = null)
+    {
+        // Request a redirect to the external login provider.
+        var redirectUrl = Url.Page("./ExternalLogin", pageHandler: "Callback", values: new { returnUrl });
+        var properties = _signInManager.ConfigureExternalAuthenticationProperties(provider, redirectUrl);
+        return Challenge(properties, provider);
     }
 }
