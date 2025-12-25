@@ -154,6 +154,37 @@
             margin-top: 1.5rem;
             text-align: center;
         }
+
+        @@media (max-width: 768px) {
+            body {
+                align-items: flex-start;
+                background: var(--bg-dark-900);
+            }
+
+            .login-card {
+                max-width: none;
+                width: 100%;
+                min-height: 100vh;
+                border-radius: 0;
+                border: none;
+                background: var(--bg-dark-900);
+                box-shadow: none;
+                padding: 2rem 1.5rem;
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+            }
+
+            .brand-logo {
+                margin-top: auto;
+                margin-bottom: 3rem;
+            }
+
+            .links {
+                margin-top: auto;
+                padding-bottom: 2rem;
+            }
+        }
     </style>
 </head>
 <body>
@@ -162,19 +193,38 @@
             <h1>PROJECT<span>65</span> STUDIOS</h1>
         </div>
 
-        <form method="post" asp-route-returnUrl="@Model.ReturnUrl">
+        <form id="account" method="post" asp-route-returnUrl="@Model.ReturnUrl">
             <div class="form-group">
-                <label class="form-label">Email Address</label>
-                <input type="email" name="Input.Email" class="form-input" placeholder="name@example.com" required autofocus />
+                <label class="form-label" asp-for="Input.Email">Email Address</label>
+                <input asp-for="Input.Email" class="form-input" placeholder="name@example.com" autofocus />
+                <span asp-validation-for="Input.Email" style="color: var(--accent-pink); font-size: 0.875rem;"></span>
             </div>
 
             <div class="form-group">
-                <label class="form-label">Password</label>
-                <input type="password" name="Input.Password" class="form-input" placeholder="••••••••" required />
+                <label class="form-label" asp-for="Input.Password">Password</label>
+                <input asp-for="Input.Password" class="form-input" placeholder="••••••••" />
+                <span asp-validation-for="Input.Password" style="color: var(--accent-pink); font-size: 0.875rem;"></span>
             </div>
 
-            <button type="submit" class="btn-login">Sign In</button>
+            <button type="submit" id="login-submit" class="btn-login">Sign In</button>
         </form>
+
+        <script>
+            document.addEventListener('DOMContentLoaded', function() {
+                const inputs = document.querySelectorAll('.form-input');
+                const submitBtn = document.getElementById('login-submit');
+                
+                inputs.forEach(input => {
+                    input.addEventListener('keydown', function(e) {
+                        // Check for Enter key (key='Enter' or keyCode=13)
+                         if (e.key === 'Enter' || e.keyCode === 13) {
+                            e.preventDefault();
+                            submitBtn.click();
+                        }
+                    });
+                });
+            });
+        </script>
 
         @if (!ModelState.IsValid)
         {

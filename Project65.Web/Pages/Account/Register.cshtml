@@ -19,16 +19,19 @@
             <h2 class="text-center mb-4">Create Account</h2>
             <form method="post" asp-route-returnUrl="@Model.ReturnUrl">
                 <div class="mb-4">
-                    <label class="section-title">Email</label>
-                    <input type="email" name="Input.Email" class="form-control" required />
+                    <label class="section-title" asp-for="Input.Email">Email</label>
+                    <input asp-for="Input.Email" class="form-control" />
+                    <span asp-validation-for="Input.Email" style="color: var(--accent-pink); font-size: 0.875rem;"></span>
                 </div>
                 <div class="mb-4">
-                    <label class="section-title">Password</label>
-                    <input type="password" name="Input.Password" class="form-control" required />
+                    <label class="section-title" asp-for="Input.Password">Password</label>
+                    <input asp-for="Input.Password" class="form-control" />
+                    <span asp-validation-for="Input.Password" style="color: var(--accent-pink); font-size: 0.875rem;"></span>
                 </div>
                  <div class="mb-4">
-                    <label class="section-title">Confirm Password</label>
-                    <input type="password" name="Input.ConfirmPassword" class="form-control" required />
+                    <label class="section-title" asp-for="Input.ConfirmPassword">Confirm Password</label>
+                    <input asp-for="Input.ConfirmPassword" class="form-control" />
+                    <span asp-validation-for="Input.ConfirmPassword" style="color: var(--accent-pink); font-size: 0.875rem;"></span>
                 </div>
                 <button type="submit" class="btn-primary" style="width:100%">Register</button>
             </form>
