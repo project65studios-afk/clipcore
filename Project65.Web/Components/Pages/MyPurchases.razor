@@ -35,7 +35,7 @@
             {
                 <div class="purchase-card">
                     <div class="purchase-thumbnail">
-                         @if (GetThumbnailUrl(purchase.Clip) is string thumbUrl) 
+                         @if (_thumbnailUrls.TryGetValue(purchase.Clip.Id, out var thumbUrl)) 
                          {
                              <img src="@thumbUrl" alt="@purchase.Clip.Title" />
                          }
@@ -77,6 +77,8 @@
     private List<Purchase> _purchases = new();
     private bool _isLoading = true;
 
+    private Dictionary<string, string> _thumbnailUrls = new();
+
     protected override async Task OnInitializedAsync()
     {
         var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
@@ -88,21 +90,27 @@
              if (Guid.TryParse(userIdClaim, out var userId))
              {
                  _purchases = await PurchaseRepository.GetByUserIdAsync(userId);
+                 await LoadThumbnailsAsync();
              }
         }
         _isLoading = false;
     }
 
-    private string? GetThumbnailUrl(Clip item)
+    private async Task LoadThumbnailsAsync()
     {
-        var id = item.PlaybackIdTeaser;
-        if (string.IsNullOrEmpty(id) || id.StartsWith("mock")) 
-            id = item.PlaybackIdSigned;
-        
-        if (string.IsNullOrEmpty(id) || id.StartsWith("mock")) return null;
-
-        var token = VideoService.GetPlaybackToken(id, "t", "480p");
-        return $"https://image.mux.com/{id}/thumbnail.jpg?token={token}&width=400";
+        foreach (var purchase in _purchases)
+        {
+            var clip = purchase.Clip;
+            var id = clip.PlaybackIdTeaser;
+            if (string.IsNullOrEmpty(id) || id.StartsWith("mock")) 
+                id = clip.PlaybackIdSigned;
+            
+            if (!string.IsNullOrEmpty(id) && !id.StartsWith("mock"))
+            {
+                var token = await VideoService.GetPlaybackToken(id, "t", "480p");
+                _thumbnailUrls[clip.Id] = $"https://image.mux.com/{id}/thumbnail.jpg?token={token}&width=400";
+            }
+        }
     }
 
     private async Task DownloadAsync(Clip clip)
