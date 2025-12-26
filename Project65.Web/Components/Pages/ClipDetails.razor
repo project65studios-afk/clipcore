@@ -39,13 +39,6 @@ else
         <div class="clip-layout" style="display: grid; gap: 2rem;">
              <div>
                  <div id="player-container" class="video-player-container mobile-full-width" style="border: 1px solid var(--border-color); box-shadow: 0 0 40px rgba(0,0,0,0.5); position: relative;">
-                    @if (!string.IsNullOrEmpty(_watermarkUrl))
-                    {
-                        <div class="watermark-overlay">
-                            <img src="@_watermarkUrl" alt="Watermark" />
-                        </div>
-                    }
-
                     @if (_hasPurchased)
                     {
                          <mux-player
@@ -59,7 +52,14 @@ else
                             accent-color="#ec4899"
                             fullscreen-element="player-container"
                             style="width: 100%; height: 100%;"
-                         ></mux-player>
+                         >
+                            @if (!string.IsNullOrEmpty(_watermarkUrl))
+                            {
+                                <div class="watermark-overlay">
+                                    <img src="@_watermarkUrl" alt="Watermark" />
+                                </div>
+                            }
+                         </mux-player>
                     }
                     else if (GetPreviewId() is string previewId)
                     {
@@ -74,7 +74,14 @@ else
                             autoplay
                             fullscreen-element="player-container"
                             style="width: 100%; height: 100%;"
-                        ></mux-player>
+                        >
+                            @if (!string.IsNullOrEmpty(_watermarkUrl))
+                            {
+                                <div class="watermark-overlay">
+                                    <img src="@_watermarkUrl" alt="Watermark" />
+                                </div>
+                            }
+                        </mux-player>
                     }
                     else
                     {
@@ -82,6 +89,9 @@ else
                              <p>Preview Unavailable (Processing or Mock)</p>
                          </div>
                     }
+
+
+
                 </div>
             
             <h1 style="margin-top: 1.5rem; font-size: 1.5rem; margin-bottom: 0.25rem;">@_clip.Title</h1>

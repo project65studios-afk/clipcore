@@ -402,8 +402,8 @@ h3 {
 
 .watermark-overlay img {
     max-height: 120px;
-    /* Larger in center */
     width: auto;
+    transition: max-height 0.3s ease;
 }
 
 .preview-player .watermark-overlay img {
@@ -412,7 +412,45 @@ h3 {
 
 .video-player-container:hover .watermark-overlay {
     opacity: 0.2;
-    /* Fade out slightly on hover to not block controls */
+}
+
+/* Specific Fullscreen Handling */
+.video-player-container:fullscreen .watermark-overlay,
+.video-player-container:-webkit-full-screen .watermark-overlay,
+.video-player-container:-moz-full-screen .watermark-overlay {
+    z-index: 2147483647;
+    display: flex !important;
+    position: absolute;
+    /* Keep absolute relative to fullscreen container */
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    opacity: 0.6;
+    width: 100%;
+    height: 100%;
+    align-items: center;
+    justify-content: center;
+}
+
+.video-player-container:fullscreen .watermark-overlay img,
+.video-player-container:-webkit-full-screen .watermark-overlay img,
+.video-player-container:-moz-full-screen .watermark-overlay img {
+    max-height: 200px;
+    /* Larger in fullscreen */
+}
+
+
+/* Hard-Force Fullscreen Watermark - REMOVED, Reverting to original stack */
+/* The original working commit relied on simple z-index stacking within the relative container */
+
+/* Ensure container handles stacking context - Reverted isolation */
+.video-player-container {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    background: #000;
 }
 
 /* Mobile Responsiveness */
@@ -724,7 +762,9 @@ h3 {
         width: 100% !important;
         height: 400px !important;
     }
-}/* My Purchases Card Styles */
+}
+
+/* My Purchases Card Styles */
 .purchase-card {
     background: var(--bg-dark-800);
     border: 1px solid var(--border-color);
