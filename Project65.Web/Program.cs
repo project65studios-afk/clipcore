@@ -40,6 +40,9 @@ builder.Services.AddScoped<IPurchaseRepository, PurchaseRepository>();
 builder.Services.AddScoped<ISettingsRepository, SettingsRepository>();
 builder.Services.AddScoped<IEmailService, ConsoleEmailService>();
 builder.Services.AddScoped<Project65.Web.Services.CartService>();
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<IUsageRepository, UsageRepository>();
+builder.Services.AddMemoryCache();
 
 var app = builder.Build();
 

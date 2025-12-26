@@ -3,6 +3,9 @@ using Mux.Csharp.Sdk.Api;
 using Mux.Csharp.Sdk.Client;
 using Mux.Csharp.Sdk.Model;
 using Project65.Core.Interfaces;
+using Microsoft.AspNetCore.Http;
+using Project65.Core.Entities;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace Project65.Infrastructure.Services;
 
@@ -14,13 +17,20 @@ public class MuxVideoService : IVideoService
     private readonly AssetsApi _assetsApi;
     private readonly string _signingKeyId;
     private readonly string _signingKeyPrivate;
+    private readonly IHttpContextAccessor _httpContextAccessor;
+    private readonly IUsageRepository _usageRepository;
+    private readonly IMemoryCache _cache; // Added
+    private const int MaxDailyTokens = 50; // Increased buffer
 
-    public MuxVideoService(IConfiguration configuration)
+    public MuxVideoService(IConfiguration configuration, IHttpContextAccessor httpContextAccessor, IUsageRepository usageRepository, IMemoryCache cache) // Added IMemoryCache
     {
         _tokenId = configuration["Mux:TokenId"] ?? throw new ArgumentNullException("Mux:TokenId");
         _tokenSecret = configuration["Mux:TokenSecret"] ?? throw new ArgumentNullException("Mux:TokenSecret");
         _signingKeyId = configuration["Mux:SigningKeyId"] ?? ""; 
         _signingKeyPrivate = configuration["Mux:SigningKeyPrivate"] ?? "";
+        _httpContextAccessor = httpContextAccessor;
+        _usageRepository = usageRepository;
+        _cache = cache; // Initialized
 
         var config = new Configuration();
         config.BasePath = "https://api.mux.com";
@@ -77,13 +87,70 @@ public class MuxVideoService : IVideoService
         return newPlaybackId.Data.Id;
     }
 
-    public string GetPlaybackToken(string playbackId, string audience = "v", string? maxResolution = null)
+    public async Task<string> GetPlaybackToken(string playbackId, string audience = "v", string? maxResolution = null)
     {
+        long unixNow = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+        
+        var context = _httpContextAccessor.HttpContext;
+        string ip = context?.Connection?.RemoteIpAddress?.ToString() ?? "unknown";
+        if (ip == "::1") ip = "127.0.0.1";
+
+        // ANTI-BOT: Block known non-browser user agents
+        string ua = context?.Request.Headers["User-Agent"].ToString() ?? "";
+        if (ua.Contains("curl", StringComparison.OrdinalIgnoreCase) || 
+            ua.Contains("python", StringComparison.OrdinalIgnoreCase) || 
+            ua.Contains("wget", StringComparison.OrdinalIgnoreCase) ||
+            ua.Contains("postman", StringComparison.OrdinalIgnoreCase))
+        {
+             Console.WriteLine($"[BOT BLOCKED] UA: {ua} IP: {ip}");
+             return "";
+        }
+
+        // CACHE CHECK
+        string cacheKey = $"mux_token_{ip}_{playbackId}_{audience}_{maxResolution ?? "full"}";
+        
+        if (_cache.TryGetValue(cacheKey, out string? cachedToken))
+        {
+            if (!string.IsNullOrEmpty(cachedToken)) return cachedToken;
+        }
+
         if (string.IsNullOrEmpty(_signingKeyId) || string.IsNullOrEmpty(_signingKeyPrivate))
         {
             return "";
         }
-        return GenerateSignedToken(playbackId, audience, maxResolution);
+
+        // Only enforce limits for video playback ('v'), not thumbnails ('t', 's')
+        if (audience == "v")
+        {
+            var date = DateOnly.FromDateTime(DateTime.UtcNow);
+            
+            // Allow Admins AND low-res previews (480p) to bypass limits
+            bool isAdmin = context?.User?.IsInRole("Admin") ?? false;
+            bool isPreview = !string.IsNullOrEmpty(maxResolution);
+            
+            if (!isAdmin && !isPreview && ip != "unknown")
+            {
+                var usage = await _usageRepository.GetUsageAsync(ip, date);
+                if (usage.TokenRequestCount >= MaxDailyTokens)
+                {
+                    Console.WriteLine($"[LIMIT] IP {ip} exceeded daily limit ({usage.TokenRequestCount}). Denying token.");
+                    return ""; 
+                }
+
+                await _usageRepository.IncrementUsageAsync(ip, date);
+                Console.WriteLine($"[USAGE] IP {ip} used token {usage.TokenRequestCount + 1}/{MaxDailyTokens}");
+            }
+        }
+
+        var token = GenerateSignedToken(playbackId, audience, maxResolution);
+        
+        // CACHE SET (10 mins)
+        if (!string.IsNullOrEmpty(token))
+        {
+            _cache.Set(cacheKey, token, TimeSpan.FromMinutes(10));
+        }
+
+        return token;
     }
 
     private string GenerateSignedToken(string playbackId, string audience, string? maxResolution = null)
@@ -118,7 +185,8 @@ public class MuxVideoService : IVideoService
 
             var now = DateTime.UtcNow;
             var unixNow = (long)(now - new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc)).TotalSeconds;
-            var exp = unixNow + (3600 * 2); // 2 hours
+            // Shorten expiry to 15 minutes (900 seconds) to force frequent renewal and usage tracking
+            var exp = unixNow + 900; 
 
             // Manual Header/Payload to avoid extra claims like 'iat' or 'nbf' if Mux is picky
             var header = new System.IdentityModel.Tokens.Jwt.JwtHeader(credentials);

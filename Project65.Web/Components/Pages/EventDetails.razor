@@ -96,9 +96,9 @@ else
 
                                   <mux-player
                                     playback-id="@previewId"
-                                    playback-token="@VideoService.GetPlaybackToken(previewId, "v", "480p")"
-                                    thumbnail-token="@VideoService.GetPlaybackToken(previewId, "t", "480p")"
-                                    storyboard-token="@VideoService.GetPlaybackToken(previewId, "s", "480p")"
+                                    playback-token="@GetTokenFromCache(previewId, "v")"
+                                    thumbnail-token="@GetTokenFromCache(previewId, "t")"
+                                    storyboard-token="@GetTokenFromCache(previewId, "s")"
                                     metadata-video-title="@clip.Title"
                                     muted
                                     autoplay
@@ -145,13 +145,44 @@ else
     private bool _loading = true;
     private string? _watermarkUrl;
     private string _sortBy = "TimeUsedAsc"; // Default sort
+    private Dictionary<string, string> _tokenCache = new();
 
     protected override async Task OnInitializedAsync()
     {
         _watermarkUrl = await SettingsRepository.GetValueAsync("WatermarkUrl");
         _event = await EventRepository.GetByIdAsync(Id);
-        SortClips(); // Initial sort
+        
+        if (_event?.Clips != null)
+        {
+            SortClips(); // Initial sort
+            
+            // Pre-load tokens asynchronously
+            foreach (var clip in _event.Clips)
+            {
+                var pid = clip.PlaybackIdTeaser ?? clip.PlaybackIdSigned;
+                if (!string.IsNullOrEmpty(pid) && !pid.StartsWith("mock"))
+                {
+                    await LoadTokensForClip(pid);
+                }
+            }
+        }
+        
         _loading = false;
+    }
+
+    private async Task LoadTokensForClip(string playbackId)
+    {
+        // Video Token (v)
+        if (!_tokenCache.ContainsKey($"{playbackId}-v"))
+            _tokenCache[$"{playbackId}-v"] = await VideoService.GetPlaybackToken(playbackId, "v", "480p");
+            
+        // Thumbnail Token (t)
+        if (!_tokenCache.ContainsKey($"{playbackId}-t"))
+            _tokenCache[$"{playbackId}-t"] = await VideoService.GetPlaybackToken(playbackId, "t", "480p");
+
+        // Storyboard Token (s)
+        if (!_tokenCache.ContainsKey($"{playbackId}-s"))
+            _tokenCache[$"{playbackId}-s"] = await VideoService.GetPlaybackToken(playbackId, "s", "480p");
     }
 
     private void OnSortChanged(ChangeEventArgs e)
@@ -197,7 +228,14 @@ else
 
     private string GetToken(Clip clip)
     {
+        // This is only used for the static img src tag, which is rendered synchronously.
+        // We can grab it from cache if available, or empty.
         var id = GetThumbnailId(clip);
-        return VideoService.GetPlaybackToken(id, "t");
+        return GetTokenFromCache(id, "t");
+    }
+    
+    private string GetTokenFromCache(string playbackId, string type)
+    {
+        return _tokenCache.TryGetValue($"{playbackId}-{type}", out var token) ? token : "";
     }
 }

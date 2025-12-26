@@ -53,10 +53,31 @@ else
 
 @code {
     private List<Event>? _events;
+    private Dictionary<string, string> _tokenCache = new();
 
     protected override async Task OnInitializedAsync()
     {
         _events = await EventRepository.ListAsync();
+        
+        if (_events != null)
+        {
+            foreach (var evt in _events)
+            {
+                var firstClip = evt.Clips?.OrderBy(c => c.PublishedAt).FirstOrDefault();
+                if (firstClip != null)
+                {
+                    var playbackId = firstClip.PlaybackIdTeaser ?? firstClip.PlaybackIdSigned;
+                    if (!string.IsNullOrEmpty(playbackId) && !playbackId.StartsWith("mock"))
+                    {
+                        if (!_tokenCache.ContainsKey(playbackId))
+                        {
+                            var token = await VideoService.GetPlaybackToken(playbackId, "t");
+                            _tokenCache[playbackId] = token;
+                        }
+                    }
+                }
+            }
+        }
     }
 
     private string? GetThumbnailUrl(Clip? clip)
@@ -66,7 +87,11 @@ else
         var playbackId = clip.PlaybackIdTeaser ?? clip.PlaybackIdSigned;
         if (string.IsNullOrEmpty(playbackId) || playbackId.StartsWith("mock")) return null;
 
-        var token = VideoService.GetPlaybackToken(playbackId, "t");
-        return $"https://image.mux.com/{playbackId}/thumbnail.jpg?token={token}";
+        if (_tokenCache.TryGetValue(playbackId, out var token))
+        {
+            return $"https://image.mux.com/{playbackId}/thumbnail.jpg?token={token}";
+        }
+        
+        return null;
     }
 }

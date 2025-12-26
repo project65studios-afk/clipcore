@@ -43,9 +43,9 @@ else
                          <mux-player
                             id="purchased-player"
                             playback-id="@_clip.PlaybackIdSigned"
-                            playback-token="@VideoService.GetPlaybackToken(_clip.PlaybackIdSigned, "v")"
-                            thumbnail-token="@VideoService.GetPlaybackToken(_clip.PlaybackIdSigned, "t")"
-                            storyboard-token="@VideoService.GetPlaybackToken(_clip.PlaybackIdSigned, "s")"
+                            playback-token="@GetTokenFromCache(_clip.PlaybackIdSigned, "v")"
+                            thumbnail-token="@GetTokenFromCache(_clip.PlaybackIdSigned, "t")"
+                            storyboard-token="@GetTokenFromCache(_clip.PlaybackIdSigned, "s")"
                             metadata-video-title="@_clip.Title"
                             primary-color="#06b6d4"
                             accent-color="#ec4899"
@@ -58,11 +58,10 @@ else
                         <mux-player
                             id="preview-player"
                             playback-id="@previewId"
-                            playback-token="@VideoService.GetPlaybackToken(previewId, "v", "480p")"
-                            thumbnail-token="@VideoService.GetPlaybackToken(previewId, "t", "480p")"
-                            storyboard-token="@VideoService.GetPlaybackToken(previewId, "s", "480p")"
+                            playback-token="@GetTokenFromCache(previewId, "v")"
+                            thumbnail-token="@GetTokenFromCache(previewId, "t")"
+                            storyboard-token="@GetTokenFromCache(previewId, "s")"
                             metadata-video-title="@_clip.Title (Preview)"
-                            loop
                             muted
                             autoplay
                             fullscreen-element="player-container"
@@ -217,6 +216,7 @@ else
     private double _editingPrice;
     private string? _watermarkUrl;
     private string _errorMessage = "";
+    private Dictionary<string, string> _tokenCache = new();
 
     [CascadingParameter]
     private Task<AuthenticationState> AuthenticationStateTask { get; set; } = null!;
@@ -266,7 +266,7 @@ else
         
         if (_clip != null)
         {
-            // Self-Healing: Try to resolve MuxAssetId if missing
+             // Self-Healing Logic (Repair PlaybackId/Duration)
             if (string.IsNullOrEmpty(_clip.MuxAssetId) && !string.IsNullOrEmpty(_clip.MuxUploadId))
             {
                 var resolvedAssetId = await VideoService.GetAssetIdFromUploadAsync(_clip.MuxUploadId);
@@ -278,10 +278,10 @@ else
                 }
             }
 
-            // Self-Healing: If we have an asset ID but no playback ID, duration, or start time, try to fix it.
             if (!string.IsNullOrEmpty(_clip.MuxAssetId) && (string.IsNullOrEmpty(_clip.PlaybackIdSigned) || !_clip.DurationSec.HasValue || !_clip.RecordingStartedAt.HasValue))
             {
-                try 
+                // ... (Keep existing repair logic) ...
+                 try 
                 {
                     bool needsUpdate = false;
                     
@@ -298,7 +298,6 @@ else
 
                     if (!_clip.DurationSec.HasValue || !_clip.RecordingStartedAt.HasValue)
                     {
-                        Console.WriteLine($"Fetching details for Asset {_clip.MuxAssetId}");
                         var (duration, startedAt) = await VideoService.GetAssetDetailsAsync(_clip.MuxAssetId);
                         
                         if (duration.HasValue && !_clip.DurationSec.HasValue)
@@ -316,7 +315,7 @@ else
 
                     if (needsUpdate)
                     {
-                        await ClipRepository.UpdateAsync(_clip); // Persist the fix
+                        await ClipRepository.UpdateAsync(_clip); 
                     }
                 }
                 catch (Exception ex)
@@ -327,6 +326,7 @@ else
 
             _hasPurchased = await PurchaseRepository.HasPurchasedAsync(_userId, Id);
             
+            // Purchase Verification Logic
             var uri = Navigation.ToAbsoluteUri(Navigation.Uri);
             if (QueryHelpers.ParseQuery(uri.Query).TryGetValue("session_id", out var sessionId))
             {
@@ -349,8 +349,45 @@ else
                 }
                 _processingPurchase = false;
             }
+
+            // LOAD TOKENS
+            string targetId = "";
+            string? resolution = null;
+            
+            if (_hasPurchased && !string.IsNullOrEmpty(_clip.PlaybackIdSigned))
+            {
+                targetId = _clip.PlaybackIdSigned;
+                resolution = null; // Full quality, tracked
+            }
+            else if (GetPreviewId() is string pid)
+            {
+                targetId = pid;
+                resolution = "480p"; // Preview, unlimited
+            }
+
+            if (!string.IsNullOrEmpty(targetId))
+            {
+                await LoadTokensForClip(targetId, resolution);
+            }
         }
         _loading = false;
+    }
+
+    private async Task LoadTokensForClip(string playbackId, string? resolution = null)
+    {
+        if (!_tokenCache.ContainsKey($"{playbackId}-v"))
+            _tokenCache[$"{playbackId}-v"] = await VideoService.GetPlaybackToken(playbackId, "v", resolution);
+        
+        if (!_tokenCache.ContainsKey($"{playbackId}-t"))
+            _tokenCache[$"{playbackId}-t"] = await VideoService.GetPlaybackToken(playbackId, "t");
+
+        if (!_tokenCache.ContainsKey($"{playbackId}-s"))
+            _tokenCache[$"{playbackId}-s"] = await VideoService.GetPlaybackToken(playbackId, "s");
+    }
+
+    private string GetTokenFromCache(string playbackId, string type)
+    {
+        return _tokenCache.TryGetValue($"{playbackId}-{type}", out var token) ? token : "";
     }
 
     private string? GetPreviewId()
