@@ -44,10 +44,27 @@
                         <div>
                             <div style="font-weight: 700; color: var(--text-primary);">@orderId</div>
                             <div style="font-size: 0.85rem; color: var(--text-muted);">
-                                Purchased on @firstItem.CreatedAt.ToLocalTime().ToString("MMMM dd, yyyy") at @firstItem.CreatedAt.ToLocalTime().ToString("t")
-                            </div>
-                        </div>
-                        <div class="badge bg-secondary text-white" style="font-size: 0.8rem;">
+                                						Purchased on @firstItem.CreatedAt.ToLocalTime().ToString("MMMM dd, yyyy") at @firstItem.CreatedAt.ToLocalTime().ToString("t")
+					</div>
+					@if (!string.IsNullOrEmpty(firstItem.CustomerAddress) || !string.IsNullOrEmpty(firstItem.CustomerPhone))
+					{
+						<div class="mt-2 pt-2 border-top border-secondary" style="font-size: 0.8rem; border-color: rgba(255,255,255,0.1) !important;">
+							@if (!string.IsNullOrEmpty(firstItem.CustomerAddress))
+							{
+								<div class="text-muted">
+									<i class="bi bi-geo-alt me-1"></i> @firstItem.CustomerAddress
+								</div>
+							}
+							@if (!string.IsNullOrEmpty(firstItem.CustomerPhone))
+							{
+								<div class="text-muted">
+									<i class="bi bi-telephone me-1"></i> @firstItem.CustomerPhone
+								</div>
+							}
+						</div>
+					}
+				</div>
+				<div class="badge bg-secondary text-white" style="font-size: 0.8rem;">
                             @orderGroup.Count() Item@(orderGroup.Count() > 1 ? "s" : "")
                         </div>
                     </div>

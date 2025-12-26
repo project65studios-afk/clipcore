@@ -73,11 +73,15 @@
                                                 <div class="text-uppercase text-muted fw-bold" style="font-size: 0.7rem; letter-spacing: 0.5px;">Customer</div>
                                                 <div class="fw-bold text-dark">@(firstItem.CustomerName ?? "Anonymous")</div>
                                                 <div class="small text-primary text-decoration-underline">@(firstItem.CustomerEmail ?? "No Email")</div>
+                                                @if (!string.IsNullOrEmpty(firstItem.CustomerPhone))
+                                                {
+                                                    <div class="small text-dark mt-1"><i class="bi bi-telephone me-1"></i>@firstItem.CustomerPhone</div>
+                                                }
                                             </div>
                                             @if (!string.IsNullOrEmpty(firstItem.CustomerAddress))
                                             {
                                                 <div>
-                                                    <div class="text-uppercase text-muted fw-bold" style="font-size: 0.7rem; letter-spacing: 0.5px;">Address</div>
+                                                    <div class="text-uppercase text-muted fw-bold" style="font-size: 0.7rem; letter-spacing: 0.5px;">Billing Address</div>
                                                     <div class="small text-dark" style="max-width: 250px; line-height: 1.2;">@firstItem.CustomerAddress</div>
                                                 </div>
                                             }

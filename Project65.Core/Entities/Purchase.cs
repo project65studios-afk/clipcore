@@ -26,6 +26,7 @@ public class Purchase
     public string? CustomerEmail { get; set; }
     public string? CustomerName { get; set; }
     public string? CustomerAddress { get; set; } // JSON or formatted string
+    public string? CustomerPhone { get; set; }
     
     public int PricePaidCents { get; set; }
 }

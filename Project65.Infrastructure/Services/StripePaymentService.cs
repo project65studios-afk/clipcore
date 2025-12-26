@@ -64,10 +64,43 @@ public class StripePaymentService : IPaymentService
             options.CustomerEmail = userEmail;
         }
 
-        var service = new SessionService();
-        Session session = await service.CreateAsync(options);
+        // Collect Phone Number via Custom Field (appears at bottom)
+        options.CustomFields = new List<SessionCustomFieldOptions>
+        {
+            new SessionCustomFieldOptions
+            {
+                Key = "contact_number", // Changed key to avoid auto-mapping
+                Label = new SessionCustomFieldLabelOptions 
+                { 
+                    Type = "custom", 
+                    Custom = "Mobile / Contact Number" 
+                },
+                Type = "text",
+                Optional = false
+            }
+        };
 
-        return session.Url;
+        // Disable standard top-level phone collection
+        options.PhoneNumberCollection = new SessionPhoneNumberCollectionOptions
+        {
+            Enabled = false,
+        };
+        
+        // Collect Billing Address (auto-enabled by default usually, but we can enforce it)
+        options.BillingAddressCollection = "required";
+
+        var service = new SessionService();
+        try 
+        {
+            Session session = await service.CreateAsync(options);
+            return session.Url;
+        }
+        catch (StripeException ex)
+        {
+            Console.WriteLine($"[STRIPE ERROR] Failed to create session: {ex.Message}");
+            Console.WriteLine($"[STRIPE ERROR] Type: {ex.StripeError?.Type}, Code: {ex.StripeError?.Code}");
+            throw; // Re-throw to show error page or handle upstream
+        }
     }
 
     public async Task<List<Purchase>> GetPurchasesFromSessionAsync(string sessionId)
@@ -91,6 +124,16 @@ public class StripePaymentService : IPaymentService
                 var parts = new[] { address.Line1, address.Line2, address.City, address.State, address.PostalCode, address.Country };
                 addressStr = string.Join(", ", parts.Where(s => !string.IsNullOrWhiteSpace(s)));
             }
+            
+            // Phone Number Retrieval (From Custom Field)
+            string? phone = null;
+            if (session.CustomFields != null)
+            {
+                var phoneField = session.CustomFields.FirstOrDefault(CF => CF.Key == "contact_number");
+                phone = phoneField?.Text?.Value;
+            }
+            // Fallback to customer detail if ever present
+            if (string.IsNullOrEmpty(phone)) phone = session.CustomerDetails?.Phone;
 
             // 1. Attempt to gather purchases from Line Items (Preferred Source)
             if (session.LineItems?.Data != null)
@@ -109,6 +152,7 @@ public class StripePaymentService : IPaymentService
                             CustomerEmail = session.CustomerDetails?.Email ?? session.CustomerEmail,
                             CustomerName = session.CustomerDetails?.Name,
                             CustomerAddress = addressStr,
+                            CustomerPhone = phone,
                             PricePaidCents = Convert.ToInt32(item.AmountTotal)
                         };
                         
@@ -122,8 +166,7 @@ public class StripePaymentService : IPaymentService
             }
 
             // 2. Fallback / Fill Gaps using Session Metadata
-            // This ensures that even if Line Item parsing fails (e.g. expansion limits), 
-            // we still record the purchase if it was in the "ClipIds" list.
+            // ... (Metadata logic remains same, just adding phone mapping)
             var expectedClipIds = new List<string>();
             if (session.Metadata.TryGetValue("ClipIds", out var clipIdsStr))
             {
@@ -147,6 +190,7 @@ public class StripePaymentService : IPaymentService
                         CustomerEmail = session.CustomerDetails?.Email ?? session.CustomerEmail,
                         CustomerName = session.CustomerDetails?.Name,
                         CustomerAddress = addressStr,
+                        CustomerPhone = phone,
                         // Fallback Price: Average of total
                         PricePaidCents = (int)((session.AmountTotal ?? 0) / (expectedClipIds.Count > 0 ? expectedClipIds.Count : 1)) 
                     });
