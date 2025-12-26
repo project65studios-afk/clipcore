@@ -21,4 +21,5 @@ public class Purchase
     public FulfillmentStatus FulfillmentStatus { get; set; } = FulfillmentStatus.Pending;
     public string? HighResDownloadUrl { get; set; }
     public DateTime? FulfilledAt { get; set; }
+    public string? FulfillmentMuxAssetId { get; set; }
 }

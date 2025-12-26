@@ -39,6 +39,7 @@ public class PurchaseRepository : IPurchaseRepository
     {
         return await _context.Purchases
             .Include(p => p.Clip)
+            .ThenInclude(c => c.Event)
             .OrderByDescending(p => p.CreatedAt)
             .ToListAsync();
     }

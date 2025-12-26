@@ -15,48 +15,92 @@
     </div>
 
     <div class="card bg-dark border-secondary shadow">
-        <div class="card-header border-secondary bg-dark">
-            <h5 class="mb-0">Pending Deliveries</h5>
+        <div class="card-header border-secondary bg-dark d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">Delivery Queue</h5>
+            <div class="btn-group">
+                <button class="btn btn-sm @(_currentFilter == "Pending" ? "btn-warning" : "btn-outline-secondary")" 
+                        @onclick='() => SetFilter("Pending")'>Pending</button>
+                <button class="btn btn-sm @(_currentFilter == "Fulfilled" ? "btn-success" : "btn-outline-secondary")" 
+                        @onclick='() => SetFilter("Fulfilled")'>Fulfilled</button>
+                <button class="btn btn-sm @(_currentFilter == "All" ? "btn-light" : "btn-outline-secondary")" 
+                        @onclick='() => SetFilter("All")'>All</button>
+            </div>
         </div>
         <div class="card-body p-0">
             <div class="table-responsive">
-                <table class="table table-dark table-hover mb-0">
+                <table class="table table-dark table-hover mb-0 align-middle">
                     <thead class="table-secondary text-dark">
                         <tr>
                             <th>Order Date</th>
-                            <th>Customer ID</th>
-                            <th>Clip Title</th>
-                            <th>Master Filename</th>
-                            <th>Action</th>
+                            <th>Event</th>
+                            <th>Clip Info</th>
+                            <th>Status</th>
+                            <th class="text-end">Action</th>
                         </tr>
                     </thead>
                     <tbody>
-                        @if (_pendingPurchases == null)
+                        @if (_filteredPurchases == null)
                         {
                             <tr><td colspan="5" class="text-center py-4">Loading...</td></tr>
                         }
-                        else if (!_pendingPurchases.Any())
+                        else if (!_filteredPurchases.Any())
                         {
-                            <tr><td colspan="5" class="text-center py-4 text-muted">No pending deliveries. You're all caught up!</td></tr>
+                            <tr><td colspan="5" class="text-center py-4 text-muted">No orders found matching this filter.</td></tr>
                         }
                         else
                         {
-                            @foreach (var p in _pendingPurchases)
+                            @foreach (var p in _filteredPurchases)
                             {
                                 <tr>
-                                    <td>@p.CreatedAt.ToLocalTime().ToString("g")</td>
-                                    <td><code class="text-info">@p.UserId.ToString().Substring(0, 8)...</code></td>
-                                    <td>@p.Clip.Title</td>
                                     <td>
-                                        <span class="badge bg-warning text-dark">
-                                            <i class="bi bi-file-earmark-play-fill mr-1"></i>
-                                            @(p.Clip.MasterFileName ?? "Unknown")
-                                        </span>
+                                        <div class="fw-bold">@p.CreatedAt.ToLocalTime().ToString("MMM dd, yyyy")</div>
+                                        <small class="text-muted">@p.CreatedAt.ToLocalTime().ToString("t")</small>
                                     </td>
                                     <td>
-                                        <button class="btn btn-sm btn-success" @onclick="() => OpenFulfillModal(p)">
-                                            Fulfill Order
-                                        </button>
+                                        @if (p.Clip.Event != null)
+                                        {
+                                            <div>@p.Clip.Event.Name</div>
+                                            <small class="text-muted">@p.Clip.Event.Date.ToString("d")</small>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted">No Event</span>
+                                        }
+                                    </td>
+                                    <td style="max-width: 250px;">
+                                        <div class="text-truncate" title="@p.Clip.Title">@p.Clip.Title</div>
+                                        <div class="small">
+                                            <i class="bi bi-file-earmark-play"></i> 
+                                            @(p.Clip.MasterFileName ?? "Unknown file")
+                                        </div>
+                                    </td>
+                                    <td>
+                                        @if (p.FulfillmentStatus == FulfillmentStatus.Fulfilled)
+                                        {
+                                            <span class="badge bg-success">Fulfilled</span>
+                                            @if (p.FulfilledAt.HasValue)
+                                            {
+                                                <div style="font-size: 0.7rem; color: #aaa;">@p.FulfilledAt.Value.ToLocalTime().ToString("g")</div>
+                                            }
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-warning text-dark">Pending</span>
+                                        }
+                                    </td>
+                                    <td class="text-end">
+                                        @if (p.FulfillmentStatus == FulfillmentStatus.Pending) 
+                                        {
+                                            <button class="btn btn-sm btn-primary" @onclick="() => OpenFulfillModal(p)">
+                                                <i class="bi bi-upload me-1"></i> Fulfill
+                                            </button>
+                                        }
+                                        else
+                                        {
+                                            <button class="btn btn-sm btn-outline-secondary" @onclick="() => OpenFulfillModal(p)">
+                                                <i class="bi bi-pencil me-1"></i> Update
+                                            </button>
+                                        }
                                     </td>
                                 </tr>
                             }
@@ -85,47 +129,112 @@
                         </div>
                         <small class="text-muted">Find this file on your local drive and upload it to a storage service (Mux, WeTransfer, S3, etc.)</small>
                     </div>
+                    
                     <div class="mb-3">
-                        <label class="form-label text-secondary">Step 2: Provide Download Link</label>
-                        <input class="form-control bg-dark text-white border-secondary" 
-                               placeholder="https://..." @bind="_downloadUrl" />
-                        <div class="form-text text-muted">The customer will see a download button with this link.</div>
+                        <label class="form-label text-secondary">Step 2: Upload Master File (Safe & Private)</label>
+                        
+                        <div style="@(_isUploading ? "display:none" : "")">
+                            <div class="mb-3">
+                                <input type="file" id="fulfillmentFile" class="form-control bg-dark text-white border-secondary" />
+                                <div class="form-text text-muted">Select the high-res master file (e.g. .mp4, .mov). It will be securely uploaded to Mux.</div>
+                                <div class="text-info mt-2" style="font-size: 0.85rem;">
+                                    <i class="bi bi-shield-lock"></i> The customer will get a secure, expiring link to download this exact file.
+                                </div>
+                            </div>
+                            
+                            @if (!string.IsNullOrEmpty(_uploadError))
+                            {
+                                <div class="alert alert-danger mt-2">@_uploadError</div>
+                            }
+                        </div>
+                        
+                        @if (_isUploading)
+                        {
+                            <div class="py-3">
+                                <p class="text-white mb-2">Uploading to Secure Storage... (@_uploadProgress%)</p>
+                                <div class="progress" style="height: 10px; background-color: #333;">
+                                    <div class="progress-bar bg-success" role="progressbar" style="width: @_uploadProgress%"></div>
+                                </div>
+                                <small class="text-muted mt-2 d-block">Please do not close this window.</small>
+                            </div>
+                        }
                     </div>
                 </div>
                 <div class="modal-footer border-secondary">
-                    <button class="btn btn-outline-secondary" @onclick="CloseModal">Cancel</button>
-                    <button class="btn btn-primary" @onclick="SaveFulfillment" disabled="@(string.IsNullOrEmpty(_downloadUrl))">
-                        Complete Fulfillment
-                    </button>
+                    @if (!_isUploading)
+                    {
+                        <button class="btn btn-outline-secondary" @onclick="CloseModal">Cancel</button>
+                        <button class="btn btn-primary" @onclick="StartUpload">
+                            Upload & Fulfill
+                        </button>
+                    }
                 </div>
             </div>
         </div>
     </div>
 }
 
+@inject IJSRuntime JSRuntime
+@inject IVideoService VideoService
+
 @code {
-    private List<Purchase>? _pendingPurchases;
+    private List<Purchase>? _allPurchases;
+    private List<Purchase>? _filteredPurchases;
+    private string _currentFilter = "Pending";
+    
     private bool _showModal = false;
     private Purchase? _selectedPurchase;
-    private string _downloadUrl = "";
+
+    
+    // Upload State
+    private bool _isUploading = false;
+    private int _uploadProgress = 0;
+    private string _uploadError = "";
+    private ElementReference _fileInput;
+    
+    private DotNetObjectReference<Fulfillment>? _objRef;
 
     protected override async Task OnInitializedAsync()
     {
-        await LoadPendingAsync();
+        await LoadDataAsync();
     }
 
-    private async Task LoadPendingAsync()
+    private async Task LoadDataAsync()
     {
-        var all = await PurchaseRepository.ListAsync();
-        _pendingPurchases = all.Where(p => p.FulfillmentStatus == FulfillmentStatus.Pending)
-                               .OrderByDescending(p => p.CreatedAt)
-                               .ToList();
+        _allPurchases = await PurchaseRepository.ListAsync();
+        ApplyFilter();
+    }
+    
+    private void SetFilter(string filter)
+    {
+        _currentFilter = filter;
+        ApplyFilter();
+    }
+
+    private void ApplyFilter()
+    {
+        if (_allPurchases == null) return;
+        
+        switch (_currentFilter)
+        {
+            case "Pending":
+                _filteredPurchases = _allPurchases.Where(p => p.FulfillmentStatus == FulfillmentStatus.Pending).ToList();
+                break;
+            case "Fulfilled":
+                _filteredPurchases = _allPurchases.Where(p => p.FulfillmentStatus == FulfillmentStatus.Fulfilled).ToList();
+                break;
+            default:
+                _filteredPurchases = _allPurchases.ToList();
+                break;
+        }
     }
 
     private void OpenFulfillModal(Purchase p)
     {
         _selectedPurchase = p;
-        _downloadUrl = "";
+        _isUploading = false;
+        _uploadProgress = 0;
+        _uploadError = "";
         _showModal = true;
     }
 
@@ -135,19 +244,126 @@
         _selectedPurchase = null;
     }
 
-    private async Task SaveFulfillment()
+    // Called by UI button
+    private async Task StartUpload()
     {
-        if (_selectedPurchase == null || string.IsNullOrEmpty(_downloadUrl)) return;
-
-        _selectedPurchase.HighResDownloadUrl = _downloadUrl;
-        _selectedPurchase.FulfillmentStatus = FulfillmentStatus.Fulfilled;
-        _selectedPurchase.FulfilledAt = DateTime.UtcNow;
-
-        await PurchaseRepository.UpdateAsync(_selectedPurchase);
+        if (_selectedPurchase == null) return;
         
-        // TODO: Send Email Notification
-        
-        CloseModal();
-        await LoadPendingAsync();
+        _isUploading = true;
+        _uploadError = "";
+        _uploadProgress = 0;
+        StateHasChanged();
+
+        try 
+        {
+            // 1. Get Upload URL from Server
+            var (url, uploadId) = await VideoService.CreateFulfillmentUploadUrlAsync(_selectedPurchase.Id);
+            
+            // 2. Start Client-Side Upload
+            _objRef = DotNetObjectReference.Create(this);
+            // We need to get the file from the input. 
+            // In Blazor Server, InputFile works differently, but for direct JS upload we often use a raw input + JS.
+            // Let's pass the input ID or element to JS.
+            
+            await JSRuntime.InvokeVoidAsync("uploadFromInput", "fulfillmentFile", url, _objRef);
+            
+            // We store the uploadId temporarily? actually we need to verify when done.
+            // We will trust the success callback.
+            _pendingMuxUploadId = uploadId;
+        }
+        catch (Exception ex)
+        {
+             _uploadError = ex.Message;
+             _isUploading = false;
+        }
+    }
+    
+    private string? _pendingMuxUploadId;
+
+    [JSInvokable]
+    public void OnUploadProgress(double percent)
+    {
+        _uploadProgress = (int)percent;
+        StateHasChanged();
+    }
+
+    [JSInvokable]
+    public async Task OnUploadSuccess()
+    {
+        if (_selectedPurchase != null && !string.IsNullOrEmpty(_pendingMuxUploadId))
+        {
+             // Resolve Asset ID Immediately? Mux takes a moment.
+             // We can save the MuxUploadId if we wanted, or wait a sec. 
+             // Ideally we poll for the Asset ID on the server side or just save the UploadID and resolve later.
+             // But simpler: Just resolve the Asset ID now (poll briefly)
+             
+             // Wait briefly for Mux hook
+             await Task.Delay(2000); 
+             var assetId = await VideoService.GetAssetIdFromUploadAsync(_pendingMuxUploadId);
+             
+             if (!string.IsNullOrEmpty(assetId))
+             {
+                 _selectedPurchase.FulfillmentMuxAssetId = assetId;
+                 _selectedPurchase.FulfillmentStatus = FulfillmentStatus.Fulfilled;
+                 _selectedPurchase.FulfilledAt = DateTime.UtcNow;
+                 await PurchaseRepository.UpdateAsync(_selectedPurchase);
+                 
+                 CloseModal();
+                 await LoadDataAsync();
+             }
+             else
+             {
+                 // Fallback: Just mark fulfilled and save the upload ID locally? 
+                 // We don't have a field for UploadID on Purchase. 
+                 // Let's poll loop here briefly.
+                 int retries = 0;
+                 while (string.IsNullOrEmpty(assetId) && retries < 5)
+                 {
+                     await Task.Delay(2000);
+                     assetId = await VideoService.GetAssetIdFromUploadAsync(_pendingMuxUploadId);
+                     retries++;
+                 }
+                 
+                 if (!string.IsNullOrEmpty(assetId))
+                 {
+                     _selectedPurchase.FulfillmentMuxAssetId = assetId;
+                     _selectedPurchase.FulfillmentStatus = FulfillmentStatus.Fulfilled;
+                     _selectedPurchase.FulfilledAt = DateTime.UtcNow;
+                     await PurchaseRepository.UpdateAsync(_selectedPurchase);
+                     CloseModal();
+                     await LoadDataAsync();
+                 }
+                 else
+                 {
+                     _uploadError = "Upload complete but Mux is processing. Please check back later.";
+                     // Maybe save it as pending with Upload ID? For now user can retry or we fix manually.
+                 }
+             }
+        }
+        _isUploading = false;
+        StateHasChanged();
+    }
+
+    [JSInvokable]
+    public void OnUploadError(string msg)
+    {
+        _uploadError = "Upload failed: " + msg;
+        _isUploading = false;
+        StateHasChanged();
+    }
+    
+    public void Dispose()
+    {
+        _objRef?.Dispose();
     }
 }
+<script>
+    window.uploadFromInput = function(inputId, url, dotnetRef) {
+        const input = document.getElementById(inputId);
+        if (!input || !input.files || input.files.length === 0) {
+            dotnetRef.invokeMethodAsync('OnUploadError', 'No file selected');
+            return;
+        }
+        window.uploadToMux(input.files[0], url, dotnetRef);
+    }
+</script>

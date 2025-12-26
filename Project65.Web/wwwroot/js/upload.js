@@ -151,3 +151,27 @@ window.muxUpload = {
         });
     }
 };
+
+// Generic Direct Upload to Mux helper (Outside any closure to be safe)
+window.uploadToMux = function (file, uploadUrl, dotnetRef) {
+    console.log("Starting upload to Mux", file.name, uploadUrl);
+
+    const upload = UpChunk.createUpload({
+        endpoint: uploadUrl,
+        file: file,
+        chunkSize: 256 * 1024, // 256KB (Max seems to be ~500KB based on error)
+    });
+
+    upload.on('progress', (progress) => {
+        dotnetRef.invokeMethodAsync('OnUploadProgress', progress.detail);
+    });
+
+    upload.on('success', () => {
+        dotnetRef.invokeMethodAsync('OnUploadSuccess');
+    });
+
+    upload.on('error', (err) => {
+        console.error("Mux Upload Error", err);
+        dotnetRef.invokeMethodAsync('OnUploadError', err.detail.message);
+    });
+};

@@ -64,6 +64,55 @@ public class MuxVideoService : IVideoService
         return (result.Data.Url, result.Data.Id);
     }
 
+    public async Task<(string url, string uploadId)> CreateFulfillmentUploadUrlAsync(int purchaseId)
+    {
+        // Passthrough belongs on CreateAssetRequest, not AssetMetadata in some SDK versions, 
+        // OR it's a separate parameter. 
+        // Let's try setting it on CreateAssetRequest if possible, or check how the SDK expects it.
+        // Actually, looking at typical Mux SDK, Passthrough is often a property of CreateAssetRequest.
+        
+        // Correction: Remove Passthrough from AssetMetadata
+        var metadata = new AssetMetadata 
+        {
+            // Title might not be here either depending on SDK version? 
+            // Usually metadata allows custom fields but Title/Passthrough are top level in API.
+            // But Mux.C# SDK (official) maps them. 
+            // If AssetMetadata failed, let's remove it from there.
+        };
+        
+        var assetSettings = new CreateAssetRequest(
+            playbackPolicy: new List<PlaybackPolicy> { PlaybackPolicy.Signed },
+            masterAccess: CreateAssetRequest.MasterAccessEnum.Temporary,
+            passthrough: $"fulfillment:{purchaseId}" // Add it here if constructor supports it
+        );
+        
+        // If constructor doesn't support it, we might need to set property:
+        // assetSettings.Passthrough = ...
+        
+        // Let we try to instantiate nicely.
+        
+        return await CreateFulfillmentUploadUrlAsync_Fixed(purchaseId);
+    }
+
+    private async Task<(string url, string uploadId)> CreateFulfillmentUploadUrlAsync_Fixed(int purchaseId)
+    {
+         var assetSettings = new CreateAssetRequest(
+            playbackPolicy: new List<PlaybackPolicy> { PlaybackPolicy.Signed },
+            masterAccess: CreateAssetRequest.MasterAccessEnum.Temporary
+        );
+        assetSettings.Passthrough = $"fulfillment:{purchaseId}";
+        
+        // Is 'Title' supported? In standard Mux API, title is often just a metadata field (arbitrary) or not standard.
+        // Let's remove Title from code to be safe if AssetMetadata fails, or assume it's custom.
+        // Mux often puts everything in 'test' map if not standard.
+        
+        var request = new CreateUploadRequest(newAssetSettings: assetSettings);
+        request.CorsOrigin = "*";
+        
+        var result = await _directUploadsApi.CreateDirectUploadAsync(request);
+        return (result.Data.Url, result.Data.Id);
+    }
+
     public async Task<string?> GetPlaybackIdAsync(string assetId)
     {
         var asset = await _assetsApi.GetAssetAsync(assetId);

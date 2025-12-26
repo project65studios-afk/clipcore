@@ -65,15 +65,14 @@
                         </a>
                         @if (purchase.FulfillmentStatus == FulfillmentStatus.Pending)
                         {
-                            <div class="badge bg-secondary p-2 d-flex align-items-center" style="font-size: 0.8rem; font-weight: 500;">
-                                <div class="spinner-border spinner-border-sm me-2" role="status" style="width: 12px; height: 12px;"></div>
-                                Processing High-Res Version...
-                            </div>
+                            <button class="btn btn-secondary disabled" style="font-size: 0.9rem; padding: 0.5rem 1rem; opacity: 0.7; border: 1px solid transparent;">
+                                Order Awaiting Fulfillment
+                            </button>
                         }
                         else
                         {
                             <button class="btn-primary" style="font-size: 0.9rem; padding: 0.5rem 1rem;" @onclick="() => DownloadHighResAsync(purchase)">
-                                <i class="bi bi-download me-1"></i> Download Master (2K)
+                                <i class="bi bi-download me-1"></i> Download Master (4K)
                             </button>
                         }
                     </div>
@@ -125,12 +124,33 @@
 
     private async Task DownloadHighResAsync(Purchase purchase)
     {
-        if (string.IsNullOrEmpty(purchase.HighResDownloadUrl))
+        // 1. Try Mux Asset (New Secure Flow)
+        if (!string.IsNullOrEmpty(purchase.FulfillmentMuxAssetId))
         {
-            await JSRuntime.InvokeVoidAsync("alert", "High-res version is not available yet.");
+             // Use JS to show "Preparing..." if needed, but for now just open the link.
+             // We need to fetch the signed URL from the server.
+             var cleanTitle = string.Join("_", purchase.Clip.Title.Split(Path.GetInvalidFileNameChars()));
+             var url = await VideoService.GetDownloadUrlAsync(purchase.FulfillmentMuxAssetId, $"{cleanTitle}_MASTER.mp4");
+             
+             if (!string.IsNullOrEmpty(url))
+             {
+                 await JSRuntime.InvokeVoidAsync("open", url, "_blank");
+                 return;
+             }
+             else
+             {
+                 await JSRuntime.InvokeVoidAsync("alert", "Master file is verifying. Please try again in 1 minute.");
+                 return;
+             }
+        }
+
+        // 2. Legacy Fallback (Text URL)
+        if (!string.IsNullOrEmpty(purchase.HighResDownloadUrl))
+        {
+            await JSRuntime.InvokeVoidAsync("open", purchase.HighResDownloadUrl, "_blank");
             return;
         }
         
-        await JSRuntime.InvokeVoidAsync("open", purchase.HighResDownloadUrl, "_blank");
+        await JSRuntime.InvokeVoidAsync("alert", "High-res version is not available yet.");
     }
 }
