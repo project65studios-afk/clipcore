@@ -4,6 +4,8 @@
 @inject IEventRepository EventRepository
 @inject IVideoService VideoService
 @inject ISettingsRepository SettingsRepository
+@inject NavigationManager Navigation
+@inject IJSRuntime JSRuntime
 
 <PageTitle>@_event?.Name - Project65</PageTitle>
 
@@ -27,9 +29,11 @@ else
         </div>
         <p style="max-width: 600px; color: var(--text-secondary);">@_event.Summary</p>
         
-        <div class="event-header-actions" style="margin-top: 1.5rem;">
-             <button class="btn-primary">Share Event</button>
-             <button class="btn-secondary">Copy Link</button>
+        <div class="event-header-actions" style="margin-top: 1.5rem; display: flex; gap: 0.5rem; align-items: center;">
+             <button class="btn-primary" @onclick="ShareEventAsync">Share Event</button>
+             <button class="btn-secondary" @onclick="CopyLinkAsync">
+                 @(_showCopiedMessage ? "Link Copied!" : "Copy Link")
+             </button>
         </div>
     </div>
     
@@ -145,6 +149,32 @@ else
     private string? _watermarkUrl;
     private string _sortBy = "TimeUsedAsc"; // Default sort
     private Dictionary<string, string> _tokenCache = new();
+    private bool _showCopiedMessage = false;
+
+    private async Task CopyLinkAsync()
+    {
+        var uri = Navigation.Uri;
+        await JSRuntime.InvokeVoidAsync("navigator.clipboard.writeText", uri);
+        _showCopiedMessage = true;
+        StateHasChanged();
+        await Task.Delay(2000);
+        _showCopiedMessage = false;
+        StateHasChanged();
+    }
+
+    private async Task ShareEventAsync()
+    {
+        var uri = Navigation.Uri;
+        try 
+        {
+            await JSRuntime.InvokeVoidAsync("navigator.share", new { title = _event?.Name ?? "Project65 Event", url = uri });
+        }
+        catch 
+        {
+            // Fallback to copy link if share not supported or cancelled
+            await CopyLinkAsync();
+        }
+    }
 
     protected override async Task OnInitializedAsync()
     {
