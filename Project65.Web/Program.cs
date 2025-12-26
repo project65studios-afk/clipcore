@@ -43,6 +43,17 @@ builder.Services.AddScoped<Project65.Web.Services.CartService>();
 
 var app = builder.Build();
 
+// Add Security Headers
+app.Use(async (context, next) =>
+{
+    context.Response.Headers["X-Content-Type-Options"] = "nosniff";
+    context.Response.Headers["X-Frame-Options"] = "SAMEORIGIN";
+    context.Response.Headers["Referrer-Policy"] = "strict-origin-when-cross-origin";
+    // Permissive CSP to allow external services (Google/Facebook/Stripe/Mux) while providing baseline protection
+    context.Response.Headers["Content-Security-Policy"] = "default-src 'self' https: data: 'unsafe-inline' 'unsafe-eval'; frame-ancestors 'self';";
+    await next();
+});
+
 // Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment())
 {
