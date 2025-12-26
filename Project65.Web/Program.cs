@@ -50,7 +50,11 @@ app.Use(async (context, next) =>
     context.Response.Headers["X-Frame-Options"] = "SAMEORIGIN";
     context.Response.Headers["Referrer-Policy"] = "strict-origin-when-cross-origin";
     // Permissive CSP to allow external services (Google/Facebook/Stripe/Mux) while providing baseline protection
-    context.Response.Headers["Content-Security-Policy"] = "default-src 'self' https: data: 'unsafe-inline' 'unsafe-eval'; frame-ancestors 'self';";
+    // Mux player uses blob: for HLS chunks and workers.
+    context.Response.Headers["Content-Security-Policy"] = 
+        "default-src 'self' https: data: blob: 'unsafe-inline' 'unsafe-eval'; " +
+        "worker-src 'self' blob:; " + 
+        "frame-ancestors 'self';";
     await next();
 });
 
