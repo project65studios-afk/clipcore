@@ -17,10 +17,17 @@
 
 <PageTitle>@_clip?.Title - Project65</PageTitle>
 
-@if (_clip == null)
+@if (_loading)
 {
-    @if (_loading) { <p>Loading...</p> }
-    else { <p>Clip not found.</p> }
+    <div style="display:flex;justify-content:center;align-items:center;min-height:50vh;">
+        <div class="spinner-border text-info" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+    </div>
+}
+else if (_clip == null)
+{
+    <div class="alert alert-danger">Clip not found.</div>
 }
 else
 {

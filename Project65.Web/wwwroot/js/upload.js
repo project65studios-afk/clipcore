@@ -9,9 +9,8 @@ window.muxUpload = {
         uppyInstance = new Uppy.Uppy({
             id: 'mux-uploader',
             autoProceed: false,
-            allowMultipleUploadBatches: true,
             restrictions: {
-                maxNumberOfFiles: 50,
+                maxNumberOfFiles: 500,
                 allowedFileTypes: ['video/*']
             }
         });
@@ -20,54 +19,135 @@ window.muxUpload = {
             target: '#' + containerId,
             inline: true,
             showProgressDetails: true,
-            proudlyDisplayPoweredByUppy: false,
             theme: 'dark',
             width: '100%',
             height: 450,
-            note: 'Large files (up to 1GB) supported. Batch processed one-by-one for maximum speed.'
+            note: 'PhotoReflect Mode: Videos will be compressed on server and uploaded as 480p proofs.'
         });
 
-        // Use XHRUpload for direct PUT to Mux
-        uppyInstance.use(Uppy.XHRUpload, {
-            method: 'PUT',
-            formData: false,
-            limit: 1, // Sequential batch as requested
-            getResponseError(responseText, xhr) {
-                return new Error(responseText || 'Upload failed');
-            }
-        });
+        function ServerCompressionPlugin(uppy) {
+            this.id = 'ServerCompression';
+            this.type = 'uploader';
 
-        // Before each file starts, get a signed URL from Blazor
-        uppyInstance.addPreProcessor(async (fileIds) => {
-            for (const id of fileIds) {
-                const file = uppyInstance.getFile(id);
-                try {
-                    const result = await dotNetHelper.invokeMethodAsync('GetMuxUploadUrl', file.name, file.id);
-                    // result: { url: "...", uploadId: "..." }
-                    uppyInstance.setFileState(id, {
-                        xhrUpload: { endpoint: result.url },
-                        meta: { ...file.meta, muxUploadId: result.uploadId, clipId: result.clipId, recordingDate: new Date(file.data.lastModified || Date.now()).toISOString() }
-                    });
-                } catch (err) {
-                    console.error("Failed to get Mux URL", err);
-                    uppyInstance.info("Failed to prepare upload for " + file.name, 'error', 5000);
-                    throw err; // Stop the upload if we can't get a URL
+            this.install = () => {
+                uppy.addUploader(this.upload);
+            };
+
+            this.uninstall = () => {
+                uppy.removeUploader(this.upload);
+            };
+
+            this.update = () => { };
+
+            this.upload = async (fileIDs) => {
+                // Get event and price from Blazor component
+                const uploadInfo = await dotNetHelper.invokeMethodAsync('GetUploadInfo');
+
+                for (const id of fileIDs) {
+                    const file = uppy.getFile(id);
+
+                    try {
+                        uppy.info(`Uploading ${file.name} to server...`, 'info', 0);
+
+                        const startTime = performance.now();
+
+                        // Create FormData
+                        const formData = new FormData();
+                        formData.append('file', file.data);
+                        formData.append('eventId', uploadInfo.eventId);
+                        formData.append('masterFileName', file.name);
+                        formData.append('priceCents', uploadInfo.priceCents);
+                        formData.append('userId', uploadInfo.userId);
+
+                        // Upload to server with progress tracking
+                        const xhr = new XMLHttpRequest();
+
+                        // Mark file as uploading
+                        uppy.setFileState(id, {
+                            progress: {
+                                uploadStarted: Date.now(),
+                                uploadComplete: false,
+                                percentage: 0,
+                                bytesUploaded: 0,
+                                bytesTotal: file.size
+                            }
+                        });
+
+                        uppy.emit('upload-started', file);
+
+                        xhr.upload.addEventListener('progress', (e) => {
+                            if (e.lengthComputable) {
+                                const percentage = Math.round((e.loaded / e.total) * 100);
+
+                                // Update file state for Uppy Dashboard to show progress
+                                uppy.setFileState(id, {
+                                    progress: {
+                                        uploadStarted: startTime,
+                                        uploadComplete: false,
+                                        percentage: percentage,
+                                        bytesUploaded: e.loaded,
+                                        bytesTotal: e.total
+                                    }
+                                });
+
+                                uppy.emit('upload-progress', file, {
+                                    uploader: this,
+                                    bytesUploaded: e.loaded,
+                                    bytesTotal: e.total
+                                });
+                                uppy.info(`Uploading ${file.name}: ${percentage}% (${(e.loaded / 1024 / 1024).toFixed(1)}MB / ${(e.total / 1024 / 1024).toFixed(1)}MB)`, 'info', 1000);
+                            }
+                        });
+
+                        const uploadPromise = new Promise((resolve, reject) => {
+                            xhr.addEventListener('load', () => {
+                                if (xhr.status >= 200 && xhr.status < 300) {
+                                    const response = JSON.parse(xhr.responseText);
+                                    const totalTime = ((performance.now() - startTime) / 1000).toFixed(1);
+                                    console.log(`[Server] Complete for ${file.name} in ${totalTime}s. Original: ${(response.originalSize / 1024 / 1024).toFixed(2)}MB, Compressed: ${(response.compressedSize / 1024 / 1024).toFixed(2)}MB, Compression: ${response.compressionTime.toFixed(1)}s`);
+
+                                    // Update file state to show 100% complete
+                                    uppy.setFileState(id, {
+                                        progress: { uploadComplete: true, uploadStarted: Date.now() }
+                                    });
+
+                                    uppy.emit('upload-success', file, {
+                                        clipId: response.clipId,
+                                        fileName: file.name
+                                    });
+
+                                    // Show success notification
+                                    uppy.info(`✓ ${file.name} uploaded and compressed successfully!`, 'success', 5000);
+
+                                    resolve(response);
+                                } else {
+                                    reject(new Error(`Server returned ${xhr.status}: ${xhr.responseText}`));
+                                }
+                            });
+
+                            xhr.addEventListener('error', () => {
+                                reject(new Error('Network error'));
+                            });
+
+                            xhr.open('POST', '/api/admin/VideoCompression/compress-and-upload');
+                            xhr.send(formData);
+                        });
+
+                        await uploadPromise;
+
+                    } catch (err) {
+                        console.error(`[Server] Failed ${file.name}:`, err);
+                        uppy.emit('upload-error', file, err);
+                    }
                 }
-            }
-        });
+            };
+        }
+
+        uppyInstance.use(ServerCompressionPlugin);
 
         uppyInstance.on('upload-success', (file, response) => {
-            console.log('Upload success:', file.name);
-            dotNetHelper.invokeMethodAsync('OnUppyUploadSuccess', {
-                fileName: file.name,
-                muxUploadId: file.meta.muxUploadId,
-                clipId: file.meta.clipId,
-                recordingDate: file.meta.recordingDate
-            });
-        });
-
-        uppyInstance.on('complete', (result) => {
-            console.log('Batch complete:', result.successful.length, 'files uploaded');
+            console.log(`[Uppy] Upload success for ${file.fileName}`);
+            // No need to invoke OnUppyUploadSuccess anymore - server handles everything
         });
     }
 };

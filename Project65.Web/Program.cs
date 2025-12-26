@@ -10,7 +10,10 @@ var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddRazorComponents()
-    .AddInteractiveServerComponents();
+    .AddInteractiveServerComponents(options =>
+    {
+        options.DetailedErrors = true; // Enable detailed exceptions
+    });
 builder.Services.AddCascadingAuthenticationState();
 
 builder.Services.AddDbContext<AppDbContext>(options =>
@@ -60,6 +63,23 @@ builder.Services.AddScoped<Project65.Web.Services.CartService>();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<IUsageRepository, UsageRepository>();
 builder.Services.AddMemoryCache();
+builder.Services.AddControllers(options =>
+{
+    // API controllers shouldn't validate antiforgery tokens by default
+    options.Filters.Add(new Microsoft.AspNetCore.Mvc.IgnoreAntiforgeryTokenAttribute());
+});
+
+// Configure Kestrel to accept large file uploads (up to 2GB)
+builder.WebHost.ConfigureKestrel(options =>
+{
+    options.Limits.MaxRequestBodySize = 2_147_483_648; // 2GB
+});
+
+// Configure form options for large multipart uploads
+builder.Services.Configure<Microsoft.AspNetCore.Http.Features.FormOptions>(options =>
+{
+    options.MultipartBodyLengthLimit = 2_147_483_648; // 2GB
+});
 
 var app = builder.Build();
 
@@ -87,16 +107,17 @@ if (!app.Environment.IsDevelopment())
 }
 app.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages: true);
 app.UseHttpsRedirection();
-
-app.UseAntiforgery();
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseAntiforgery();
+
 
 app.MapStaticAssets();
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 
 app.MapRazorPages(); // Required for Identity UI endpoints
+app.MapControllers(); // Required for API endpoints
 
 using (var scope = app.Services.CreateScope())
 {

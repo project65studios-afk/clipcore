@@ -4,13 +4,6 @@ using Project65.Core.Interfaces;
 
 namespace Project65.Infrastructure.Data.Repositories;
 
-public interface IPurchaseRepository
-{
-    Task AddAsync(Purchase purchase);
-    Task<bool> HasPurchasedAsync(Guid userId, string clipId);
-    Task<List<Purchase>> GetByUserIdAsync(Guid userId);
-}
-
 public class PurchaseRepository : IPurchaseRepository
 {
     private readonly AppDbContext _context;
@@ -40,5 +33,19 @@ public class PurchaseRepository : IPurchaseRepository
             .Where(p => p.UserId == userId)
             .OrderByDescending(p => p.CreatedAt)
             .ToListAsync();
+    }
+
+    public async Task<List<Purchase>> ListAsync()
+    {
+        return await _context.Purchases
+            .Include(p => p.Clip)
+            .OrderByDescending(p => p.CreatedAt)
+            .ToListAsync();
+    }
+
+    public async Task UpdateAsync(Purchase purchase)
+    {
+        _context.Purchases.Update(purchase);
+        await _context.SaveChangesAsync();
     }
 }

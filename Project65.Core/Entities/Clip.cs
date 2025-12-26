@@ -25,5 +25,7 @@ public class Clip
     public string? MuxUploadId { get; set; }
     public string? MuxAssetId { get; set; }
     
+    public string? MasterFileName { get; set; }
+    
     public DateTime PublishedAt { get; set; } = DateTime.UtcNow;
 }

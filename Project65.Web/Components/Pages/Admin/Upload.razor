@@ -119,6 +119,13 @@
         }
     }
 
+    public class MuxUploadRequest
+    {
+        public string FileName { get; set; } = "";
+        public long FileSize { get; set; }
+        public string MasterFileName { get; set; } = "";
+    }
+
     public class MuxUploadResult
     {
         public string Url { get; set; } = "";
@@ -127,9 +134,27 @@
     }
 
     [JSInvokable]
-    public async Task<MuxUploadResult> GetMuxUploadUrl(string fileName, string uppyFileId)
+    public Task<UploadInfo> GetUploadInfo()
     {
-        Console.WriteLine($"[Uppy] Requesting Mux URL for: {fileName}");
+        return Task.FromResult(new UploadInfo
+        {
+            EventId = _selectedEventId,
+            PriceCents = (int)(_priceDollars * 100),
+            UserId = _userId ?? "Admin"
+        });
+    }
+
+    public class UploadInfo
+    {
+        public string EventId { get; set; } = "";
+        public int PriceCents { get; set; }
+        public string UserId { get; set; } = "";
+    }
+
+    [JSInvokable]
+    public async Task<MuxUploadResult> GetMuxUploadUrl(MuxUploadRequest request)
+    {
+        Console.WriteLine($"[Uppy] Requesting Mux URL for: {request.FileName} (Master: {request.MasterFileName})");
         if (string.IsNullOrEmpty(_selectedEventId))
         {
             throw new Exception("Please select an event first.");
@@ -138,7 +163,7 @@
         var clipId = Guid.NewGuid().ToString();
         var (url, uploadId) = await VideoService.CreateUploadUrlAsync(
             clipId: clipId,
-            title: fileName,
+            title: request.FileName,
             creatorId: _userId
         );
 
@@ -151,6 +176,7 @@
         public string MuxUploadId { get; set; } = "";
         public string ClipId { get; set; } = "";
         public string RecordingDate { get; set; } = "";
+        public string MasterFileName { get; set; } = "";
     }
 
     [JSInvokable]
@@ -163,6 +189,7 @@
             Title = data.FileName,
             PriceCents = (int)(_priceDollars * 100),
             MuxUploadId = data.MuxUploadId,
+            MasterFileName = data.MasterFileName,
             RecordingStartedAt = DateTime.TryParse(data.RecordingDate, out var dt) ? dt : null
         };
 

@@ -60,12 +60,22 @@
                     </div>
 
                     <div class="purchase-actions">
-                        <a href="/clips/@purchase.ClipId" class="btn-secondary" style="font-size: 0.9rem; padding: 0.5rem 1rem;">
-                            View
+                        <a href="/clips/@purchase.ClipId" class="btn btn-outline-info" style="font-size: 0.9rem; padding: 0.5rem 1rem;">
+                            Watch Preview
                         </a>
-                        <button class="btn-primary" style="font-size: 0.9rem; padding: 0.5rem 1rem;" @onclick="() => DownloadAsync(purchase.Clip)">
-                            Download Source
-                        </button>
+                        @if (purchase.FulfillmentStatus == FulfillmentStatus.Pending)
+                        {
+                            <div class="badge bg-secondary p-2 d-flex align-items-center" style="font-size: 0.8rem; font-weight: 500;">
+                                <div class="spinner-border spinner-border-sm me-2" role="status" style="width: 12px; height: 12px;"></div>
+                                Processing High-Res Version...
+                            </div>
+                        }
+                        else
+                        {
+                            <button class="btn-primary" style="font-size: 0.9rem; padding: 0.5rem 1rem;" @onclick="() => DownloadHighResAsync(purchase)">
+                                <i class="bi bi-download me-1"></i> Download Master (2K)
+                            </button>
+                        }
                     </div>
                 </div>
             }
@@ -113,27 +123,14 @@
         }
     }
 
-    private async Task DownloadAsync(Clip clip)
+    private async Task DownloadHighResAsync(Purchase purchase)
     {
-        if (string.IsNullOrEmpty(clip.MuxAssetId)) return;
+        if (string.IsNullOrEmpty(purchase.HighResDownloadUrl))
+        {
+            await JSRuntime.InvokeVoidAsync("alert", "High-res version is not available yet.");
+            return;
+        }
         
-        try
-        {
-            var cleanTitle = string.Join("_", clip.Title.Split(Path.GetInvalidFileNameChars()));
-            var url = await VideoService.GetDownloadUrlAsync(clip.MuxAssetId, $"{cleanTitle}.mp4");
-            if (!string.IsNullOrEmpty(url))
-            {
-                await JSRuntime.InvokeVoidAsync("open", url, "_blank");
-            }
-            else
-            {
-                await JSRuntime.InvokeVoidAsync("alert", "Source file is being prepared. Please wait 1-2 minutes and try again.");
-            }
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"Download error: {ex.Message}");
-            await JSRuntime.InvokeVoidAsync("alert", "Error checking download status.");
-        }
+        await JSRuntime.InvokeVoidAsync("open", purchase.HighResDownloadUrl, "_blank");
     }
 }
