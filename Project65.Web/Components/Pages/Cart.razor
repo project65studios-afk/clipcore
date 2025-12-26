@@ -36,7 +36,7 @@
                 <div class="cart-item" style="display: flex; gap: 1rem; padding: 1rem; background: var(--bg-dark-800); border-radius: var(--radius-lg); border: 1px solid var(--border-color); align-items: center;">
                     <!-- Thumbnail -->
                     <div style="width: 120px; aspect-ratio: 16/9; background: #000; border-radius: 4px; overflow: hidden; flex-shrink: 0; position: relative;">
-                         @if (GetThumbnailUrl(item) is string thumbUrl) 
+                         @if (_thumbnailUrls.TryGetValue(item.Id, out var thumbUrl)) 
                          {
                              <img src="@thumbUrl" style="width: 100%; height: 100%; object-fit: cover;" />
                          }
@@ -81,14 +81,17 @@
 @code {
     private bool _isInitialized = false;
     private Dictionary<string, Event> _events = new();
+    private Dictionary<string, string> _thumbnailUrls = new();
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender)
         {
             await CartService.InitializeAsync();
+            var items = CartService.GetItems();
+
              // Fetch events associated with items
-             var eventIds = CartService.GetItems().Select(c => c.EventId).Distinct();
+             var eventIds = items.Select(c => c.EventId).Distinct();
              foreach (var eid in eventIds)
              {
                  if (!_events.ContainsKey(eid))
@@ -98,18 +101,28 @@
                  }
              }
 
+             // Load Thumbnails
+             foreach (var item in items)
+             {
+                  if (!_thumbnailUrls.ContainsKey(item.Id))
+                  {
+                      var url = await GenerateThumbnailUrlAsync(item);
+                      if (url != null) _thumbnailUrls[item.Id] = url;
+                  }
+             }
+
             _isInitialized = true;
             CartService.OnChange += StateHasChanged;
             StateHasChanged();
         }
     }
 
-    private string? GetThumbnailUrl(Project65.Web.Models.CartItem item)
+    private async Task<string?> GenerateThumbnailUrlAsync(Project65.Web.Models.CartItem item)
     {
         var id = item.PlaybackId;
         if (string.IsNullOrEmpty(id) || id.StartsWith("mock")) return null;
 
-        var token = VideoService.GetPlaybackToken(id, "t", "480p");
+        var token = await VideoService.GetPlaybackToken(id, "t", "480p");
         return $"https://image.mux.com/{id}/thumbnail.jpg?token={token}&width=200";
     }
 
