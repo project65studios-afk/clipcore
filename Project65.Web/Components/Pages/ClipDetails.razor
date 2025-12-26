@@ -10,6 +10,7 @@
 @inject IPurchaseRepository PurchaseRepository
 @inject NavigationManager Navigation
 @inject ISettingsRepository SettingsRepository
+@inject IEmailService EmailService
 @inject IJSRuntime JSRuntime
 @inject Project65.Web.Services.CartService CartService
 @rendermode RenderMode.InteractiveServer
@@ -343,6 +344,27 @@ else
                         {
                             await PurchaseRepository.AddAsync(purchase);
                             _hasPurchased = true;
+
+                            // Send Receipt
+                            try 
+                            {
+                                var email = await PaymentService.GetCustomerEmailFromSessionAsync(sessionId!);
+                                if (!string.IsNullOrEmpty(email))
+                                {
+                                    string receiptBody = $@"
+                                        <h1>Thank You for Your Order!</h1>
+                                        <p>You have purchased access to: <strong>{_clip.Title}</strong></p>
+                                        <p>You can watch or download it anytime here: <a href='{Navigation.Uri}'>{Navigation.Uri}</a></p>
+                                        <br/>
+                                        <p>- Project65 Studios</p>
+                                    ";
+                                    await EmailService.SendEmailAsync(email, "Your Project65 Receipt", receiptBody);
+                                }
+                            }
+                            catch (Exception ex) 
+                            { 
+                                Console.WriteLine($"Failed to send receipt: {ex.Message}");
+                            }
                         }
                         catch { _hasPurchased = true; }
                     }

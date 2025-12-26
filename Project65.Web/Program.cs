@@ -38,7 +38,18 @@ builder.Services.AddScoped<IVideoService, MuxVideoService>();
 builder.Services.AddScoped<IPaymentService, StripePaymentService>();
 builder.Services.AddScoped<IPurchaseRepository, PurchaseRepository>();
 builder.Services.AddScoped<ISettingsRepository, SettingsRepository>();
-builder.Services.AddScoped<IEmailService, ConsoleEmailService>();
+builder.Services.AddScoped<ISettingsRepository, SettingsRepository>();
+
+if (!string.IsNullOrEmpty(builder.Configuration["SendGrid:ApiKey"]))
+{
+    builder.Services.AddScoped<IEmailService, SendGridEmailService>();
+}
+else
+{
+    builder.Services.AddScoped<IEmailService, ConsoleEmailService>();
+}
+
+builder.Services.AddScoped<Project65.Web.Services.CartService>();
 builder.Services.AddScoped<Project65.Web.Services.CartService>();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<IUsageRepository, UsageRepository>();
