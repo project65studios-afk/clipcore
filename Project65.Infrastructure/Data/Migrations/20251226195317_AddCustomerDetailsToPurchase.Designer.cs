@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Project65.Infrastructure.Data;
 
@@ -10,9 +11,11 @@ using Project65.Infrastructure.Data;
 namespace Project65.Infrastructure.Data.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251226195317_AddCustomerDetailsToPurchase")]
+    partial class AddCustomerDetailsToPurchase
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "10.0.1");
@@ -333,9 +336,6 @@ namespace Project65.Infrastructure.Data.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("TEXT");
 
-                    b.Property<string>("CustomerAddress")
-                        .HasColumnType("TEXT");
-
                     b.Property<string>("CustomerEmail")
                         .HasColumnType("TEXT");
 
@@ -354,9 +354,6 @@ namespace Project65.Infrastructure.Data.Migrations
                     b.Property<string>("HighResDownloadUrl")
                         .HasColumnType("TEXT");
 
-                    b.Property<int>("PricePaidCents")
-                        .HasColumnType("INTEGER");
-
                     b.Property<string>("StripeSessionId")
                         .IsRequired()
                         .HasColumnType("TEXT");
@@ -368,7 +365,8 @@ namespace Project65.Infrastructure.Data.Migrations
 
                     b.HasIndex("ClipId");
 
-                    b.HasIndex("StripeSessionId");
+                    b.HasIndex("StripeSessionId")
+                        .IsUnique();
 
                     b.HasIndex("UserId", "ClipId")
                         .IsUnique();

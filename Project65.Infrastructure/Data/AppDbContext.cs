@@ -41,7 +41,6 @@ public class AppDbContext : IdentityDbContext
             .IsUnique(); // Prevent double purchase
             
         modelBuilder.Entity<Purchase>()
-            .HasIndex(p => p.StripeSessionId)
-            .IsUnique(); // Idempotency
+            .HasIndex(p => p.StripeSessionId); // Index for lookup, but NOT unique (multi-item orders share ID)
     }
 }

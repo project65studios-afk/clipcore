@@ -14,100 +14,158 @@
         <div class="badge bg-primary">Admin Only</div>
     </div>
 
-    <div class="card bg-dark border-secondary shadow">
-        <div class="card-header border-secondary bg-dark d-flex justify-content-between align-items-center">
-            <h5 class="mb-0">Delivery Queue</h5>
-            <div class="btn-group">
-                <button class="btn btn-sm @(_currentFilter == "Pending" ? "btn-warning" : "btn-outline-secondary")" 
+    <div class="card border-0 shadow-sm" style="background: #f8f9fa;">
+        <div class="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center">
+            <h5 class="mb-0 text-dark">Delivery Queue</h5>
+            <div class="btn-group shadow-sm">
+                <button class="btn btn-sm @(_currentFilter == "Pending" ? "btn-warning text-white" : "btn-white text-secondary border")" 
                         @onclick='() => SetFilter("Pending")'>Pending</button>
-                <button class="btn btn-sm @(_currentFilter == "Fulfilled" ? "btn-success" : "btn-outline-secondary")" 
+                <button class="btn btn-sm @(_currentFilter == "Fulfilled" ? "btn-success" : "btn-white text-secondary border")" 
                         @onclick='() => SetFilter("Fulfilled")'>Fulfilled</button>
-                <button class="btn btn-sm @(_currentFilter == "All" ? "btn-light" : "btn-outline-secondary")" 
+                <button class="btn btn-sm @(_currentFilter == "All" ? "btn-dark" : "btn-white text-secondary border")" 
                         @onclick='() => SetFilter("All")'>All</button>
             </div>
         </div>
-        <div class="card-body p-0">
-            <div class="table-responsive">
-                <table class="table table-dark table-hover mb-0 align-middle">
-                    <thead class="table-secondary text-dark">
-                        <tr>
-                            <th>Order Date</th>
-                            <th>Event</th>
-                            <th>Clip Info</th>
-                            <th>Status</th>
-                            <th class="text-end">Action</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @if (_filteredPurchases == null)
-                        {
-                            <tr><td colspan="5" class="text-center py-4">Loading...</td></tr>
-                        }
-                        else if (!_filteredPurchases.Any())
-                        {
-                            <tr><td colspan="5" class="text-center py-4 text-muted">No orders found matching this filter.</td></tr>
-                        }
-                        else
-                        {
-                            @foreach (var p in _filteredPurchases)
-                            {
-                                <tr>
-                                    <td>
-                                        <div class="fw-bold">@p.CreatedAt.ToLocalTime().ToString("MMM dd, yyyy")</div>
-                                        <small class="text-muted">@p.CreatedAt.ToLocalTime().ToString("t")</small>
-                                    </td>
-                                    <td>
-                                        @if (p.Clip.Event != null)
-                                        {
-                                            <div>@p.Clip.Event.Name</div>
-                                            <small class="text-muted">@p.Clip.Event.Date.ToString("d")</small>
-                                        }
-                                        else
-                                        {
-                                            <span class="text-muted">No Event</span>
-                                        }
-                                    </td>
-                                    <td style="max-width: 250px;">
-                                        <div class="text-truncate" title="@p.Clip.Title">@p.Clip.Title</div>
-                                        <div class="small">
-                                            <i class="bi bi-file-earmark-play"></i> 
-                                            @(p.Clip.MasterFileName ?? "Unknown file")
+        <div class="card-body p-0 bg-light">
+                @if (_filteredPurchases == null)
+                {
+                    <div class="text-center py-5">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                    </div>
+                }
+                else if (!_filteredPurchases.Any())
+                {
+                    <div class="text-center py-5 text-muted">No orders found matching this filter.</div>
+                }
+                else
+                {
+                    var groupedOrders = _filteredPurchases
+                        .GroupBy(p => p.StripeSessionId)
+                        .OrderByDescending(g => g.First().CreatedAt)
+                        .ToList();
+
+                    foreach (var order in groupedOrders)
+                    {
+                        var firstItem = order.First();
+                        var orderId = !string.IsNullOrEmpty(firstItem.StripeSessionId) 
+                            ? "ORD-" + firstItem.StripeSessionId.Substring(firstItem.StripeSessionId.Length - 8).ToUpper() 
+                            : "LEGACY-" + firstItem.Id;
+
+                        <div class="card border-0 shadow-sm mb-4 mx-3 mt-3 overflow-hidden rounded-3">
+                             
+                             <!-- Order Header -->
+                             <div class="card-header bg-white p-3 border-bottom">
+                                <div class="row align-items-center">
+                                    <div class="col-md-4">
+                                        <div class="d-flex align-items-center gap-2">
+                                            <div class="fw-bold fs-5 text-dark">@orderId</div>
+                                            <span class="badge bg-light text-dark border">@order.Count() Items</span>
                                         </div>
-                                    </td>
-                                    <td>
-                                        @if (p.FulfillmentStatus == FulfillmentStatus.Fulfilled)
-                                        {
-                                            <span class="badge bg-success">Fulfilled</span>
-                                            @if (p.FulfilledAt.HasValue)
+                                        <div class="text-muted small">
+                                            @firstItem.CreatedAt.ToLocalTime().ToString("MMMM dd, yyyy") at @firstItem.CreatedAt.ToLocalTime().ToString("t")
+                                        </div>
+                                    </div>
+                                    <div class="col-md-8 text-md-end mt-2 mt-md-0">
+                                        <div class="d-flex justify-content-md-end gap-4 text-start text-md-end">
+                                            <div>
+                                                <div class="text-uppercase text-muted fw-bold" style="font-size: 0.7rem; letter-spacing: 0.5px;">Customer</div>
+                                                <div class="fw-bold text-dark">@(firstItem.CustomerName ?? "Anonymous")</div>
+                                                <div class="small text-primary text-decoration-underline">@(firstItem.CustomerEmail ?? "No Email")</div>
+                                            </div>
+                                            @if (!string.IsNullOrEmpty(firstItem.CustomerAddress))
                                             {
-                                                <div style="font-size: 0.7rem; color: #aaa;">@p.FulfilledAt.Value.ToLocalTime().ToString("g")</div>
+                                                <div>
+                                                    <div class="text-uppercase text-muted fw-bold" style="font-size: 0.7rem; letter-spacing: 0.5px;">Address</div>
+                                                    <div class="small text-dark" style="max-width: 250px; line-height: 1.2;">@firstItem.CustomerAddress</div>
+                                                </div>
                                             }
-                                        }
-                                        else
+                                        </div>
+                                    </div>
+                                </div>
+                             </div>
+
+                             <!-- Items Table -->
+                             <div class="table-responsive bg-white">
+                                <table class="table table-hover mb-0 align-middle">
+                                    <thead class="bg-light">
+                                        <tr class="text-uppercase text-muted small border-bottom">
+                                            <th class="ps-4 py-3" style="width: 35%;">Clip Info</th>
+                                            <th style="width: 20%;">Event Details</th>
+                                            <th style="width: 15%;">Price / Duration</th>
+                                            <th style="width: 15%;">Status</th>
+                                            <th class="text-end pe-4" style="width: 15%;">Action</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach (var p in order)
                                         {
-                                            <span class="badge bg-warning text-dark">Pending</span>
+                                            <tr>
+                                                <td class="ps-4">
+                                                    <div class="fw-bold text-dark">@p.Clip.Title</div>
+                                                    <div class="small text-muted font-monospace mt-1">
+                                                        <i class="bi bi-file-earmark-film me-1"></i>
+                                                        @(p.Clip.MasterFileName ?? "No Master File")
+                                                    </div>
+                                                </td>
+                                                <td>
+                                                    @if (p.Clip.Event != null)
+                                                    {
+                                                        <div class="text-dark">@p.Clip.Event.Name</div>
+                                                        <div class="small text-secondary">@p.Clip.Event.Date.ToString("d")</div>
+                                                    }
+                                                    else
+                                                    {
+                                                        <span class="text-muted fst-italic">Unknown Event</span>
+                                                    }
+                                                </td>
+                                                <td>
+                                                    <div class="text-dark fw-bold">$@((p.PricePaidCents > 0 ? p.PricePaidCents : p.Clip.PriceCents) / 100.00)</div>
+                                                    <div class="small text-muted">@((int)(p.Clip.DurationSec ?? 0)) seconds</div>
+                                                </td>
+                                                <td>
+                                                    @if (p.FulfillmentStatus == FulfillmentStatus.Fulfilled)
+                                                    {
+                                                        <span class="badge bg-success text-white rounded-pill px-3">
+                                                            <i class="bi bi-check-circle-fill me-1"></i> Fulfilled
+                                                        </span>
+                                                        @if (p.FulfilledAt.HasValue)
+                                                        {
+                                                            <div style="font-size: 0.7rem; color: #6c757d;" class="mt-1 ms-1">
+                                                                @p.FulfilledAt.Value.ToLocalTime().ToString("MM/dd h:mm tt")
+                                                            </div>
+                                                        }
+                                                    }
+                                                    else
+                                                    {
+                                                        <span class="badge bg-warning text-dark rounded-pill px-3">
+                                                            <i class="bi bi-clock me-1"></i> Pending
+                                                        </span>
+                                                    }
+                                                </td>
+                                                <td class="text-end pe-4">
+                                                    @if (p.FulfillmentStatus == FulfillmentStatus.Pending) 
+                                                    {
+                                                        <button class="btn btn-sm btn-primary shadow-sm" @onclick="() => OpenFulfillModal(p)">
+                                                            <i class="bi bi-upload me-1"></i> Fulfill
+                                                        </button>
+                                                    }
+                                                    else
+                                                    {
+                                                        <button class="btn btn-sm btn-outline-secondary" @onclick="() => OpenFulfillModal(p)">
+                                                            <i class="bi bi-pencil me-1"></i> Update
+                                                        </button>
+                                                    }
+                                                </td>
+                                            </tr>
                                         }
-                                    </td>
-                                    <td class="text-end">
-                                        @if (p.FulfillmentStatus == FulfillmentStatus.Pending) 
-                                        {
-                                            <button class="btn btn-sm btn-primary" @onclick="() => OpenFulfillModal(p)">
-                                                <i class="bi bi-upload me-1"></i> Fulfill
-                                            </button>
-                                        }
-                                        else
-                                        {
-                                            <button class="btn btn-sm btn-outline-secondary" @onclick="() => OpenFulfillModal(p)">
-                                                <i class="bi bi-pencil me-1"></i> Update
-                                            </button>
-                                        }
-                                    </td>
-                                </tr>
-                            }
-                        }
-                    </tbody>
-                </table>
-            </div>
+                                    </tbody>
+                                </table>
+                             </div>
+                        </div>
+                    }
+                }
         </div>
     </div>
 </div>

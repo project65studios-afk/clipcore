@@ -30,50 +30,74 @@
     }
     else
     {
-        <div style="display: flex; flex-direction: column; gap: 1rem;">
-            @foreach (var purchase in _purchases)
+        <div style="display: flex; flex-direction: column; gap: 2rem;">
+            @foreach (var orderGroup in _purchases.GroupBy(p => p.StripeSessionId).OrderByDescending(g => g.First().CreatedAt))
             {
-                <div class="purchase-card">
-                    <div class="purchase-thumbnail">
-                         @if (_thumbnailUrls.TryGetValue(purchase.Clip.Id, out var thumbUrl)) 
-                         {
-                             <img src="@thumbUrl" alt="@purchase.Clip.Title" />
-                         }
-                    </div>
-                    
-                    <div class="purchase-info">
-                        <h4 class="purchase-title">@purchase.Clip.Title</h4>
-                        @if (purchase.Clip.Event != null)
-                        {
-                            <div>
-                                <a href="/events/@purchase.Clip.EventId" class="purchase-event-link">
-                                    @purchase.Clip.Event.Name
-                                </a>
-                                <span class="purchase-date">
-                                    @purchase.Clip.Event.Date.ToString("MMM dd, yyyy")
-                                </span>
+                var firstItem = orderGroup.First();
+                var orderId = !string.IsNullOrEmpty(firstItem.StripeSessionId) 
+                    ? "ORD-" + firstItem.StripeSessionId.Substring(firstItem.StripeSessionId.Length - 8).ToUpper() 
+                    : "LEGACY-" + firstItem.Id;
+
+                <div class="order-group" style="background: var(--bg-dark-800); border-radius: var(--radius-lg); border: 1px solid var(--border-color); overflow: hidden;">
+                    <!-- Order Header -->
+                    <div class="order-header" style="background: rgba(255, 255, 255, 0.05); padding: 1rem 1.5rem; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <div style="font-weight: 700; color: var(--text-primary);">@orderId</div>
+                            <div style="font-size: 0.85rem; color: var(--text-muted);">
+                                Purchased on @firstItem.CreatedAt.ToLocalTime().ToString("MMMM dd, yyyy") at @firstItem.CreatedAt.ToLocalTime().ToString("t")
                             </div>
-                        }
-                        <div class="purchase-meta">
-                             Purchased on @purchase.CreatedAt.ToLocalTime().ToString("MMM dd, yyyy")
+                        </div>
+                        <div class="badge bg-secondary text-white" style="font-size: 0.8rem;">
+                            @orderGroup.Count() Item@(orderGroup.Count() > 1 ? "s" : "")
                         </div>
                     </div>
 
-                    <div class="purchase-actions">
-                        <a href="/clips/@purchase.ClipId" class="btn btn-outline-info" style="font-size: 0.9rem; padding: 0.5rem 1rem;">
-                            Watch Preview
-                        </a>
-                        @if (purchase.FulfillmentStatus == FulfillmentStatus.Pending)
+                    <!-- Items -->
+                    <div class="order-items" style="display: flex; flex-direction: column;">
+                        @foreach (var purchase in orderGroup)
                         {
-                            <button class="btn btn-secondary disabled" style="font-size: 0.9rem; padding: 0.5rem 1rem; opacity: 0.7; border: 1px solid transparent;">
-                                Order Awaiting Fulfillment
-                            </button>
-                        }
-                        else
-                        {
-                            <button class="btn-primary" style="font-size: 0.9rem; padding: 0.5rem 1rem;" @onclick="() => DownloadHighResAsync(purchase)">
-                                <i class="bi bi-download me-1"></i> Download Master (4K)
-                            </button>
+                            <div class="purchase-item" style="display: flex; gap: 1rem; padding: 1.5rem; border-bottom: 1px solid rgba(255,255,255,0.05);">
+                                <div class="purchase-thumbnail" style="width: 140px; aspect-ratio: 16/9; background: #000; border-radius: 4px; overflow: hidden; flex-shrink: 0;">
+                                     @if (_thumbnailUrls.TryGetValue(purchase.Clip.Id, out var thumbUrl)) 
+                                     {
+                                         <img src="@thumbUrl" alt="@purchase.Clip.Title" style="width: 100%; height: 100%; object-fit: cover;" />
+                                     }
+                                </div>
+                                
+                                <div class="purchase-info" style="flex-grow: 1;">
+                                    <h4 class="purchase-title" style="margin: 0 0 0.5rem 0; font-size: 1.1rem;">@purchase.Clip.Title</h4>
+                                    @if (purchase.Clip.Event != null)
+                                    {
+                                        <div style="font-size: 0.9rem; margin-bottom: 0.5rem;">
+                                            <a href="/events/@purchase.Clip.EventId" style="color: var(--accent-cyan); text-decoration: none;">
+                                                @purchase.Clip.Event.Name
+                                            </a>
+                                            <span style="color: var(--text-muted); margin-left: 0.5rem;">
+                                                • @purchase.Clip.Event.Date.ToString("MMM dd, yyyy")
+                                            </span>
+                                        </div>
+                                    }
+                                </div>
+
+                                <div class="purchase-actions" style="display: flex; flex-direction: column; gap: 0.5rem; min-width: 200px; justify-content: center;">
+                                    <a href="/clips/@purchase.ClipId" class="btn btn-outline-info w-100" style="font-size: 0.85rem; padding: 0.4rem;">
+                                        Preview / Details
+                                    </a>
+                                    
+                                    @if (purchase.FulfillmentStatus == FulfillmentStatus.Fulfilled)
+                                    {
+                                        <button class="btn btn-primary w-100" style="font-size: 0.85rem; padding: 0.4rem;" @onclick="() => DownloadHighResAsync(purchase)">
+                                            <i class="bi bi-download me-1"></i> Download Master (4K)
+                                        </button>
+                                    }
+                                    else
+                                    {
+                                        <div class="text-center py-1 px-2 rounded" style="background: rgba(255, 193, 7, 0.1); border: 1px solid rgba(255, 193, 7, 0.2); color: #ffc107; font-size: 0.8rem;">
+                                            <i class="bi bi-hourglass-split me-1"></i> Awaiting Order Fulfillment
+                                        </div>
+                                    }
+                                </div>
+                            </div>
                         }
                     </div>
                 </div>

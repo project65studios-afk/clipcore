@@ -19,10 +19,13 @@ public class StripePaymentService : IPaymentService
 
     public async Task<string> CreateCheckoutSessionAsync(IEnumerable<CheckoutItem> items, string successUrl, string cancelUrl, string? userEmail = null)
     {
+        var itemsList = items.ToList();
+        Console.WriteLine($"[STRIPE] Creating Session for {itemsList.Count} items.");
+        
         var lineItems = new List<SessionLineItemOptions>();
         var clipIds = new List<string>();
 
-        foreach (var item in items)
+        foreach (var item in itemsList)
         {
             clipIds.Add(item.Id);
             lineItems.Add(new SessionLineItemOptions
@@ -70,35 +73,88 @@ public class StripePaymentService : IPaymentService
     public async Task<List<Purchase>> GetPurchasesFromSessionAsync(string sessionId)
     {
         var service = new SessionService();
-        var session = await service.GetAsync(sessionId);
+        var options = new SessionGetOptions();
+        options.AddExpand("line_items");
+        options.AddExpand("line_items.data.price.product"); // Necessary to access Product Metadata
+        
+        var session = await service.GetAsync(sessionId, options);
         var purchases = new List<Purchase>();
+        var foundClipIds = new HashSet<string>();
 
         if (session.PaymentStatus == "paid")
         {
-            // Try to get ClipIds from session metadata
-            if (session.Metadata.TryGetValue("ClipIds", out var clipIdsStr))
+            // Address Formatting
+            var address = session.CustomerDetails?.Address;
+            string? addressStr = null;
+            if (address != null)
             {
-                var clipIds = clipIdsStr.Split(',', StringSplitOptions.RemoveEmptyEntries);
-                foreach (var id in clipIds)
+                var parts = new[] { address.Line1, address.Line2, address.City, address.State, address.PostalCode, address.Country };
+                addressStr = string.Join(", ", parts.Where(s => !string.IsNullOrWhiteSpace(s)));
+            }
+
+            // 1. Attempt to gather purchases from Line Items (Preferred Source)
+            if (session.LineItems?.Data != null)
+            {
+                foreach (var item in session.LineItems.Data)
                 {
-                    purchases.Add(new Purchase
+                    var clipId = item.Price?.Product?.Metadata?.GetValueOrDefault("ClipId");
+                    
+                    if (!string.IsNullOrEmpty(clipId))
                     {
-                        ClipId = id,
-                        StripeSessionId = session.Id,
-                        CreatedAt = DateTime.UtcNow
-                    });
+                        var purchase = new Purchase
+                        {
+                            ClipId = clipId,
+                            StripeSessionId = session.Id,
+                            CreatedAt = DateTime.UtcNow,
+                            CustomerEmail = session.CustomerDetails?.Email ?? session.CustomerEmail,
+                            CustomerName = session.CustomerDetails?.Name,
+                            CustomerAddress = addressStr,
+                            PricePaidCents = Convert.ToInt32(item.AmountTotal)
+                        };
+                        
+                        if (!foundClipIds.Contains(clipId))
+                        {
+                            purchases.Add(purchase);
+                            foundClipIds.Add(clipId);
+                        }
+                    }
                 }
             }
-            // Fallback for legacy single-item sessions
+
+            // 2. Fallback / Fill Gaps using Session Metadata
+            // This ensures that even if Line Item parsing fails (e.g. expansion limits), 
+            // we still record the purchase if it was in the "ClipIds" list.
+            var expectedClipIds = new List<string>();
+            if (session.Metadata.TryGetValue("ClipIds", out var clipIdsStr))
+            {
+                expectedClipIds.AddRange(clipIdsStr.Split(',', StringSplitOptions.RemoveEmptyEntries));
+            }
             else if (session.Metadata.TryGetValue("ClipId", out var singleClipId))
             {
-                 purchases.Add(new Purchase
-                 {
-                     ClipId = singleClipId,
-                     StripeSessionId = session.Id,
-                     CreatedAt = DateTime.UtcNow
-                 });
+                expectedClipIds.Add(singleClipId);
             }
+
+            foreach (var expectedId in expectedClipIds)
+            {
+                if (!foundClipIds.Contains(expectedId))
+                {
+                    Console.WriteLine($"[STRIPE] Clip {expectedId} found in Metadata but NOT LineItems. Adding fallback purchase.");
+                    purchases.Add(new Purchase
+                    {
+                        ClipId = expectedId,
+                        StripeSessionId = session.Id,
+                        CreatedAt = DateTime.UtcNow,
+                        CustomerEmail = session.CustomerDetails?.Email ?? session.CustomerEmail,
+                        CustomerName = session.CustomerDetails?.Name,
+                        CustomerAddress = addressStr,
+                        // Fallback Price: Average of total
+                        PricePaidCents = (int)((session.AmountTotal ?? 0) / (expectedClipIds.Count > 0 ? expectedClipIds.Count : 1)) 
+                    });
+                    foundClipIds.Add(expectedId);
+                }
+            }
+            
+            Console.WriteLine($"[STRIPE] Processed session {sessionId}. Found {purchases.Count} purchases (Expected {expectedClipIds.Count})."); 
         }
         return purchases;
     }
