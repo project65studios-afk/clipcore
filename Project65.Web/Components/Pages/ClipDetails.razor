@@ -13,7 +13,7 @@
 @inject IEmailService EmailService
 @inject IJSRuntime JSRuntime
 @inject Project65.Web.Services.CartService CartService
-@rendermode RenderMode.InteractiveServer
+@implements IDisposable
 
 <PageTitle>@_clip?.Title - Project65</PageTitle>
 
@@ -245,154 +245,163 @@ else
 
     protected override async Task OnInitializedAsync()
     {
-        _watermarkUrl = await SettingsRepository.GetValueAsync("WatermarkUrl");
-        
-        if (AuthenticationStateTask != null)
+        try 
         {
-            var authState = await AuthenticationStateTask;
-            var user = authState.User;
-            _isAuthenticated = user.Identity?.IsAuthenticated == true;
+            _watermarkUrl = await SettingsRepository.GetValueAsync("WatermarkUrl");
             
-            if (_isAuthenticated)
+            if (AuthenticationStateTask != null)
             {
-                 var userIdClaim = user.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
-                 if (Guid.TryParse(userIdClaim, out var parsed)) 
-                 {
-                     _userId = parsed;
-                 }
-            }
-        }
-
-        _clip = await ClipRepository.GetByIdAsync(Id);
-        
-        if (_clip != null)
-        {
-             // Self-Healing Logic (Repair PlaybackId/Duration)
-            if (string.IsNullOrEmpty(_clip.MuxAssetId) && !string.IsNullOrEmpty(_clip.MuxUploadId))
-            {
-                var resolvedAssetId = await VideoService.GetAssetIdFromUploadAsync(_clip.MuxUploadId);
-                if (!string.IsNullOrEmpty(resolvedAssetId))
-                {
-                    _clip.MuxAssetId = resolvedAssetId;
-                    await ClipRepository.UpdateAsync(_clip);
-                    Console.WriteLine($"Resolved and saved MuxAssetId for clip {_clip.Id}");
-                }
-            }
-
-            if (!string.IsNullOrEmpty(_clip.MuxAssetId) && (string.IsNullOrEmpty(_clip.PlaybackIdSigned) || !_clip.DurationSec.HasValue || !_clip.RecordingStartedAt.HasValue))
-            {
-                // ... (Keep existing repair logic) ...
-                 try 
-                {
-                    bool needsUpdate = false;
-                    
-                    if (string.IsNullOrEmpty(_clip.PlaybackIdSigned))
-                    {
-                        Console.WriteLine($"Repairing playback ID for Asset {_clip.MuxAssetId}");
-                        var newId = await VideoService.EnsurePlaybackIdAsync(_clip.MuxAssetId);
-                        if (!string.IsNullOrEmpty(newId))
-                        {
-                            _clip.PlaybackIdSigned = newId;
-                            needsUpdate = true;
-                        }
-                    }
-
-                    if (!_clip.DurationSec.HasValue || !_clip.RecordingStartedAt.HasValue)
-                    {
-                        var (duration, startedAt) = await VideoService.GetAssetDetailsAsync(_clip.MuxAssetId);
-                        
-                        if (duration.HasValue && !_clip.DurationSec.HasValue)
-                        {
-                            _clip.DurationSec = duration.Value;
-                            needsUpdate = true;
-                        }
-
-                        if (startedAt.HasValue && !_clip.RecordingStartedAt.HasValue)
-                        {
-                            _clip.RecordingStartedAt = startedAt;
-                            needsUpdate = true;
-                        }
-                    }
-
-                    if (needsUpdate)
-                    {
-                        await ClipRepository.UpdateAsync(_clip); 
-                    }
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"Failed to repair asset: {ex.Message}");
-                }
-            }
-
-            _hasPurchased = await PurchaseRepository.HasPurchasedAsync(_userId, Id);
-            
-            // Purchase Verification Logic
-            var uri = Navigation.ToAbsoluteUri(Navigation.Uri);
-            if (QueryHelpers.ParseQuery(uri.Query).TryGetValue("session_id", out var sessionId))
-            {
-                _processingPurchase = true;
-                var purchases = await PaymentService.GetPurchasesFromSessionAsync(sessionId!);
-                var purchase = purchases.FirstOrDefault(p => p.ClipId == Id);
+                var authState = await AuthenticationStateTask;
+                var user = authState.User;
+                _isAuthenticated = user.Identity?.IsAuthenticated == true;
                 
-                if (purchase != null)
+                if (_isAuthenticated)
                 {
-                    purchase.UserId = _userId;
-                    if (!_hasPurchased)
-                    {
-                        try 
-                        {
-                            await PurchaseRepository.AddAsync(purchase);
-                            _hasPurchased = true;
+                     var userIdClaim = user.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+                     if (Guid.TryParse(userIdClaim, out var parsed)) 
+                     {
+                         _userId = parsed;
+                     }
+                }
+            }
 
-                            // Send Receipt
+            _clip = await ClipRepository.GetByIdAsync(Id);
+            
+            if (_clip != null)
+            {
+                 // Self-Healing Logic (Repair PlaybackId/Duration)
+                if (string.IsNullOrEmpty(_clip.MuxAssetId) && !string.IsNullOrEmpty(_clip.MuxUploadId))
+                {
+                    var resolvedAssetId = await VideoService.GetAssetIdFromUploadAsync(_clip.MuxUploadId);
+                    if (!string.IsNullOrEmpty(resolvedAssetId))
+                    {
+                        _clip.MuxAssetId = resolvedAssetId;
+                        await ClipRepository.UpdateAsync(_clip);
+                        Console.WriteLine($"Resolved and saved MuxAssetId for clip {_clip.Id}");
+                    }
+                }
+
+                if (!string.IsNullOrEmpty(_clip.MuxAssetId) && (string.IsNullOrEmpty(_clip.PlaybackIdSigned) || !_clip.DurationSec.HasValue || !_clip.RecordingStartedAt.HasValue))
+                {
+                    // ... (Keep existing repair logic) ...
+                     try 
+                    {
+                        bool needsUpdate = false;
+                        
+                        if (string.IsNullOrEmpty(_clip.PlaybackIdSigned))
+                        {
+                            Console.WriteLine($"Repairing playback ID for Asset {_clip.MuxAssetId}");
+                            var newId = await VideoService.EnsurePlaybackIdAsync(_clip.MuxAssetId);
+                            if (!string.IsNullOrEmpty(newId))
+                            {
+                                _clip.PlaybackIdSigned = newId;
+                                needsUpdate = true;
+                            }
+                        }
+
+                        if (!_clip.DurationSec.HasValue || !_clip.RecordingStartedAt.HasValue)
+                        {
+                            var (duration, startedAt) = await VideoService.GetAssetDetailsAsync(_clip.MuxAssetId);
+                            
+                            if (duration.HasValue && !_clip.DurationSec.HasValue)
+                            {
+                                _clip.DurationSec = duration.Value;
+                                needsUpdate = true;
+                            }
+
+                            if (startedAt.HasValue && !_clip.RecordingStartedAt.HasValue)
+                            {
+                                _clip.RecordingStartedAt = startedAt;
+                                needsUpdate = true;
+                            }
+                        }
+
+                        if (needsUpdate)
+                        {
+                            await ClipRepository.UpdateAsync(_clip); 
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"Failed to repair asset: {ex.Message}");
+                    }
+                }
+
+                _hasPurchased = await PurchaseRepository.HasPurchasedAsync(_userId, Id);
+                
+                // Purchase Verification Logic
+                var uri = Navigation.ToAbsoluteUri(Navigation.Uri);
+                if (QueryHelpers.ParseQuery(uri.Query).TryGetValue("session_id", out var sessionId))
+                {
+                    _processingPurchase = true;
+                    var purchases = await PaymentService.GetPurchasesFromSessionAsync(sessionId!);
+                    var purchase = purchases.FirstOrDefault(p => p.ClipId == Id);
+                    
+                    if (purchase != null)
+                    {
+                        purchase.UserId = _userId;
+                        if (!_hasPurchased)
+                        {
                             try 
                             {
-                                var email = await PaymentService.GetCustomerEmailFromSessionAsync(sessionId!);
-                                if (!string.IsNullOrEmpty(email))
+                                await PurchaseRepository.AddAsync(purchase);
+                                _hasPurchased = true;
+
+                                // Send Receipt
+                                try 
                                 {
-                                    string receiptBody = $@"
-                                        <h1>Thank You for Your Order!</h1>
-                                        <p>You have purchased access to: <strong>{_clip.Title}</strong></p>
-                                        <p>You can watch or download it anytime here: <a href='{Navigation.Uri}'>{Navigation.Uri}</a></p>
-                                        <br/>
-                                        <p>- Project65 Studios</p>
-                                    ";
-                                    await EmailService.SendEmailAsync(email, "Your Project65 Receipt", receiptBody);
+                                    var email = await PaymentService.GetCustomerEmailFromSessionAsync(sessionId!);
+                                    if (!string.IsNullOrEmpty(email))
+                                    {
+                                        string receiptBody = $@"
+                                            <h1>Thank You for Your Order!</h1>
+                                            <p>You have purchased access to: <strong>{_clip.Title}</strong></p>
+                                            <p>You can watch or download it anytime here: <a href='{Navigation.Uri}'>{Navigation.Uri}</a></p>
+                                            <br/>
+                                            <p>- Project65 Studios</p>
+                                        ";
+                                        await EmailService.SendEmailAsync(email, "Your Project65 Receipt", receiptBody);
+                                    }
+                                }
+                                catch (Exception ex) 
+                                { 
+                                    Console.WriteLine($"Failed to send receipt: {ex.Message}");
                                 }
                             }
-                            catch (Exception ex) 
-                            { 
-                                Console.WriteLine($"Failed to send receipt: {ex.Message}");
-                            }
+                            catch { _hasPurchased = true; }
                         }
-                        catch { _hasPurchased = true; }
                     }
+                    _processingPurchase = false;
                 }
-                _processingPurchase = false;
-            }
 
-            // LOAD TOKENS
-            string targetId = "";
-            string? resolution = null;
-            
-            if (_hasPurchased && !string.IsNullOrEmpty(_clip.PlaybackIdSigned))
-            {
-                targetId = _clip.PlaybackIdSigned;
-                resolution = null; // Full quality, tracked
-            }
-            else if (GetPreviewId() is string pid)
-            {
-                targetId = pid;
-                resolution = "480p"; // Preview, unlimited
-            }
+                // LOAD TOKENS
+                string targetId = "";
+                string? resolution = null;
+                
+                if (_hasPurchased && !string.IsNullOrEmpty(_clip.PlaybackIdSigned))
+                {
+                    targetId = _clip.PlaybackIdSigned;
+                    resolution = null; // Full quality, tracked
+                }
+                else if (GetPreviewId() is string pid)
+                {
+                    targetId = pid;
+                    resolution = "480p"; // Preview, unlimited
+                }
 
-            if (!string.IsNullOrEmpty(targetId))
-            {
-                await LoadTokensForClip(targetId, resolution);
+                if (!string.IsNullOrEmpty(targetId))
+                {
+                    await LoadTokensForClip(targetId, resolution);
+                }
             }
+            _loading = false;
         }
-        _loading = false;
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[CLIP-DETAILS-CRITICAL] OnInitializedAsync Crashed: {ex}");
+            _errorMessage = "Failed to load clip details.";
+            _loading = false;
+        }
     }
 
     private async Task LoadTokensForClip(string playbackId, string? resolution = null)
@@ -427,6 +436,7 @@ else
 
     private async Task BuyAsync()
     {
+        Console.WriteLine($"[DEBUG] BuyAsync Clicked for {Id}"); // DEBUG
         if (_clip == null) return;
         var successUrl = Navigation.BaseUri + $"clips/{Id}?session_id={{CHECKOUT_SESSION_ID}}";
         var cancelUrl = Navigation.BaseUri + $"clips/{Id}";
@@ -443,7 +453,13 @@ else
         }
 
         // Pass single item as list
-        var url = await PaymentService.CreateCheckoutSessionAsync(new[] { _clip }, successUrl, cancelUrl, userEmail);
+        var checkoutItem = new Project65.Core.DTOs.CheckoutItem
+        {
+            Id = _clip.Id,
+            Title = _clip.Title,
+            PriceCents = _clip.PriceCents
+        };
+        var url = await PaymentService.CreateCheckoutSessionAsync(new[] { checkoutItem }, successUrl, cancelUrl, userEmail);
         Navigation.NavigateTo(url);
     }
 
@@ -496,12 +512,22 @@ else
 
     private async Task AddToCart()
     {
+        Console.WriteLine($"[DEBUG] AddToCart Clicked for {Id}. Adding? {_isAddingToCart}"); // DEBUG
         if (_clip != null && !_isAddingToCart)
         {
             _isAddingToCart = true;
             try
             {
-                await CartService.AddAsync(_clip);
+                var item = new Project65.Web.Models.CartItem
+                {
+                    Id = _clip.Id,
+                    Title = _clip.Title,
+                    PriceCents = _clip.PriceCents,
+                    DurationSec = _clip.DurationSec,
+                    PlaybackId = _clip.PlaybackIdSigned,
+                    EventId = _clip.EventId
+                };
+                await CartService.AddAsync(item);
                 _isInCart = true;
             }
             finally
@@ -512,10 +538,16 @@ else
         }
     }
 
+    public void Dispose()
+    {
+        CartService.OnChange -= StateHasChanged;
+    }
+
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender && _clip != null)
         {
+            CartService.OnChange += StateHasChanged;
             await CartService.InitializeAsync();
              // Check if already in cart
             _isInCart = CartService.GetItems().Any(c => c.Id == _clip.Id);

@@ -1,8 +1,9 @@
-using Microsoft.Extensions.Configuration;
+using Project65.Core.DTOs;
 using Project65.Core.Entities;
 using Project65.Core.Interfaces;
 using Stripe;
 using Stripe.Checkout;
+using Microsoft.Extensions.Configuration;
 
 namespace Project65.Infrastructure.Services;
 
@@ -16,25 +17,25 @@ public class StripePaymentService : IPaymentService
         StripeConfiguration.ApiKey = _apiKey; // Global setting, simpler for MVP
     }
 
-    public async Task<string> CreateCheckoutSessionAsync(IEnumerable<Clip> clips, string successUrl, string cancelUrl, string? userEmail = null)
+    public async Task<string> CreateCheckoutSessionAsync(IEnumerable<CheckoutItem> items, string successUrl, string cancelUrl, string? userEmail = null)
     {
         var lineItems = new List<SessionLineItemOptions>();
         var clipIds = new List<string>();
 
-        foreach (var clip in clips)
+        foreach (var item in items)
         {
-            clipIds.Add(clip.Id);
+            clipIds.Add(item.Id);
             lineItems.Add(new SessionLineItemOptions
             {
                 PriceData = new SessionLineItemPriceDataOptions
                 {
-                    UnitAmount = clip.PriceCents,
+                    UnitAmount = item.PriceCents,
                     Currency = "usd",
                     ProductData = new SessionLineItemPriceDataProductDataOptions
                     {
-                        Name = clip.Title,
-                        Description = $"Video Clip: {clip.Title}",
-                        Metadata = new Dictionary<string, string> { { "ClipId", clip.Id } }
+                        Name = item.Title,
+                        Description = $"Video Clip: {item.Title}",
+                        Metadata = new Dictionary<string, string> { { "ClipId", item.Id } }
                     },
                 },
                 Quantity = 1,

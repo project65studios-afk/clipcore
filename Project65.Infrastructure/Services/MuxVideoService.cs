@@ -89,68 +89,80 @@ public class MuxVideoService : IVideoService
 
     public async Task<string> GetPlaybackToken(string playbackId, string audience = "v", string? maxResolution = null)
     {
-        long unixNow = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-        
-        var context = _httpContextAccessor.HttpContext;
-        string ip = context?.Connection?.RemoteIpAddress?.ToString() ?? "unknown";
-        if (ip == "::1") ip = "127.0.0.1";
-
-        // ANTI-BOT: Block known non-browser user agents
-        string ua = context?.Request.Headers["User-Agent"].ToString() ?? "";
-        if (ua.Contains("curl", StringComparison.OrdinalIgnoreCase) || 
-            ua.Contains("python", StringComparison.OrdinalIgnoreCase) || 
-            ua.Contains("wget", StringComparison.OrdinalIgnoreCase) ||
-            ua.Contains("postman", StringComparison.OrdinalIgnoreCase))
+        try
         {
-             Console.WriteLine($"[BOT BLOCKED] UA: {ua} IP: {ip}");
-             return "";
-        }
-
-        // CACHE CHECK
-        string cacheKey = $"mux_token_{ip}_{playbackId}_{audience}_{maxResolution ?? "full"}";
-        
-        if (_cache.TryGetValue(cacheKey, out string? cachedToken))
-        {
-            if (!string.IsNullOrEmpty(cachedToken)) return cachedToken;
-        }
-
-        if (string.IsNullOrEmpty(_signingKeyId) || string.IsNullOrEmpty(_signingKeyPrivate))
-        {
-            return "";
-        }
-
-        // Only enforce limits for video playback ('v'), not thumbnails ('t', 's')
-        if (audience == "v")
-        {
-            var date = DateOnly.FromDateTime(DateTime.UtcNow);
+            long unixNow = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
             
-            // Allow Admins AND low-res previews (480p) to bypass limits
-            bool isAdmin = context?.User?.IsInRole("Admin") ?? false;
-            bool isPreview = !string.IsNullOrEmpty(maxResolution);
-            
-            if (!isAdmin && !isPreview && ip != "unknown")
+            var context = _httpContextAccessor.HttpContext;
+            string ip = context?.Connection?.RemoteIpAddress?.ToString() ?? "unknown";
+            if (ip == "::1") ip = "127.0.0.1";
+
+            // ANTI-BOT: Block known non-browser user agents
+            try 
             {
-                var usage = await _usageRepository.GetUsageAsync(ip, date);
-                if (usage.TokenRequestCount >= MaxDailyTokens)
+                string ua = context?.Request?.Headers["User-Agent"].ToString() ?? "";
+                if (ua.Contains("curl", StringComparison.OrdinalIgnoreCase) || 
+                    ua.Contains("python", StringComparison.OrdinalIgnoreCase) || 
+                    ua.Contains("wget", StringComparison.OrdinalIgnoreCase) ||
+                    ua.Contains("postman", StringComparison.OrdinalIgnoreCase))
                 {
-                    Console.WriteLine($"[LIMIT] IP {ip} exceeded daily limit ({usage.TokenRequestCount}). Denying token.");
-                    return ""; 
+                     Console.WriteLine($"[BOT BLOCKED] UA: {ua} IP: {ip}");
+                     return ""; // Block
                 }
-
-                await _usageRepository.IncrementUsageAsync(ip, date);
-                Console.WriteLine($"[USAGE] IP {ip} used token {usage.TokenRequestCount + 1}/{MaxDailyTokens}");
             }
-        }
+            catch {} // Ignore UA check failures (e.g. if Request is null)
 
-        var token = GenerateSignedToken(playbackId, audience, maxResolution);
-        
-        // CACHE SET (10 mins)
-        if (!string.IsNullOrEmpty(token))
+            // CACHE CHECK
+            string cacheKey = $"mux_token_{ip}_{playbackId}_{audience}_{maxResolution ?? "full"}";
+            
+            if (_cache.TryGetValue(cacheKey, out string? cachedToken))
+            {
+                if (!string.IsNullOrEmpty(cachedToken)) return cachedToken;
+            }
+
+            if (string.IsNullOrEmpty(_signingKeyId) || string.IsNullOrEmpty(_signingKeyPrivate))
+            {
+                return "";
+            }
+
+            // Only enforce limits for video playback ('v'), not thumbnails ('t', 's')
+            if (audience == "v")
+            {
+                var date = DateOnly.FromDateTime(DateTime.UtcNow);
+                
+                // Allow Admins AND low-res previews (480p) to bypass limits
+                bool isAdmin = context?.User?.IsInRole("Admin") ?? false;
+                bool isPreview = !string.IsNullOrEmpty(maxResolution);
+                
+                if (!isAdmin && !isPreview && ip != "unknown")
+                {
+                    var usage = await _usageRepository.GetUsageAsync(ip, date);
+                    if (usage.TokenRequestCount >= MaxDailyTokens)
+                    {
+                        Console.WriteLine($"[LIMIT] IP {ip} exceeded daily limit ({usage.TokenRequestCount}). Denying token.");
+                        return ""; 
+                    }
+
+                    await _usageRepository.IncrementUsageAsync(ip, date);
+                    Console.WriteLine($"[USAGE] IP {ip} used token {usage.TokenRequestCount + 1}/{MaxDailyTokens}");
+                }
+            }
+
+            var token = GenerateSignedToken(playbackId, audience, maxResolution);
+            
+            // CACHE SET (10 mins)
+            if (!string.IsNullOrEmpty(token))
+            {
+                _cache.Set(cacheKey, token, TimeSpan.FromMinutes(10));
+            }
+
+            return token;
+        }
+        catch (Exception ex)
         {
-            _cache.Set(cacheKey, token, TimeSpan.FromMinutes(10));
+            Console.WriteLine($"[MUX-CRITICAL-ERROR] GetPlaybackToken Failed: {ex}");
+            return ""; // Fail safe
         }
-
-        return token;
     }
 
     private string GenerateSignedToken(string playbackId, string audience, string? maxResolution = null)

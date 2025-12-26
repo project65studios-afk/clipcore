@@ -4,7 +4,6 @@
 @inject IEventRepository EventRepository
 @inject IVideoService VideoService
 @inject ISettingsRepository SettingsRepository
-@rendermode RenderMode.InteractiveServer
 
 <PageTitle>@_event?.Name - Project65</PageTitle>
 
@@ -55,7 +54,7 @@ else
         <div class="video-grid">
             @foreach (var clip in _event.Clips)
             {
-                <a href="/clips/@clip.Id" class="video-card">
+                <a href="/clips/@clip.Id" class="video-card" data-enhance-nav="false">
                     <div class="video-thumb">
                         @if (clip.PlaybackIdTeaser?.StartsWith("mock") == true)
                         {

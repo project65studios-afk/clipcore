@@ -104,21 +104,18 @@
         }
     }
 
-    private string? GetThumbnailUrl(Clip item)
+    private string? GetThumbnailUrl(Project65.Web.Models.CartItem item)
     {
-        var id = item.PlaybackIdTeaser;
-        if (string.IsNullOrEmpty(id) || id.StartsWith("mock")) 
-            id = item.PlaybackIdSigned;
-        
+        var id = item.PlaybackId;
         if (string.IsNullOrEmpty(id) || id.StartsWith("mock")) return null;
 
         var token = VideoService.GetPlaybackToken(id, "t", "480p");
         return $"https://image.mux.com/{id}/thumbnail.jpg?token={token}&width=200";
     }
 
-    private async Task RemoveItem(Clip clip)
+    private async Task RemoveItem(Project65.Web.Models.CartItem item)
     {
-        await CartService.RemoveAsync(clip);
+        await CartService.RemoveAsync(item.Id);
     }
 
     private async Task CheckoutAsync()
@@ -137,7 +134,14 @@
             userEmail = user.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value ?? user.Identity.Name;
         }
 
-        var url = await PaymentService.CreateCheckoutSessionAsync(items, successUrl, cancelUrl, userEmail);
+        var checkoutItems = items.Select(i => new Project65.Core.DTOs.CheckoutItem 
+        {
+            Id = i.Id,
+            Title = i.Title,
+            PriceCents = i.PriceCents
+        });
+
+        var url = await PaymentService.CreateCheckoutSessionAsync(checkoutItems, successUrl, cancelUrl, userEmail);
         Navigation.NavigateTo(url);
     }
 

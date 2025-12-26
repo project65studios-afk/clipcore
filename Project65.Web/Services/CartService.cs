@@ -1,15 +1,17 @@
 using Microsoft.AspNetCore.Components.Server.ProtectedBrowserStorage;
-using Project65.Core.Entities;
+using Project65.Web.Models;
 
 namespace Project65.Web.Services;
 
 public class CartService
 {
     private readonly ProtectedLocalStorage _storage;
-    private List<Clip> _cart = new();
+    private List<CartItem> _cart = new();
     private bool _isInitialized = false;
 
     public event Action? OnChange;
+
+    private readonly SemaphoreSlim _semaphore = new(1, 1);
 
     public CartService(ProtectedLocalStorage storage)
     {
@@ -20,42 +22,46 @@ public class CartService
     {
         if (_isInitialized) return;
 
+        await _semaphore.WaitAsync();
         try
         {
-            var result = await _storage.GetAsync<List<Clip>>("cart_items");
+            if (_isInitialized) return;
+
+            var result = await _storage.GetAsync<List<CartItem>>("cart_items");
             if (result.Success && result.Value != null)
             {
                 _cart = result.Value;
             }
-        }
-        catch
-        {
-            // If storage fails or data is corrupt, start with empty cart
-        }
-        finally
-        {
             _isInitialized = true;
             NotifyStateChanged();
         }
+        catch
+        {
+            _cart = new List<CartItem>();
+        }
+        finally
+        {
+            _semaphore.Release();
+        }
     }
 
-    public async Task AddAsync(Clip clip)
+    public async Task AddAsync(CartItem item)
     {
         await InitializeAsync();
 
-        if (!_cart.Any(c => c.Id == clip.Id))
+        if (!_cart.Any(c => c.Id == item.Id))
         {
-            _cart.Add(clip);
+            _cart.Add(item);
             await SaveCartAsync();
             NotifyStateChanged();
         }
     }
 
-    public async Task RemoveAsync(Clip clip)
+    public async Task RemoveAsync(string id)
     {
         await InitializeAsync();
 
-        var item = _cart.FirstOrDefault(c => c.Id == clip.Id);
+        var item = _cart.FirstOrDefault(c => c.Id == id);
         if (item != null)
         {
             _cart.Remove(item);
@@ -71,7 +77,7 @@ public class CartService
         NotifyStateChanged();
     }
 
-    public List<Clip> GetItems() => _cart;
+    public List<CartItem> GetItems() => _cart;
     
     public int Count => _cart.Count;
     
@@ -79,7 +85,14 @@ public class CartService
 
     private async Task SaveCartAsync()
     {
-        await _storage.SetAsync("cart_items", _cart);
+        try 
+        {
+            await _storage.SetAsync("cart_items", _cart);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[CART-ERROR] Failed to save cart: {ex.Message}");
+        }
     }
 
     private void NotifyStateChanged() => OnChange?.Invoke();
