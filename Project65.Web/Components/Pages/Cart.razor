@@ -88,13 +88,13 @@
             {
                 <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem; font-size: 1rem; color: #34d399;">
                     <span>Discount (25%)</span>
-                    <span>-$@(CartService.DiscountAmountCents / 100.00)</span>
+                    <span>-$@((CartService.DiscountAmountCents / 100.00).ToString("N2"))</span>
                 </div>
             }
 
             <div style="display: flex; justify-content: space-between; margin-bottom: 1.5rem; font-size: 1.25rem; font-weight: 700; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 1rem;">
                 <span>Total</span>
-                <span>$@(CartService.TotalPriceCents / 100.00)</span>
+                <span>$@((CartService.TotalPriceCents / 100.00).ToString("N2"))</span>
             </div>
             
             <button class="btn-primary" style="width: 100%; font-size: 1.1rem; padding: 0.75rem;" @onclick="CheckoutAsync">
