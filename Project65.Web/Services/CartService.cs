@@ -81,7 +81,15 @@ public class CartService
     
     public int Count => _cart.Count;
     
-    public long TotalPriceCents => _cart.Sum(c => c.PriceCents);
+    
+    
+    public long SubTotalCents => _cart.Sum(c => c.PriceCents);
+    
+    public bool IsDiscountApplied => Count >= 3;
+    
+    public long DiscountAmountCents => IsDiscountApplied ? (long)(SubTotalCents * 0.25) : 0;
+    
+    public long TotalPriceCents => SubTotalCents - DiscountAmountCents;
 
     private async Task SaveCartAsync()
     {
