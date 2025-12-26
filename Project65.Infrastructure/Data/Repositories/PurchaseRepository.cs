@@ -28,6 +28,7 @@ public class PurchaseRepository : IPurchaseRepository
     public async Task<List<Purchase>> GetByUserIdAsync(Guid userId)
     {
         return await _context.Purchases
+            .AsNoTracking()
             .Include(p => p.Clip)
             .ThenInclude(c => c.Event)
             .Where(p => p.UserId == userId)
@@ -38,6 +39,7 @@ public class PurchaseRepository : IPurchaseRepository
     public async Task<List<Purchase>> ListAsync()
     {
         return await _context.Purchases
+            .AsNoTracking()
             .Include(p => p.Clip)
             .ThenInclude(c => c.Event)
             .OrderByDescending(p => p.CreatedAt)
@@ -46,7 +48,22 @@ public class PurchaseRepository : IPurchaseRepository
 
     public async Task UpdateAsync(Purchase purchase)
     {
-        _context.Purchases.Update(purchase);
-        await _context.SaveChangesAsync();
+        var existingPurchase = await _context.Purchases
+            .FirstOrDefaultAsync(p => p.Id == purchase.Id);
+
+        if (existingPurchase != null)
+        {
+            // Update only the fields that change during fulfillment
+            existingPurchase.FulfillmentStatus = purchase.FulfillmentStatus;
+            existingPurchase.FulfilledAt = purchase.FulfilledAt;
+            existingPurchase.FulfillmentMuxAssetId = purchase.FulfillmentMuxAssetId;
+            existingPurchase.HighResDownloadUrl = purchase.HighResDownloadUrl;
+            
+            // Allow updating existing fields too if needed, but primarily fulfillment data
+            await _context.SaveChangesAsync();
+            
+            // Detach to allow future fresh reads if necessary (optional but helps in Blazor)
+            _context.Entry(existingPurchase).State = EntityState.Detached;
+        }
     }
 }
