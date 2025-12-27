@@ -8,7 +8,10 @@
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject IVideoService VideoService
 @inject IJSRuntime JSRuntime
+@inject IStorageService StorageService
 @rendermode RenderMode.InteractiveServer
+
+
 
 <PageTitle>My Purchases - Project65</PageTitle>
 
@@ -151,6 +154,16 @@
         foreach (var purchase in _purchases)
         {
             var clip = purchase.Clip;
+            
+            // 1. Try R2/Local Thumbnail
+            // Note: Currently thumbnails are stored locally in wwwroot/thumbnails via VideoCompressionController
+            if (!string.IsNullOrEmpty(clip.ThumbnailFileName))
+            {
+                _thumbnailUrls[clip.Id] = $"/thumbnails/{clip.ThumbnailFileName}";
+                continue;
+            }
+
+            // 2. Fallback to Mux
             var id = clip.PlaybackIdTeaser;
             if (string.IsNullOrEmpty(id) || id.StartsWith("mock")) 
                 id = clip.PlaybackIdSigned;
@@ -165,7 +178,18 @@
 
     private async Task DownloadHighResAsync(Purchase purchase)
     {
-        // 1. Try Mux Asset (New Secure Flow)
+        // 1. Try R2 Master (Direct Storage Flow)
+        if (!string.IsNullOrEmpty(purchase.Clip?.MasterFileName))
+        {
+             var url = StorageService.GetPresignedDownloadUrl(purchase.Clip.MasterFileName);
+             if (!string.IsNullOrEmpty(url))
+             {
+                 await JSRuntime.InvokeVoidAsync("open", url, "_blank");
+                 return;
+             }
+        }
+
+        // 2. Try Mux Asset (Mid-Generation Flow)
         if (!string.IsNullOrEmpty(purchase.FulfillmentMuxAssetId))
         {
              // Use JS to show "Preparing..." if needed, but for now just open the link.

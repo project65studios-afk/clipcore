@@ -13,6 +13,7 @@
 @inject IEmailService EmailService
 @inject IJSRuntime JSRuntime
 @inject Project65.Web.Services.CartService CartService
+@inject IStorageService StorageService
 @implements IDisposable
 
 <PageTitle>@_clip?.Title - Project65</PageTitle>
@@ -202,10 +203,22 @@ else
                 }
                 else
                 {
-                    <button class="btn-secondary" style="width: 100%; border-color: var(--accent-cyan); color: var(--accent-cyan);" disabled>
-                         ✓ Purchased
+                    <button class="btn-primary" style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 0.5rem;" @onclick="DownloadOriginalAsync" disabled="@_isDownloading">
+                         @if (_isDownloading)
+                         {
+                             <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                             <span>Preparing Download...</span>
+                         }
+                         else
+                         {
+                             <i class="bi bi-cloud-arrow-down-fill"></i>
+                             <span>Download 4K Master</span>
+                         }
                     </button>
-
+                    @if (!string.IsNullOrEmpty(_errorMessage))
+                    {
+                        <div class="text-danger small mt-2 text-center">@_errorMessage</div>
+                    }
                 }
             </div>
         </div>
@@ -477,47 +490,52 @@ else
 
     private async Task DownloadOriginalAsync()
     {
-        if (_clip == null || string.IsNullOrEmpty(_clip.MuxAssetId)) return;
-
         _isDownloading = true;
         _errorMessage = "";
         StateHasChanged();
 
-        // Sanitize filename
-        var cleanTitle = string.Join("_", _clip.Title.Split(Path.GetInvalidFileNameChars()));
-        var url = await VideoService.GetDownloadUrlAsync(_clip.MuxAssetId, $"{cleanTitle}.mp4");
-        
-        if (!string.IsNullOrEmpty(url))
+        try 
         {
-            // Verify availability
-            using var client = new System.Net.Http.HttpClient();
-            try 
+            // Priority 1: Cloudflare R2 Master
+            if (!string.IsNullOrEmpty(_clip?.MasterFileName))
             {
-                var request = new System.Net.Http.HttpRequestMessage(System.Net.Http.HttpMethod.Head, url);
-                var response = await client.SendAsync(request);
+                var url = StorageService.GetPresignedDownloadUrl(_clip.MasterFileName);
+                if (!string.IsNullOrEmpty(url))
+                {
+                    await JSRuntime.InvokeVoidAsync("open", url, "_blank");
+                    _isDownloading = false;
+                    StateHasChanged();
+                    return;
+                }
+            }
+
+            // Priority 2: Mux Fallback (Legacy)
+            if (_clip != null && !string.IsNullOrEmpty(_clip.MuxAssetId))
+            {
+                // Sanitize filename
+                var cleanTitle = string.Join("_", _clip.Title.Split(Path.GetInvalidFileNameChars()));
+                var url = await VideoService.GetDownloadUrlAsync(_clip.MuxAssetId, $"{cleanTitle}.mp4");
                 
-                if (response.IsSuccessStatusCode)
+                if (!string.IsNullOrEmpty(url))
                 {
                     await JSRuntime.InvokeVoidAsync("open", url, "_blank");
                 }
                 else
                 {
-                    _errorMessage = "Source file is verifying. Please try again in 1-2 minutes.";
+                    _errorMessage = "Download unavailable. Please contact support.";
                 }
             }
-            catch
-            {
-                 // Fallback
-                 _errorMessage = "Source file check failed. Please retry shortly.";
-            }
         }
-        else
+        catch (Exception ex)
         {
-             _errorMessage = "Requesting source file from vault... Please wait 30-60s and try again.";
+            Console.WriteLine($"Download failed: {ex.Message}");
+            _errorMessage = "Download failed. Please try again.";
         }
-
-        _isDownloading = false;
-        StateHasChanged();
+        finally
+        {
+            _isDownloading = false;
+            StateHasChanged();
+        }
     }
 
     private async Task AddToCart()

@@ -6,6 +6,9 @@
 @inject IPurchaseRepository PurchaseRepository
 @inject IClipRepository ClipRepository
 @inject NavigationManager Navigation
+@inject IVideoService VideoService
+@inject IJSRuntime JSRuntime
+@inject IStorageService StorageService
 @rendermode RenderMode.InteractiveServer
 
 <div class="container-fluid py-4">
@@ -195,41 +198,17 @@
                     <div class="mb-3">
                         <label class="form-label text-secondary">Step 2: Upload Master File (Safe & Private)</label>
                         
-                        <div style="@(_isUploading ? "display:none" : "")">
-                            <div class="mb-3">
-                                <input type="file" id="fulfillmentFile" class="form-control bg-dark text-white border-secondary" />
-                                <div class="form-text text-muted">Select the high-res master file (e.g. .mp4, .mov). It will be securely uploaded to Mux.</div>
-                                <div class="text-info mt-2" style="font-size: 0.85rem;">
-                                    <i class="bi bi-shield-lock"></i> The customer will get a secure, expiring link to download this exact file.
-                                </div>
-                            </div>
-                            
-                            @if (!string.IsNullOrEmpty(_uploadError))
-                            {
-                                <div class="alert alert-danger mt-2">@_uploadError</div>
-                            }
-                        </div>
+                        <!-- Uppy Container -->
+                        <div id="fulfillment-uppy" style="background: #111; border-radius: 8px;"></div>
                         
-                        @if (_isUploading)
+                        @if (!string.IsNullOrEmpty(_uploadError))
                         {
-                            <div class="py-3">
-                                <p class="text-white mb-2">Uploading to Secure Storage... (@_uploadProgress%)</p>
-                                <div class="progress" style="height: 10px; background-color: #333;">
-                                    <div class="progress-bar bg-success" role="progressbar" style="width: @_uploadProgress%"></div>
-                                </div>
-                                <small class="text-muted mt-2 d-block">Please do not close this window.</small>
-                            </div>
+                            <div class="alert alert-danger mt-2">@_uploadError</div>
                         }
                     </div>
                 </div>
                 <div class="modal-footer border-secondary">
-                    @if (!_isUploading)
-                    {
-                        <button class="btn btn-outline-secondary" @onclick="CloseModal">Cancel</button>
-                        <button class="btn btn-primary" @onclick="StartUpload">
-                            Upload & Fulfill
-                        </button>
-                    }
+                        <button class="btn btn-outline-secondary" @onclick="CloseModal">Close</button>
                 </div>
             </div>
         </div>
@@ -249,15 +228,13 @@
 
     
     // Upload State
-    private bool _isUploading = false;
-    private int _uploadProgress = 0;
     private string _uploadError = "";
-    private ElementReference _fileInput;
-    
     private DotNetObjectReference<Fulfillment>? _objRef;
 
     protected override async Task OnInitializedAsync()
     {
+        // Ensure CORS is set up for browser uploads
+        await StorageService.ConfigureCorsAsync();
         await LoadDataAsync();
     }
 
@@ -291,13 +268,21 @@
         }
     }
 
-    private void OpenFulfillModal(Purchase p)
+    private IJSObjectReference? _jsUppy;
+
+    // Called by UI button
+    private async Task OpenFulfillModal(Purchase p)
     {
         _selectedPurchase = p;
-        _isUploading = false;
-        _uploadProgress = 0;
         _uploadError = "";
         _showModal = true;
+        StateHasChanged();
+        
+        // Initialize Uppy after render
+        await Task.Delay(100); 
+        _objRef = DotNetObjectReference.Create(this);
+        // We might want to store the JS reference to dispose later
+        _jsUppy = await JSRuntime.InvokeAsync<IJSObjectReference>("fulfillmentUpload.initUppy", _objRef, "fulfillment-uppy");
     }
 
     private void CloseModal()
@@ -306,103 +291,48 @@
         _selectedPurchase = null;
     }
 
-    // Called by UI button
-    private async Task StartUpload()
-    {
-        if (_selectedPurchase == null) return;
-        
-        _isUploading = true;
-        _uploadError = "";
-        _uploadProgress = 0;
-        StateHasChanged();
-
-        try 
-        {
-            // 1. Get Upload URL from Server
-            var (url, uploadId) = await VideoService.CreateFulfillmentUploadUrlAsync(_selectedPurchase.Id);
-            
-            // 2. Start Client-Side Upload
-            _objRef = DotNetObjectReference.Create(this);
-            // We need to get the file from the input. 
-            // In Blazor Server, InputFile works differently, but for direct JS upload we often use a raw input + JS.
-            // Let's pass the input ID or element to JS.
-            
-            await JSRuntime.InvokeVoidAsync("uploadFromInput", "fulfillmentFile", url, _objRef);
-            
-            // We store the uploadId temporarily? actually we need to verify when done.
-            // We will trust the success callback.
-            _pendingMuxUploadId = uploadId;
-        }
-        catch (Exception ex)
-        {
-             _uploadError = ex.Message;
-             _isUploading = false;
-        }
-    }
-    
-    private string? _pendingMuxUploadId;
-
     [JSInvokable]
-    public void OnUploadProgress(double percent)
+    public Task<string> GetR2UploadUrl(string fileName, string contentType)
     {
-        _uploadProgress = (int)percent;
-        StateHasChanged();
+        if (_selectedPurchase == null) return Task.FromResult("");
+        
+        // Generate R2 Key: purchase-id/filename
+        var key = $"{_selectedPurchase.Id}/{fileName}";
+        _pendingMasterFileName = key; // Track what to save
+        
+        var url = StorageService.GetPresignedUploadUrl(key, contentType);
+        return Task.FromResult(url);
     }
+
+    private string? _pendingMasterFileName;
 
     [JSInvokable]
     public async Task OnUploadSuccess()
     {
-        if (_selectedPurchase != null && !string.IsNullOrEmpty(_pendingMuxUploadId))
+        if (_selectedPurchase != null && !string.IsNullOrEmpty(_pendingMasterFileName))
         {
-             // Resolve Asset ID Immediately? Mux takes a moment.
-             // We can save the MuxUploadId if we wanted, or wait a sec. 
-             // Ideally we poll for the Asset ID on the server side or just save the UploadID and resolve later.
-             // But simpler: Just resolve the Asset ID now (poll briefly)
-             
-             // Wait briefly for Mux hook
-             await Task.Delay(2000); 
-             var assetId = await VideoService.GetAssetIdFromUploadAsync(_pendingMuxUploadId);
-             
-             if (!string.IsNullOrEmpty(assetId))
+             // 1. Update CLIP (Fetch first to avoid tracking conflict)
+             if (_selectedPurchase.Clip != null)
              {
-                 _selectedPurchase.FulfillmentMuxAssetId = assetId;
-                 _selectedPurchase.FulfillmentStatus = FulfillmentStatus.Fulfilled;
-                 _selectedPurchase.FulfilledAt = DateTime.UtcNow;
-                 await PurchaseRepository.UpdateAsync(_selectedPurchase);
-                 
-                 CloseModal();
-                 await LoadDataAsync();
-             }
-             else
-             {
-                 // Fallback: Just mark fulfilled and save the upload ID locally? 
-                 // We don't have a field for UploadID on Purchase. 
-                 // Let's poll loop here briefly.
-                 int retries = 0;
-                 while (string.IsNullOrEmpty(assetId) && retries < 5)
+                 var trackedClip = await ClipRepository.GetByIdAsync(_selectedPurchase.Clip.Id);
+                 if (trackedClip != null)
                  {
-                     await Task.Delay(2000);
-                     assetId = await VideoService.GetAssetIdFromUploadAsync(_pendingMuxUploadId);
-                     retries++;
-                 }
-                 
-                 if (!string.IsNullOrEmpty(assetId))
-                 {
-                     _selectedPurchase.FulfillmentMuxAssetId = assetId;
-                     _selectedPurchase.FulfillmentStatus = FulfillmentStatus.Fulfilled;
-                     _selectedPurchase.FulfilledAt = DateTime.UtcNow;
-                     await PurchaseRepository.UpdateAsync(_selectedPurchase);
-                     CloseModal();
-                     await LoadDataAsync();
-                 }
-                 else
-                 {
-                     _uploadError = "Upload complete but Mux is processing. Please check back later.";
-                     // Maybe save it as pending with Upload ID? For now user can retry or we fix manually.
+                     trackedClip.MasterFileName = _pendingMasterFileName;
+                     await ClipRepository.UpdateAsync(trackedClip);
+                     
+                     // Update local state to reflect change in UI instantly
+                     _selectedPurchase.Clip.MasterFileName = _pendingMasterFileName;
                  }
              }
+
+             // 2. Update PURCHASE (Repo handles fetching internally)
+             _selectedPurchase.FulfillmentStatus = FulfillmentStatus.Fulfilled;
+             _selectedPurchase.FulfilledAt = DateTime.UtcNow;
+             await PurchaseRepository.UpdateAsync(_selectedPurchase);
+                 
+             CloseModal();
+             await LoadDataAsync();
         }
-        _isUploading = false;
         StateHasChanged();
     }
 
@@ -410,22 +340,17 @@
     public void OnUploadError(string msg)
     {
         _uploadError = "Upload failed: " + msg;
-        _isUploading = false;
         StateHasChanged();
     }
     
-    public void Dispose()
+    public async ValueTask DisposeAsync()
     {
         _objRef?.Dispose();
+        if (_jsUppy != null)
+        {
+            await _jsUppy.InvokeVoidAsync("dispose");
+            await _jsUppy.DisposeAsync();
+        }
     }
 }
-<script>
-    window.uploadFromInput = function(inputId, url, dotnetRef) {
-        const input = document.getElementById(inputId);
-        if (!input || !input.files || input.files.length === 0) {
-            dotnetRef.invokeMethodAsync('OnUploadError', 'No file selected');
-            return;
-        }
-        window.uploadToMux(input.files[0], url, dotnetRef);
-    }
-</script>
+<!-- Remove old script -->

@@ -13,15 +13,18 @@ public class VideoCompressionController : ControllerBase
 {
     private readonly IVideoService _videoService;
     private readonly IClipRepository _clipRepository;
+    private readonly IStorageService _storageService;
     private readonly ILogger<VideoCompressionController> _logger;
 
     public VideoCompressionController(
         IVideoService videoService,
         IClipRepository clipRepository,
+        IStorageService storageService,
         ILogger<VideoCompressionController> logger)
     {
         _videoService = videoService;
         _clipRepository = clipRepository;
+        _storageService = storageService;
         _logger = logger;
     }
 
@@ -115,14 +118,21 @@ public class VideoCompressionController : ControllerBase
                 };
 
                 ffmpegProcess.Start();
-                await ffmpegProcess.WaitForExitAsync();
+                
+                // Read Output/Error streams asynchronously to avoid deadlock
+                var stdoutTask = ffmpegProcess.StandardOutput.ReadToEndAsync();
+                var stderrTask = ffmpegProcess.StandardError.ReadToEndAsync();
+                var ffmpegExitTask = ffmpegProcess.WaitForExitAsync();
+
+                // Wait for compression to complete
+                await Task.WhenAll(ffmpegExitTask, stdoutTask, stderrTask);
 
                 stopwatch.Stop();
                 _logger.LogInformation($"[Compression] FFmpeg completed in {stopwatch.ElapsedMilliseconds / 1000.0:F1}s");
 
                 if (ffmpegProcess.ExitCode != 0)
                 {
-                    var error = await ffmpegProcess.StandardError.ReadToEndAsync();
+                    var error = await stderrTask; // we already awaited it
                     _logger.LogError($"[Compression] FFmpeg error: {error}");
                     return StatusCode(500, new { error = "Video compression failed" });
                 }
@@ -162,7 +172,7 @@ public class VideoCompressionController : ControllerBase
                     Title = file.FileName,
                     PriceCents = priceCents,
                     MuxUploadId = uploadId,
-                    MasterFileName = masterFileName,
+                    MasterFileName = null, // No R2 master for standard event uploads
                     ThumbnailFileName = thumbName
                 };
 

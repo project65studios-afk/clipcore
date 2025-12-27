@@ -1,0 +1,13 @@
+using System.IO;
+using System.Threading.Tasks;
+
+namespace Project65.Core.Interfaces
+{
+    public interface IStorageService
+    {
+        Task<string> UploadAsync(Stream stream, string fileName, string contentType);
+        string GetPresignedDownloadUrl(string fileName, double durationMinutes = 60);
+        string GetPresignedUploadUrl(string fileName, string contentType);
+        Task ConfigureCorsAsync();
+    }
+}

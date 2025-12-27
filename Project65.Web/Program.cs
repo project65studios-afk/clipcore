@@ -4,6 +4,8 @@ using Project65.Infrastructure.Data;
 using Project65.Core.Interfaces;
 using Project65.Infrastructure.Data.Repositories;
 using Project65.Infrastructure.Services;
+using Amazon.S3;
+using Amazon.Extensions.NETCore.Setup;
 // Ensure Repositories namespace is included, which it is.
 
 var builder = WebApplication.CreateBuilder(args);
@@ -44,6 +46,18 @@ builder.Services.AddAuthentication()
 builder.Services.AddScoped<IEventRepository, EventRepository>();
 builder.Services.AddScoped<IClipRepository, ClipRepository>();
 builder.Services.AddScoped<IVideoService, MuxVideoService>();
+
+// Configure R2 (via AWS SDK)
+var r2Options = builder.Configuration.GetAWSOptions();
+r2Options.Credentials = new Amazon.Runtime.BasicAWSCredentials(
+    builder.Configuration["R2:AccessKeyId"], 
+    builder.Configuration["R2:SecretAccessKey"]);
+r2Options.Region = Amazon.RegionEndpoint.USEast1; // R2 requires a region, usually ignored or auto
+r2Options.DefaultClientConfig.ServiceURL = $"https://{builder.Configuration["R2:AccountId"]}.r2.cloudflarestorage.com";
+
+builder.Services.AddDefaultAWSOptions(r2Options);
+builder.Services.AddAWSService<IAmazonS3>();
+builder.Services.AddScoped<IStorageService, R2StorageService>();
 builder.Services.AddScoped<IPaymentService, StripePaymentService>();
 builder.Services.AddScoped<IPurchaseRepository, PurchaseRepository>();
 builder.Services.AddScoped<ISettingsRepository, SettingsRepository>();
