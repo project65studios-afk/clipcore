@@ -3,6 +3,9 @@
 @using Project65.Core.Interfaces
 @inject IEventRepository EventRepository
 @inject IVideoService VideoService
+@inject IStorageService StorageService
+@inject IWebHostEnvironment Environment
+@using System.IO
 
 <PageTitle>Project65 Studios</PageTitle>
 
@@ -84,10 +87,17 @@ else
     {
         if (clip == null) return null;
         
-        // Priority 1: High-Res Local Thumbnail
         if (!string.IsNullOrEmpty(clip.ThumbnailFileName))
         {
-            return $"/thumbnails/{clip.ThumbnailFileName}";
+            // Hybrid Check: Does it exist locally? (Legacy)
+            var localPath = Path.Combine(Environment.WebRootPath, "thumbnails", clip.ThumbnailFileName);
+            if (File.Exists(localPath))
+            {
+                return $"/thumbnails/{clip.ThumbnailFileName}";
+            }
+            
+            // Otherwise, assume it's in R2 (New)
+            return StorageService.GetPresignedDownloadUrl($"thumbnails/{clip.ThumbnailFileName}");
         }
         
         // Priority 2: Mux Thumbnail

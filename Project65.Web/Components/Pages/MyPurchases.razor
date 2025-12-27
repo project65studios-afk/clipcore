@@ -9,6 +9,8 @@
 @inject IVideoService VideoService
 @inject IJSRuntime JSRuntime
 @inject IStorageService StorageService
+@inject IWebHostEnvironment Environment
+@using System.IO
 @rendermode RenderMode.InteractiveServer
 
 
@@ -169,10 +171,18 @@
             var clip = purchase.Clip;
             
             // 1. Try R2/Local Thumbnail
-            // Note: Currently thumbnails are stored locally in wwwroot/thumbnails via VideoCompressionController
+            // Note: Thumbnails are stored in R2 (folder: thumbnails/) OR locally if legacy
             if (!string.IsNullOrEmpty(clip.ThumbnailFileName))
             {
-                _thumbnailUrls[clip.Id] = $"/thumbnails/{clip.ThumbnailFileName}";
+                var localPath = Path.Combine(Environment.WebRootPath, "thumbnails", clip.ThumbnailFileName);
+                if (File.Exists(localPath))
+                {
+                    _thumbnailUrls[clip.Id] = $"/thumbnails/{clip.ThumbnailFileName}";
+                }
+                else 
+                {
+                    _thumbnailUrls[clip.Id] = StorageService.GetPresignedDownloadUrl($"thumbnails/{clip.ThumbnailFileName}");
+                }
                 continue;
             }
 

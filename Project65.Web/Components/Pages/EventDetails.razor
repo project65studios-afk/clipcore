@@ -1,12 +1,15 @@
 @page "/events/{Id}"
-@using Project65.Core.Entities
 @using Project65.Core.Interfaces
+@using Project65.Core.Entities
 @inject IEventRepository EventRepository
 @inject IVideoService VideoService
 @inject ISettingsRepository SettingsRepository
+@inject IStorageService StorageService
 @inject NavigationManager Navigation
 @inject IJSRuntime JSRuntime
 @inject Project65.Web.Services.CartService CartService
+@inject IWebHostEnvironment Environment
+@using System.IO
 @implements IDisposable
 
 <PageTitle>@_event?.Name - Project65</PageTitle>
@@ -83,8 +86,9 @@ else
                         }
                         else if (!string.IsNullOrEmpty(clip.ThumbnailFileName))
                         {
+                             var thumbUrl = GetHybridThumbnailUrl(clip);
                              <!-- Local High-Res Thumbnail (Immediate & High Quality) -->
-                             <img src="/thumbnails/@clip.ThumbnailFileName" 
+                             <img src="@thumbUrl" 
                                   alt="@clip.Title" 
                                   style="width: 100%; aspect-ratio: 16/9; object-fit: cover; border-radius: 4px;" />
                         }
@@ -537,6 +541,19 @@ else
                 _event.Clips = _event.Clips.OrderBy(c => c.RecordingStartedAt ?? DateTime.MaxValue).ToList();
                 break;
         }
+    }
+
+    private string GetHybridThumbnailUrl(Clip clip)
+    {
+        if (string.IsNullOrEmpty(clip.ThumbnailFileName)) return "";
+
+        var localPath = Path.Combine(Environment.WebRootPath, "thumbnails", clip.ThumbnailFileName);
+        if (File.Exists(localPath))
+        {
+            return $"/thumbnails/{clip.ThumbnailFileName}";
+        }
+        
+        return StorageService.GetPresignedDownloadUrl($"thumbnails/{clip.ThumbnailFileName}");
     }
 
     private string GetThumbnailId(Clip clip)

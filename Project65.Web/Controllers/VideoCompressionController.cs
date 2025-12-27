@@ -93,6 +93,25 @@ public class VideoCompressionController : ControllerBase
                          _logger.LogWarning($"[Compression] Thumbnail extraction failed: {err}");
                          thumbName = null; // Fallback to Mux
                     }
+                    else
+                    {
+                        // Upload thumbnail to R2
+                        using var thumbStream = new FileStream(thumbPath, FileMode.Open, FileAccess.Read);
+                        var r2ThumbKey = $"thumbnails/{thumbName}"; // e.g. thumbnails/guid_thumb.jpg
+                        await _storageService.UploadAsync(thumbStream, r2ThumbKey, "image/jpeg");
+                        
+                        _logger.LogInformation($"[Compression] Thumbnail uploaded to R2: {r2ThumbKey}");
+                        
+                        // Close stream so we can delete file
+                        thumbStream.Close();
+                        
+                        // Delete local thumbnail
+                        System.IO.File.Delete(thumbPath);
+                        
+                        // Update thumbName to store just the filename (or full key if preferred, but let's store filename for consistency and prefix later)
+                        // Actually, let's store the FILENAME in DB, and prepend "thumbnails/" when generating URL. 
+                        // Current logic in DB seems to be just filename.
+                    }
                 }
                 catch (Exception ex)
                 {
