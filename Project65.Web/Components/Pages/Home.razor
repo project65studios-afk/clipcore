@@ -84,6 +84,13 @@ else
     {
         if (clip == null) return null;
         
+        // Priority 1: High-Res Local Thumbnail
+        if (!string.IsNullOrEmpty(clip.ThumbnailFileName))
+        {
+            return $"/thumbnails/{clip.ThumbnailFileName}";
+        }
+        
+        // Priority 2: Mux Thumbnail
         var playbackId = clip.PlaybackIdTeaser ?? clip.PlaybackIdSigned;
         if (string.IsNullOrEmpty(playbackId) || playbackId.StartsWith("mock")) return null;
 

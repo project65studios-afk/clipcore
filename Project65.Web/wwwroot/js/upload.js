@@ -52,6 +52,11 @@ window.muxUpload = {
                         const startTime = performance.now();
 
                         // Create FormData
+                        console.log('DEBUG: uploadInfo', uploadInfo);
+                        if (!uploadInfo || !uploadInfo.eventId) {
+                            console.error('DEBUG: Missing eventId in uploadInfo', uploadInfo);
+                        }
+
                         const formData = new FormData();
                         formData.append('file', file.data);
                         formData.append('eventId', uploadInfo.eventId);

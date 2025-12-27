@@ -29,10 +29,10 @@ public class VideoCompressionController : ControllerBase
     [IgnoreAntiforgeryToken]
     public async Task<IActionResult> CompressAndUpload(
         [FromForm] IFormFile file,
-        [FromForm] string eventId,
-        [FromForm] string masterFileName,
+        [FromForm] string? eventId,
+        [FromForm] string? masterFileName,
         [FromForm] int priceCents,
-        [FromForm] string userId,
+        [FromForm] string? userId,
         [FromForm] string? lastModified = null)
     {
         try
@@ -56,6 +56,46 @@ public class VideoCompressionController : ControllerBase
                 }
 
                 _logger.LogInformation($"[Compression] Received {file.FileName}, size: {file.Length / 1024 / 1024}MB");
+
+                var clipId = Guid.NewGuid().ToString();
+
+                // 1. Extract High-Res Thumbnail (from original input)
+                var thumbDir = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "thumbnails");
+                Directory.CreateDirectory(thumbDir);
+                var thumbName = $"{clipId}.jpg";
+                var thumbPath = Path.Combine(thumbDir, thumbName);
+
+                try 
+                {
+                    _logger.LogInformation($"[Compression] Extracting thumbnail to {thumbPath}");
+                    var thumbProcess = new Process
+                    {
+                        StartInfo = new ProcessStartInfo
+                        {
+                            FileName = "ffmpeg",
+                            // Extract frame at 1s, qscale:v 2 for high quality JPG
+                            Arguments = $"-ss 00:00:01 -i \"{inputPath}\" -vframes 1 -q:v 2 \"{thumbPath}\"",
+                            RedirectStandardOutput = true,
+                            RedirectStandardError = true,
+                            UseShellExecute = false,
+                            CreateNoWindow = true
+                        }
+                    };
+                    thumbProcess.Start();
+                    await thumbProcess.WaitForExitAsync();
+                    
+                    if (thumbProcess.ExitCode != 0)
+                    {
+                         var err = await thumbProcess.StandardError.ReadToEndAsync();
+                         _logger.LogWarning($"[Compression] Thumbnail extraction failed: {err}");
+                         thumbName = null; // Fallback to Mux
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "[Compression] Thumbnail extraction exception");
+                    thumbName = null;
+                }
 
                 // Compress with FFmpeg
                 var outputPath = Path.Combine(tempDir, Path.GetFileNameWithoutExtension(file.FileName) + "_540p.mp4");
@@ -92,7 +132,7 @@ public class VideoCompressionController : ControllerBase
                 _logger.LogInformation($"[Compression] Output size: {compressedFile.Length / 1024 / 1024}MB");
 
                 // Upload to Mux
-                var clipId = Guid.NewGuid().ToString();
+                // clipId is already generated above
                 var (muxUrl, uploadId) = await _videoService.CreateUploadUrlAsync(
                     clipId: clipId,
                     title: file.FileName,
@@ -122,7 +162,8 @@ public class VideoCompressionController : ControllerBase
                     Title = file.FileName,
                     PriceCents = priceCents,
                     MuxUploadId = uploadId,
-                    MasterFileName = masterFileName
+                    MasterFileName = masterFileName,
+                    ThumbnailFileName = thumbName
                 };
 
                 // Capture browser's Modified Date if provided

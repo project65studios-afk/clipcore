@@ -26,6 +26,7 @@ public class Clip
     public string? MuxAssetId { get; set; }
     
     public string? MasterFileName { get; set; }
+    public string? ThumbnailFileName { get; set; } // Local high-res thumbnail
     
     public DateTime PublishedAt { get; set; } = DateTime.UtcNow;
 }
