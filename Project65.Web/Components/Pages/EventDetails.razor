@@ -135,7 +135,7 @@ else
                                  @if (clip.RecordingStartedAt.HasValue)
                                  {
                                      <span style="color: var(--text-secondary);">@clip.RecordingStartedAt.Value.ToString("MMM dd, h:mm tt")</span>
-                                     <span style="color: var(--text-muted); font-size: 0.7rem;">•</span>
+                                     <span style="color: var(--text-muted); font-size: 0.7rem; margin: 0 0.3rem;">•</span>
                                  }
                                  @if (clip.DurationSec.HasValue)
                                  {
@@ -375,9 +375,10 @@ else
             if (_event?.Clips == null) break;
 
             // Clips needing repair: No PlaybackId but has UploadId
+            // OR Missing Metadata (Duration or StartedAt)
             var brokenClips = _event.Clips.Where(c => 
-                (string.IsNullOrEmpty(c.PlaybackIdSigned) && string.IsNullOrEmpty(c.PlaybackIdTeaser)) && 
-                !string.IsNullOrEmpty(c.MuxUploadId)
+                (string.IsNullOrEmpty(c.PlaybackIdSigned) && string.IsNullOrEmpty(c.PlaybackIdTeaser) && !string.IsNullOrEmpty(c.MuxUploadId))
+                || (!c.RecordingStartedAt.HasValue && !string.IsNullOrEmpty(c.MuxAssetId)) // NEW: Missing timestamp + has AssetID
             ).ToList();
 
             if (!brokenClips.Any()) 

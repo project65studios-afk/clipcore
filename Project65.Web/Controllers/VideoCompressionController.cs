@@ -32,7 +32,8 @@ public class VideoCompressionController : ControllerBase
         [FromForm] string eventId,
         [FromForm] string masterFileName,
         [FromForm] int priceCents,
-        [FromForm] string userId)
+        [FromForm] string userId,
+        [FromForm] string? lastModified = null)
     {
         try
         {
@@ -124,6 +125,13 @@ public class VideoCompressionController : ControllerBase
                     MasterFileName = masterFileName
                 };
 
+                // Capture browser's Modified Date if provided
+                if (DateTime.TryParse(lastModified, out var modifiedDate))
+                {
+                    clip.RecordingStartedAt = modifiedDate;
+                    _logger.LogInformation($"[Compression] Saved LastModified date: {modifiedDate}");
+                }
+
                 await _clipRepository.AddAsync(clip);
                 _logger.LogInformation($"[Compression] Clip saved to database: {clipId}");
 
@@ -193,8 +201,15 @@ public class VideoCompressionController : ControllerBase
             if (duration.HasValue && duration.Value > 0)
             {
                 clip.DurationSec = duration;
-                if (startedAt.HasValue && !clip.RecordingStartedAt.HasValue) 
+                
+                // Mux Metadata Date > Browser Modified Date
+                // Since MuxVideoService.cs no longer falls back to Upload Time, 'startedAt' is a REAL creation date from metadata/atoms.
+                // We trust this more than the user's file system modified date, so we overwrite.
+                if (startedAt.HasValue) 
+                {
                     clip.RecordingStartedAt = startedAt;
+                    _logger.LogInformation($"[Compression] Upgraded timestamp to Mux Metadata: {startedAt}");
+                }
                 
                 // Ensure we have a Playback ID for the thumbnail
                 var playbackId = await _videoService.EnsurePlaybackIdAsync(assetId);
@@ -209,7 +224,7 @@ public class VideoCompressionController : ControllerBase
             }
 
             _logger.LogInformation($"[Compression] Still waiting for duration for {clip.Title} (attempt {i+1}/20)...");
-            await Task.Delay(3000);
+            await Task.Delay(3000); // Wait 3s between attempts
         }
 
         // Final save even if duration is still missing (fallback)

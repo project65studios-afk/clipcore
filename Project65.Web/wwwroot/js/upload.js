@@ -59,6 +59,13 @@ window.muxUpload = {
                         formData.append('priceCents', uploadInfo.priceCents);
                         formData.append('userId', uploadInfo.userId);
 
+                        // Capture Modified Date (Browser only exposes lastModified)
+                        // Use this as fallback if Mux fails to read date from file metadata
+                        if (file.data.lastModified) {
+                            const modifiedDate = new Date(file.data.lastModified).toISOString();
+                            formData.append('lastModified', modifiedDate);
+                        }
+
                         // Upload to server with progress tracking
                         const xhr = new XMLHttpRequest();
 
