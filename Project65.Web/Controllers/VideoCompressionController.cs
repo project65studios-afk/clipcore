@@ -57,7 +57,7 @@ public class VideoCompressionController : ControllerBase
                 _logger.LogInformation($"[Compression] Received {file.FileName}, size: {file.Length / 1024 / 1024}MB");
 
                 // Compress with FFmpeg
-                var outputPath = Path.Combine(tempDir, Path.GetFileNameWithoutExtension(file.FileName) + "_480p.mp4");
+                var outputPath = Path.Combine(tempDir, Path.GetFileNameWithoutExtension(file.FileName) + "_540p.mp4");
                 var stopwatch = Stopwatch.StartNew();
 
                 var ffmpegProcess = new Process
@@ -65,7 +65,7 @@ public class VideoCompressionController : ControllerBase
                     StartInfo = new ProcessStartInfo
                     {
                         FileName = "ffmpeg",
-                        Arguments = $"-i \"{inputPath}\" -vf \"scale=-2:480\" -c:v libx264 -preset veryfast -crf 28 -c:a aac -b:a 128k \"{outputPath}\"",
+                        Arguments = $"-i \"{inputPath}\" -vf \"scale=-2:540\" -c:v libx264 -preset veryfast -crf 28 -c:a aac -b:a 128k \"{outputPath}\"",
                         RedirectStandardOutput = true,
                         RedirectStandardError = true,
                         UseShellExecute = false,
