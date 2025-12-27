@@ -63,7 +63,11 @@ builder.Services.AddScoped<IPurchaseRepository, PurchaseRepository>();
 builder.Services.AddScoped<ISettingsRepository, SettingsRepository>();
 builder.Services.AddScoped<ISettingsRepository, SettingsRepository>();
 
-if (!string.IsNullOrEmpty(builder.Configuration["SendGrid:ApiKey"]))
+if (!string.IsNullOrEmpty(builder.Configuration["AWS:AccessKeyId"]))
+{
+    builder.Services.AddScoped<IEmailService, AmazonSESEmailService>();
+}
+else if (!string.IsNullOrEmpty(builder.Configuration["SendGrid:ApiKey"]))
 {
     builder.Services.AddScoped<IEmailService, SendGridEmailService>();
 }

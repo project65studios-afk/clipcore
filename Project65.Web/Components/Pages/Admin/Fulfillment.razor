@@ -9,6 +9,7 @@
 @inject IVideoService VideoService
 @inject IJSRuntime JSRuntime
 @inject IStorageService StorageService
+@inject IEmailService EmailService
 @rendermode RenderMode.InteractiveServer
 
 <div class="container-fluid py-4">
@@ -386,6 +387,10 @@
     // --- New Order Logic ---
     private async Task CompleteOrder(List<Purchase> order)
     {
+        var firstItem = order.First();
+        var customerEmail = firstItem.CustomerEmail;
+        var deliveryLink = $"{Navigation.BaseUri}delivery/{firstItem.StripeSessionId}";
+        
         foreach (var p in order)
         {
             if (p.FulfillmentStatus == FulfillmentStatus.Pending)
@@ -393,10 +398,36 @@
                 p.FulfillmentStatus = FulfillmentStatus.Fulfilled;
                 p.FulfilledAt = DateTime.UtcNow;
                 // Save the dynamic link as the fallback
-                p.HighResDownloadUrl = $"{Navigation.BaseUri}delivery/{p.StripeSessionId}";
+                p.HighResDownloadUrl = deliveryLink;
                 await PurchaseRepository.UpdateAsync(p);
             }
         }
+
+        // Send Email Notification
+        if (!string.IsNullOrEmpty(customerEmail))
+        {
+            try 
+            {
+                var body = $@"
+                    <h2>Your Order is Ready! 📦</h2>
+                    <p>Good news! Your video clips are ready for download.</p>
+                    <p><strong>Order ID:</strong> {(!string.IsNullOrEmpty(firstItem.StripeSessionId) ? firstItem.StripeSessionId.Substring(firstItem.StripeSessionId.Length - 8).ToUpper() : "N/A")}</p>
+                    <br/>
+                    <a href='{deliveryLink}' style='background: #007bff; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; display: inline-block;'>Download Files</a>
+                    <br/><br/>
+                    <small>If the button doesn't work, copy this link: {deliveryLink}</small>
+                ";
+
+                await EmailService.SendEmailAsync(customerEmail, "Your Order is Ready! 📦", body);
+                // Ideally show toast/notification of email success
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[Email Error] Failed to send fulfillment email: {ex.Message}");
+                // Proceed anyway, don't block fulfillment state
+            }
+        }
+
         // Force refresh
         await LoadDataAsync();
     }
