@@ -81,6 +81,9 @@ else
                                     <img src="@_watermarkUrl" alt="Watermark" />
                                 </div>
                             }
+                            <div class="badge-low-res">
+                                Low-Res Preview (540p)
+                            </div>
                         </mux-player>
                     }
                     else
@@ -111,7 +114,10 @@ else
             
             <!-- Purchase / Details Column -->
             <div style="background: var(--bg-dark-800); padding: 1.5rem; border-radius: var(--radius-lg); border: 1px solid var(--border-color); height: fit-content;">
-                <h3 class="mb-4">Purchase Clip</h3>
+                <h3 class="mb-2">Purchase Clip</h3>
+                <div style="font-size: 0.85rem; color: var(--accent-cyan); margin-bottom: 1.5rem; display: flex; align-items: center; gap: 0.5rem;">
+                    <i class="bi bi-stars"></i> Includes 4K Master File
+                </div>
                 
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; padding-bottom: 1rem; border-bottom: 1px solid var(--border-color);">
                     <span style="color: var(--text-secondary);">Price</span>
@@ -186,8 +192,12 @@ else
                     {
                         <div class="text-center text-info">Verifying purchase...</div>
                     }
-                    <p style="font-size: 0.8rem; color: var(--text-muted); text-align: center;">
-                        Secure payment via Stripe. Instant access.
+                    <p style="font-size: 0.8rem; color: var(--text-muted); text-align: center; margin-top: 1rem;">
+                        <strong>Note:</strong> The video player shows a low-quality preview for speed. 
+                        Your download will be the full <strong>Original Quality (4K)</strong> file.
+                    </p>
+                    <p style="font-size: 0.8rem; color: var(--text-muted); text-align: center; opacity: 0.7;">
+                        Secure payment via Stripe. 4K Master file delivered shortly.
                     </p>
                 }
                 else

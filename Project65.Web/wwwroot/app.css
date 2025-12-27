@@ -444,13 +444,47 @@ h3 {
 /* The original working commit relied on simple z-index stacking within the relative container */
 
 /* Ensure container handles stacking context - Reverted isolation */
+/* Ensure container handles stacking context */
 .video-player-container {
     position: relative;
     width: 100%;
+    /* Max width to prevent 540p becoming blocky on large screens */
+    max-width: 960px;
+    margin: 0 auto;
+    /* Center it */
     aspect-ratio: 16 / 9;
     border-radius: var(--radius-lg);
     overflow: hidden;
     background: #000;
+}
+
+.badge-low-res {
+    position: absolute;
+    top: 1rem;
+    left: 1rem;
+    background: rgba(0, 0, 0, 0.6);
+    color: var(--text-muted);
+    padding: 0.25rem 0.75rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    pointer-events: none;
+    z-index: 20;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.badge-low-res::before {
+    content: '';
+    display: block;
+    width: 6px;
+    height: 6px;
+    background: var(--accent-pink);
+    /* Warning-ish color but on brand */
+    border-radius: 50%;
 }
 
 /* Mobile Responsiveness */
