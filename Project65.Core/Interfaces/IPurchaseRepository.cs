@@ -10,6 +10,7 @@ public interface IPurchaseRepository
     Task AddAsync(Purchase purchase);
     Task<bool> HasPurchasedAsync(Guid userId, string clipId);
     Task<List<Purchase>> GetByUserIdAsync(Guid userId);
+    Task<List<Purchase>> GetByEmailAsync(string email);
     Task<List<Purchase>> ListAsync();
     Task UpdateAsync(Purchase purchase);
 }

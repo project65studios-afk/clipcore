@@ -11,7 +11,7 @@ public enum FulfillmentStatus
 public class Purchase
 {
     public int Id { get; set; }
-    public Guid UserId { get; set; } // From anonymous cookie
+    public Guid? UserId { get; set; } // Nullable for Guest Checkout
     public string ClipId { get; set; } = string.Empty;
     public Clip Clip { get; set; } = null!;
     

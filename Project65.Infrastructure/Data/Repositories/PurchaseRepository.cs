@@ -36,6 +36,17 @@ public class PurchaseRepository : IPurchaseRepository
             .ToListAsync();
     }
 
+    public async Task<List<Purchase>> GetByEmailAsync(string email)
+    {
+        return await _context.Purchases
+            .AsNoTracking()
+            .Include(p => p.Clip)
+            .ThenInclude(c => c.Event)
+            .Where(p => p.CustomerEmail != null && p.CustomerEmail.ToLower() == email.ToLower())
+            .OrderByDescending(p => p.CreatedAt)
+            .ToListAsync();
+    }
+
     public async Task<List<Purchase>> ListAsync()
     {
         return await _context.Purchases

@@ -90,7 +90,7 @@
                 // 2. Identify User
                 var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
                 var user = authState.User;
-                Guid userId;
+                Guid? userId = null;
 
                 if (user.Identity != null && user.Identity.IsAuthenticated)
                 {
@@ -100,30 +100,26 @@
                     {
                         userId = parsedId;
                     }
-                    else
-                    {
-                        // Fallback if parsing fails (shouldn't happen with default Identity)
-                        userId = Guid.NewGuid();
-                    }
-                }
-                else
-                {
-                    // Anonymous user - generate new ID (or ideally read from cookie)
-                    userId = Guid.NewGuid();
                 }
                 
                 foreach (var p in purchases)
                 {
-                    p.UserId = userId; // In a real app, this should come from session metadata passed during checkout creation
-                    try 
+                    p.UserId = userId; 
+                    
+                    // Only check duplication if logged in
+                    bool shouldAdd = true;
+                    if (userId.HasValue)
                     {
-                        // Check duplicate
-                        if (!await PurchaseRepository.HasPurchasedAsync(userId, p.ClipId))
-                        {
-                            await PurchaseRepository.AddAsync(p);
-                        }
+                         if (await PurchaseRepository.HasPurchasedAsync(userId.Value, p.ClipId))
+                         {
+                             shouldAdd = false;
+                         }
                     }
-                    catch { /* Ignore dupes */ }
+
+                    if (shouldAdd)
+                    {
+                         await PurchaseRepository.AddAsync(p);
+                    }
                 }
 
                 _purchases = purchases;
