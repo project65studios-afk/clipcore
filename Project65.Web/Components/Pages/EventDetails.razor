@@ -6,6 +6,8 @@
 @inject ISettingsRepository SettingsRepository
 @inject NavigationManager Navigation
 @inject IJSRuntime JSRuntime
+@inject Project65.Web.Services.CartService CartService
+@implements IDisposable
 
 <PageTitle>@_event?.Name - Project65</PageTitle>
 
@@ -58,8 +60,21 @@ else
         <div class="video-grid">
             @foreach (var clip in _event.Clips)
             {
-                <a href="/clips/@clip.Id" class="video-card" data-enhance-nav="false">
+                <div @onclick="() => NavigateToClip(clip.Id)" class="video-card" data-enhance-nav="false">
                     <div class="video-thumb">
+                        @if (IsInCart(clip.Id))
+                        {
+                            <button class="btn-quick-add added" @onclick:stopPropagation="true" @onclick="() => ToggleCart(clip)">
+                                <i class="bi bi-dash-lg"></i>
+                            </button>
+                        }
+                        else
+                        {
+                            <button class="btn-quick-add" @onclick:stopPropagation="true" @onclick="() => ToggleCart(clip)">
+                                <i class="bi bi-plus-lg"></i>
+                            </button>
+                        }
+
                         @if (clip.PlaybackIdTeaser?.StartsWith("mock") == true)
                         {
                              <div style="width: 100%; height: 100%; background: linear-gradient(45deg, #1e293b, #0f172a); display: flex; align-items: center; justify-content: center; color: var(--text-muted);">
@@ -80,7 +95,7 @@ else
                             <!-- Static Image (Thumbnail) - Use Signed URL if needed -->
                             <img src="https://image.mux.com/@GetThumbnailId(clip)/thumbnail.jpg?token=@GetToken(clip)" 
                                  alt="@clip.Title" 
-                                 style="width: 100%; aspect-ratio: 16/9; object-fit: cover; border-radius: 4px; border: 1px solid rgba(255,255,255,0.1);" />
+                                 style="width: 100%; aspect-ratio: 16/9; object-fit: cover; border-radius: 4px;" />
                         }
                         
                         <!-- Hover Preview -->
@@ -134,7 +149,7 @@ else
                         </div>
                         <span class="price-tag" style="align-self: flex-start; margin-top: 0.2rem;">$@(clip.PriceCents / 100.00)</span>
                     </div>
-                </a>
+                </div>
             }
         </div>
     }
@@ -150,6 +165,7 @@ else
     private string _sortBy = "TimeUsedAsc"; // Default sort
     private Dictionary<string, string> _tokenCache = new();
     private bool _showCopiedMessage = false;
+    private HashSet<string> _cartItemIds = new();
 
     private async Task CopyLinkAsync()
     {
@@ -174,6 +190,55 @@ else
             // Fallback to copy link if share not supported or cancelled
             await CopyLinkAsync();
         }
+    }
+
+    private void NavigateToClip(string clipId)
+    {
+        Navigation.NavigateTo($"/clips/{clipId}");
+    }
+
+    private bool IsInCart(string clipId)
+    {
+        return _cartItemIds.Contains(clipId);
+    }
+
+    private async Task ToggleCart(Clip clip)
+    {
+        if (IsInCart(clip.Id))
+        {
+            await CartService.RemoveAsync(clip.Id);
+            _cartItemIds.Remove(clip.Id);
+        }
+        else
+        {
+            var item = new Project65.Web.Models.CartItem
+            {
+                Id = clip.Id,
+                Title = clip.Title,
+                PriceCents = clip.PriceCents,
+                DurationSec = clip.DurationSec,
+                PlaybackId = clip.PlaybackIdSigned,
+                EventId = clip.EventId
+            };
+            await CartService.AddAsync(item);
+            _cartItemIds.Add(clip.Id);
+        }
+    }
+
+    public void Dispose()
+    {
+        CartService.OnChange -= OnCartChanged;
+    }
+
+    private void OnCartChanged()
+    {
+        UpdateCartState();
+        StateHasChanged();
+    }
+
+    private void UpdateCartState()
+    {
+        _cartItemIds = CartService.GetItems().Select(i => i.Id).ToHashSet();
     }
 
     protected override async Task OnInitializedAsync()
@@ -284,10 +349,19 @@ else
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (firstRender && _event?.Clips != null)
+        if (firstRender)
         {
-            // Start continuous self-healing for any processing clips
-            _ = ContinuousSelfHealAsync();
+            CartService.OnChange += OnCartChanged;
+            await CartService.InitializeAsync();
+             // Initial check
+            UpdateCartState();
+            StateHasChanged();
+
+            if (_event?.Clips != null)
+            {
+                // Start continuous self-healing for any processing clips
+                _ = ContinuousSelfHealAsync();
+            }
         }
     }
 

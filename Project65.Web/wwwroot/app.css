@@ -271,7 +271,7 @@ h3 {
     border-radius: var(--radius-lg);
     overflow: hidden;
     position: relative;
-    border: 1px solid var(--border-color);
+    border: none;
 }
 
 .video-thumb {
@@ -317,12 +317,54 @@ h3 {
     align-items: center;
 }
 
-.price-tag {
-    background: var(--bg-dark-700);
-    padding: 0.25rem 0.75rem;
-    border-radius: var(--radius-full);
-    font-size: 0.875rem;
-    border: 1px solid var(--border-active);
+/* Quick Add Button */
+.btn-quick-add {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(4px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    z-index: 10;
+    font-size: 1.2rem;
+    padding: 0;
+}
+
+.btn-quick-add:hover {
+    background: var(--accent-cyan);
+    border-color: var(--accent-cyan);
+    transform: scale(1.1);
+}
+
+.btn-quick-add.added {
+    background: var(--accent-cyan);
+    /* or green */
+    border-color: var(--accent-cyan);
+    color: white;
+    /* Prevent re-adding - REMOVED for toggle support */
+}
+
+.video-card {
+    background: var(--bg-dark-800);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    position: relative;
+    border: none;
+    cursor: pointer;
+    /* Since we are changing to div */
+    display: block;
+    /* Ensure formatting holds */
+    text-decoration: none;
+    /* Remove underline if it was an a tag */
 }
 
 /* Login/Auth Layout Center */
