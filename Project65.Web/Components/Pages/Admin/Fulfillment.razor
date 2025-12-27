@@ -71,7 +71,47 @@
                                         </div>
                                     </div>
                                     <div class="col-md-8 text-md-end mt-2 mt-md-0">
-                                        <div class="d-flex justify-content-md-end gap-4 text-start text-md-end">
+                                        <div class="d-flex justify-content-md-end gap-3 text-start text-md-end align-items-center">
+                                            
+                                            <!-- Order Completion Logic -->
+                                            @{
+                                                var allFilesUploaded = order.All(p => p.Clip != null && !string.IsNullOrEmpty(p.Clip.MasterFileName));
+                                                var isFullyFulfilled = order.All(p => p.FulfillmentStatus == FulfillmentStatus.Fulfilled);
+                                            }
+
+                                            @if (isFullyFulfilled)
+                                            {
+                                                <!-- Ready / Copy Link -->
+                                                <div class="d-flex align-items-center gap-2 bg-light border rounded px-2 py-1">
+                                                    <span class="badge bg-success small text-uppercase">Ready</span>
+                                                    <div class="input-group input-group-sm" style="width: 260px;">
+                                                        <input type="text" class="form-control bg-white font-monospace text-muted border-secondary" 
+                                                               style="font-size: 0.8rem;"
+                                                               readonly value="@($"{Navigation.BaseUri}delivery/{firstItem.StripeSessionId}")" 
+                                                               onclick="this.select()" />
+                                                        <button class="btn btn-outline-secondary" onclick="navigator.clipboard.writeText(this.previousElementSibling.value)" title="Copy Link">
+                                                            <i class="bi bi-clipboard"></i>
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            }
+                                            else if (allFilesUploaded)
+                                            {
+                                                <!-- Action Button -->
+                                                <button class="btn btn-success btn-sm shadow-sm" @onclick="() => CompleteOrder(order.ToList())">
+                                                    <i class="bi bi-send-check me-1"></i> Complete & Get Link
+                                                </button>
+                                            }
+                                            else
+                                            {
+                                                <!-- Status -->
+                                                <div class="text-warning small fw-bold bg-warning bg-opacity-10 px-2 py-1 rounded">
+                                                    <i class="bi bi-hourglass-split me-1"></i> Upload Remaining Files
+                                                </div>
+                                            }
+
+                                            <div class="vr mx-2 d-none d-md-block text-secondary"></div>
+
                                             <div>
                                                 <div class="text-uppercase text-muted fw-bold" style="font-size: 0.7rem; letter-spacing: 0.5px;">Customer</div>
                                                 <div class="fw-bold text-dark">@(firstItem.CustomerName ?? "Anonymous")</div>
@@ -343,6 +383,24 @@
         StateHasChanged();
     }
     
+    // --- New Order Logic ---
+    private async Task CompleteOrder(List<Purchase> order)
+    {
+        foreach (var p in order)
+        {
+            if (p.FulfillmentStatus == FulfillmentStatus.Pending)
+            {
+                p.FulfillmentStatus = FulfillmentStatus.Fulfilled;
+                p.FulfilledAt = DateTime.UtcNow;
+                // Save the dynamic link as the fallback
+                p.HighResDownloadUrl = $"{Navigation.BaseUri}delivery/{p.StripeSessionId}";
+                await PurchaseRepository.UpdateAsync(p);
+            }
+        }
+        // Force refresh
+        await LoadDataAsync();
+    }
+
     public async ValueTask DisposeAsync()
     {
         _objRef?.Dispose();
