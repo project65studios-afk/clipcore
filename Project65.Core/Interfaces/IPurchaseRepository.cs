@@ -11,6 +11,7 @@ public interface IPurchaseRepository
     Task<bool> HasPurchasedAsync(Guid userId, string clipId);
     Task<List<Purchase>> GetByUserIdAsync(Guid userId);
     Task<List<Purchase>> GetByEmailAsync(string email);
+    Task<List<Purchase>> GetByOrderNumberAsync(string email, string partialOrderId);
     Task<List<Purchase>> ListAsync();
     Task UpdateAsync(Purchase purchase);
 }

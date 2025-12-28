@@ -24,7 +24,13 @@
             <EditForm Model="this" OnValidSubmit="HandleSubmit">
                 <div class="mb-3">
                     <label class="form-label">Email Address</label>
-                    <InputText @bind-Value="_email" class="form-control bg-dark text-white border-secondary" placeholder="you@example.com" />
+                    <InputText @bind-Value="_email" class="form-control" placeholder="you@example.com" />
+                </div>
+                
+                <div class="mb-4">
+                    <label class="form-label">Order Number (Last 8 Characters)</label>
+                    <InputText @bind-Value="_orderNumber" class="form-control" placeholder="e.g. A1B2C3D4" />
+                    <div class="form-text text-muted" style="font-size: 0.8rem;">You can find this on your email receipt (e.g. Order #A1B2C3D4).</div>
                 </div>
 
                 <button type="submit" class="btn btn-primary w-100" disabled="@_isProcessing">
@@ -32,19 +38,18 @@
                     {
                         <span class="spinner-border spinner-border-sm me-2"></span>
                     }
-                    Find Orders
+                    Find Order
                 </button>
             </EditForm>
         </div>
     }
     else
     {
-        @if (_foundOrders.Any())
-        {
-             <div class="alert alert-success text-center mb-4">
-                <i class="bi bi-check-circle-fill me-2"></i> Found <strong>@_foundOrders.Count</strong> order(s) for @_email.
-                <br/><small>We also sent a copy of these links to your email.</small>
-            </div>
+            @if (_foundOrders.Any())
+            {
+                 <div class="alert alert-success text-center mb-4" style="background: rgba(16, 185, 129, 0.1); border-color: rgba(16, 185, 129, 0.2); color: #10b981;">
+                    <i class="bi bi-check-circle-fill me-2"></i> Order Found!
+                </div>
 
             <div class="d-flex flex-column gap-4">
                 @foreach (var order in _foundOrders)
@@ -90,9 +95,9 @@
         }
         else
         {
-            <div class="alert alert-warning text-center" style="max-width: 600px; margin: 0 auto;">
-                We couldn't find any orders for <strong>@_email</strong>.
-                <br/><small>Please check the email address or your spam folder for previous receipts.</small>
+            <div class="alert alert-warning text-center" style="max-width: 600px; margin: 0 auto; background: rgba(245, 158, 11, 0.1); border-color: rgba(245, 158, 11, 0.2); color: #f59e0b;">
+                <strong>Order Not Found</strong>
+                <br/><div class="mt-2" style="font-size: 0.9rem;">Please check that your Email and Order Number match exactly.<br/>The Order Number is the last 8 characters from your receipt (e.g. A1B2C3D4).</div>
             </div>
         }
         
@@ -105,6 +110,7 @@
 
 @code {
     private string _email = "";
+    private string _orderNumber = "";
     private bool _isProcessing = false;
     private bool _hasSearched = false;
     private List<OrderViewModel> _foundOrders = new();
@@ -132,7 +138,7 @@
 
     private async Task HandleSubmit()
     {
-        if (string.IsNullOrWhiteSpace(_email)) return;
+        if (string.IsNullOrWhiteSpace(_email) || string.IsNullOrWhiteSpace(_orderNumber)) return;
 
         _isProcessing = true;
         _hasSearched = false;
@@ -141,12 +147,15 @@
 
         try
         {
-            // 1. Find Purchases
-            var purchases = await PurchaseRepository.GetByEmailAsync(_email.Trim());
+            // 1. Find Purchases (Exact Credential Match)
+            // Sanitize Input: Remove "ORD-" prefix if user pasted it
+            var cleanOrderNum = _orderNumber.Trim().ToUpper().Replace("ORD-", "");
+
+            var purchases = await PurchaseRepository.GetByOrderNumberAsync(_email.Trim(), cleanOrderNum);
 
             if (purchases.Any())
             {
-                // 2. Group by Order (SessionId)
+                // 2. Group (Should be single order, but handle list just in case of match)
                 var groups = purchases
                     .GroupBy(p => p.StripeSessionId)
                     .OrderByDescending(g => g.First().CreatedAt);
@@ -180,22 +189,11 @@
                     }
                     _foundOrders.Add(orderVM);
                 }
-
-                // 3. Send Email (Backup)
-                var sb = new System.Text.StringBuilder();
-                sb.Append("<h2>Your Order History 📦</h2>");
-                sb.Append($"<p>We found {_foundOrders.Count} order(s).</p><hr/>");
-                foreach (var order in _foundOrders)
-                {
-                    sb.Append($"<div><strong>Order #{order.OrderIdDisplay}</strong><br/>");
-                    sb.Append($"<a href='{order.Link}'>View Downloads</a></div><br/>");
-                }
-                await EmailService.SendEmailAsync(_email, "Your Project65 Order Links", sb.ToString());
             }
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error sending lookup email: {ex}");
+            Console.WriteLine($"Error lookup: {ex}");
         }
 
         _hasSearched = true;

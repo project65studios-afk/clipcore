@@ -27,6 +27,19 @@
             Your payment was successful. You now have full access to your clips.
             <br/>A receipt has been sent to your email.
         </p>
+
+        @if (!string.IsNullOrEmpty(SessionId))
+        {
+            <div class="alert alert-info d-inline-block px-4 py-3 mb-4" style="background: rgba(13, 202, 240, 0.1); border-color: rgba(13, 202, 240, 0.2); color: #0dcaf0;">
+                <div class="small text-uppercase fw-bold opacity-75 mb-1">Your Order Number</div>
+                <div class="h3 m-0" style="font-family: monospace; letter-spacing: 2px;">
+                    @(SessionId.Length > 8 ? SessionId.Substring(SessionId.Length - 8).ToUpper() : SessionId)
+                </div>
+                <div class="small mt-2" style="font-size: 0.8rem; opacity: 0.8;">
+                    Keep this to look up your order later.
+                </div>
+            </div>
+        }
         
         <div style="text-align: left; margin-bottom: 2rem; background: rgba(0,0,0,0.2); padding: 1rem; border-radius: var(--radius-md);">
             <h5 class="mb-3">Purchased Items:</h5>
