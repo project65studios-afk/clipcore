@@ -111,8 +111,12 @@
             try
             {
                 var tags = System.Text.Json.JsonSerializer.Deserialize<string[]>(Clip.TagsJson);
-                // Return up to 3 tags as requested
-                return tags?.Take(3).ToList() ?? new List<string>();
+                // Filter out "Unknown" and error-related tags
+                return tags?.Where(t => !string.Equals(t, "Unknown", StringComparison.OrdinalIgnoreCase) 
+                                     && !t.StartsWith("Error:") 
+                                     && t != "AI_Analysis_Pending" 
+                                     && t != "No_API_Key")
+                            .Take(3).ToList() ?? new List<string>();
             }
             catch { return new List<string>(); }
         }
@@ -136,10 +140,9 @@
             {
                 await JSRuntime.InvokeVoidAsync("VideoObserver.observe", _cardElement);
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 // Likely due to prerendering or navigation cancellation, ignore
-                Console.WriteLine($"Observer error: {ex.Message}");
             }
         }
     }

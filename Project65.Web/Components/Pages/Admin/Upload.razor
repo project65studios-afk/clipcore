@@ -158,7 +158,6 @@
     [JSInvokable]
     public async Task<MuxUploadResult> GetMuxUploadUrl(MuxUploadRequest request)
     {
-        Console.WriteLine($"[Uppy] Requesting Mux URL for: {request.FileName} (Master: {request.MasterFileName})");
         if (string.IsNullOrEmpty(_selectedEventId))
         {
             throw new Exception("Please select an event first.");
@@ -207,7 +206,6 @@
     {
         if (string.IsNullOrEmpty(clip.MuxUploadId)) return;
 
-        Console.WriteLine($"[Uppy] Starting background poll for AssetId: {clip.Title} (UploadId: {clip.MuxUploadId})");
         
         // 1. Poll for AssetId (up to 30 seconds)
         string? assetId = null;
@@ -220,11 +218,9 @@
 
         if (string.IsNullOrEmpty(assetId))
         {
-            Console.WriteLine($"[Uppy] Timed out waiting for AssetId for {clip.Title}");
             return;
         }
 
-        Console.WriteLine($"[Uppy] Resolved AssetId: {assetId} for {clip.Title}");
         clip.MuxAssetId = assetId;
 
         // 2. Poll for Duration and PlaybackId (up to 60 seconds)
@@ -232,7 +228,6 @@
         for (int i = 0; i < 20; i++)
         {
             var (duration, startedAt) = await VideoService.GetAssetDetailsAsync(assetId);
-            Console.WriteLine($"[Uppy] Polling duration for {clip.Title}: {(duration.HasValue ? duration.Value.ToString() : "null")}");
             
             if (duration.HasValue && duration.Value > 0)
             {
@@ -248,23 +243,19 @@
                 }
 
                 await ClipRepository.UpdateAsync(clip);
-                Console.WriteLine($"[Uppy] SUCCESS: Resolved Duration ({duration}s) for {clip.Title}");
                 return;
             }
 
-            Console.WriteLine($"[Uppy] Still waiting for duration for {clip.Title} (attempt {i+1}/20)...");
             await Task.Delay(3000);
         }
 
         // Final save even if duration is still missing (fallback)
         await ClipRepository.UpdateAsync(clip);
-        Console.WriteLine($"[Uppy] Metadata polling finished for {clip.Title} (Duration might still be processing)");
     }
 
     private async Task NavigateToEvent()
     {
         var targetId = _selectedEventId;
-        Console.WriteLine($"[Uppy] NavigateToEvent triggered. EventId: {targetId}");
         
         if (!string.IsNullOrEmpty(targetId))
         {
@@ -273,16 +264,14 @@
                 // Fallback: Try Blazor navigation first
                 Navigation.NavigateTo($"/events/{targetId}", forceLoad: true);
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                Console.WriteLine($"[Uppy] Blazor navigation failed: {ex.Message}. Trying JS fallback...");
                 // Ultimate Fallback: Direct JS Redirect
                 await JS.InvokeVoidAsync("location.assign", $"/events/{targetId}");
             }
         }
         else 
         {
-            Console.WriteLine("[Uppy] Cannot navigate: targetId is null or empty.");
             // If ID is missing, just go home as a safety net
             Navigation.NavigateTo("/", forceLoad: true);
         }

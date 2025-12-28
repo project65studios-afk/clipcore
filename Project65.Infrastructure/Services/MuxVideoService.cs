@@ -6,6 +6,7 @@ using Project65.Core.Interfaces;
 using Microsoft.AspNetCore.Http;
 using Project65.Core.Entities;
 using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Logging;
 
 namespace Project65.Infrastructure.Services;
 
@@ -19,10 +20,11 @@ public class MuxVideoService : IVideoService
     private readonly string _signingKeyPrivate;
     private readonly IHttpContextAccessor _httpContextAccessor;
     private readonly IUsageRepository _usageRepository;
-    private readonly IMemoryCache _cache; // Added
+    private readonly IMemoryCache _cache;
+    private readonly ILogger<MuxVideoService> _logger;
     private const int MaxDailyTokens = 1000; // Increased buffer for dev/testing
 
-    public MuxVideoService(IConfiguration configuration, IHttpContextAccessor httpContextAccessor, IUsageRepository usageRepository, IMemoryCache cache) // Added IMemoryCache
+    public MuxVideoService(IConfiguration configuration, IHttpContextAccessor httpContextAccessor, IUsageRepository usageRepository, IMemoryCache cache, ILogger<MuxVideoService> logger)
     {
         _tokenId = configuration["Mux:TokenId"] ?? throw new ArgumentNullException("Mux:TokenId");
         _tokenSecret = configuration["Mux:TokenSecret"] ?? throw new ArgumentNullException("Mux:TokenSecret");
@@ -30,7 +32,8 @@ public class MuxVideoService : IVideoService
         _signingKeyPrivate = configuration["Mux:SigningKeyPrivate"] ?? "";
         _httpContextAccessor = httpContextAccessor;
         _usageRepository = usageRepository;
-        _cache = cache; // Initialized
+        _cache = cache;
+        _logger = logger;
 
         var config = new Configuration();
         config.BasePath = "https://api.mux.com";
@@ -155,7 +158,7 @@ public class MuxVideoService : IVideoService
                     ua.Contains("wget", StringComparison.OrdinalIgnoreCase) ||
                     ua.Contains("postman", StringComparison.OrdinalIgnoreCase))
                 {
-                     Console.WriteLine($"[BOT BLOCKED] UA: {ua} IP: {ip}");
+                     _logger.LogWarning($"[BOT BLOCKED] UA: {ua} IP: {ip}");
                      return ""; // Block
                 }
             }
@@ -188,12 +191,11 @@ public class MuxVideoService : IVideoService
                     var usage = await _usageRepository.GetUsageAsync(ip, date);
                     if (usage.TokenRequestCount >= MaxDailyTokens)
                     {
-                        Console.WriteLine($"[LIMIT] IP {ip} exceeded daily limit ({usage.TokenRequestCount}). Denying token.");
+                        _logger.LogWarning($"[LIMIT] IP {ip} exceeded daily limit ({usage.TokenRequestCount}). Denying token.");
                         return ""; 
                     }
 
                     await _usageRepository.IncrementUsageAsync(ip, date);
-                    Console.WriteLine($"[USAGE] IP {ip} used token {usage.TokenRequestCount + 1}/{MaxDailyTokens}");
                 }
             }
 
@@ -209,7 +211,7 @@ public class MuxVideoService : IVideoService
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[MUX-CRITICAL-ERROR] GetPlaybackToken Failed: {ex}");
+            _logger.LogCritical(ex, "[MUX-CRITICAL-ERROR] GetPlaybackToken Failed");
             return ""; // Fail safe
         }
     }
@@ -278,7 +280,7 @@ public class MuxVideoService : IVideoService
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[MUX-ERROR] Token Generation Failed: {ex.Message}");
+            _logger.LogError(ex, "[MUX-ERROR] Token Generation Failed");
             return "";
         }
     }
@@ -293,7 +295,7 @@ public class MuxVideoService : IVideoService
         catch (Exception ex)
         {
             // Log or handle error (e.g. if already deleted)
-            Console.WriteLine($"Error deleting Mux asset {assetId}: {ex.Message}");
+            _logger.LogError(ex, $"Error deleting Mux asset {assetId}");
         }
     }
 
@@ -307,7 +309,7 @@ public class MuxVideoService : IVideoService
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error fetching Mux upload {uploadId}: {ex.Message}");
+            _logger.LogError(ex, $"Error fetching Mux upload {uploadId}");
             return null;
         }
     }
@@ -356,7 +358,7 @@ public class MuxVideoService : IVideoService
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error fetching Mux asset details {assetId}: {ex.Message}");
+            _logger.LogError(ex, $"Error fetching Mux asset details {assetId}");
             return (null, null);
         }
     }
@@ -391,7 +393,6 @@ public class MuxVideoService : IVideoService
 
             if (masterStatus == AssetMaster.StatusEnum.Preparing)
             {
-                Console.WriteLine($"[MUX-DEBUG] Asset {assetId} master is preparing.");
                 return null; // Not ready yet
             }
 
@@ -399,7 +400,6 @@ public class MuxVideoService : IVideoService
             // Request Master Access
             if (asset.Data.MasterAccess == Asset.MasterAccessEnum.None)
             {
-                 Console.WriteLine($"[MUX-DEBUG] Enabling Master Access for {assetId}");
                  var updateRequest = new UpdateAssetMasterAccessRequest(masterAccess: UpdateAssetMasterAccessRequest.MasterAccessEnum.Temporary);
                  await _assetsApi.UpdateAssetMasterAccessAsync(assetId, updateRequest);
             }
@@ -408,7 +408,7 @@ public class MuxVideoService : IVideoService
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[MUX-ERROR] Error resolving Master URL for {assetId}: {ex.Message}");
+            _logger.LogError(ex, $"[MUX-ERROR] Error resolving Master URL for {assetId}");
             return null;
         }
     }

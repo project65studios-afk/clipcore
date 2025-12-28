@@ -14,7 +14,6 @@ window.setFullscreenElement = async (playerId, containerId) => {
         // 2. Set the attribute (requires ID string)
         player.setAttribute('fullscreen-element', containerId);
 
-        console.log(`[Project65] Fullscreen linked: ${playerId} -> ${containerId}`);
     } else {
         console.warn(`[Project65] Fullscreen setup failed. Player: ${!!player}, Container: ${!!container}`);
     }

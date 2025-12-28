@@ -52,9 +52,8 @@ window.muxUpload = {
                         const startTime = performance.now();
 
                         // Create FormData
-                        console.log('DEBUG: uploadInfo', uploadInfo);
                         if (!uploadInfo || !uploadInfo.eventId) {
-                            console.error('DEBUG: Missing eventId in uploadInfo', uploadInfo);
+                            console.error('Missing eventId in uploadInfo', uploadInfo);
                         }
 
                         const formData = new FormData();
@@ -116,7 +115,6 @@ window.muxUpload = {
                                 if (xhr.status >= 200 && xhr.status < 300) {
                                     const response = JSON.parse(xhr.responseText);
                                     const totalTime = ((performance.now() - startTime) / 1000).toFixed(1);
-                                    console.log(`[Server] Complete for ${file.name} in ${totalTime}s. Original: ${(response.originalSize / 1024 / 1024).toFixed(2)}MB, Compressed: ${(response.compressedSize / 1024 / 1024).toFixed(2)}MB, Compression: ${response.compressionTime.toFixed(1)}s`);
 
                                     // Update file state to show 100% complete
                                     uppy.setFileState(id, {
@@ -158,7 +156,6 @@ window.muxUpload = {
         uppyInstance.use(ServerCompressionPlugin);
 
         uppyInstance.on('upload-success', (file, response) => {
-            console.log(`[Uppy] Upload success for ${file.fileName}`);
             // No need to invoke OnUppyUploadSuccess anymore - server handles everything
         });
     }
@@ -167,7 +164,6 @@ window.muxUpload = {
 // Generic Direct Upload to Mux helper (Outside any closure to be safe)
 // Generic Direct Upload to Mux helper
 window.uploadToMux = function (file, uploadUrl, dotnetRef) {
-    console.log("Starting upload to Mux", file.name, uploadUrl);
 
     const upload = UpChunk.createUpload({
         endpoint: uploadUrl,

@@ -159,22 +159,28 @@ else
                 }
                 else
                 {
-                    <div style="display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 1rem;">
-                        @{
-                            var tags = System.Text.Json.JsonSerializer.Deserialize<string[]>(_clip.TagsJson) ?? Array.Empty<string>();
-                             // Debug log to capture AI errors in console
-                             if (tags.Length > 0 && tags[0].StartsWith("Error"))
-                             {
-                                 Console.WriteLine($"[AI-DEBUG] Tag Error for {_clip.Title}: {tags[0]}");
-                             }
-                        }
-                        @foreach (var tag in tags)
-                        {
-                            <a href="/search?q=@tag" class="badge text-decoration-none me-1" style="background: var(--bg-dark-900); color: var(--text-secondary); border: 1px solid var(--border-color); font-weight: 500;">
-                                @tag
-                            </a>
-                        }
-                    </div>
+                    var tags = System.Text.Json.JsonSerializer.Deserialize<string[]>(_clip.TagsJson) ?? Array.Empty<string>();
+                    var filteredTags = tags.Where(t => !string.Equals(t, "Unknown", StringComparison.OrdinalIgnoreCase) 
+                                                    && !t.StartsWith("Error:") 
+                                                    && t != "AI_Analysis_Pending" 
+                                                    && t != "No_API_Key")
+                                           .ToList();
+                    
+                    @if (filteredTags.Count == 0)
+                    {
+                        <span class="text-secondary" style="font-size: 0.9rem; font-style: italic;">No relevant tags detected</span>
+                    }
+                    else
+                    {
+                        <div style="display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 1rem;">
+                            @foreach (var tag in filteredTags)
+                            {
+                                <a href="/search?q=@tag" class="badge text-decoration-none me-1" style="background: var(--bg-dark-900); color: var(--text-secondary); border: 1px solid var(--border-color); font-weight: 500;">
+                                    @tag
+                                </a>
+                            }
+                        </div>
+                    }
                 }
             </div>
             
@@ -616,9 +622,9 @@ else
                         await JSRuntime.InvokeVoidAsync("setFullscreenElement", "#preview-player", "player-container");
                     }
                 }
-                catch (Exception ex)
+                catch (Exception)
                 {
-                    Console.WriteLine($"JS Error: {ex.Message}");
+                    // Ignore JS errors on init
                 }
             }
         }
