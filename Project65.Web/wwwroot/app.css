@@ -359,12 +359,14 @@ h3 {
     z-index: 5;
 }
 
-.video-card:hover .video-thumb img {
-    opacity: 0;
+.video-card:hover .video-thumb .preview-player,
+.video-card.mobile-playing .video-thumb .preview-player {
+    opacity: 1;
 }
 
-.video-card:hover .video-thumb .preview-player {
-    opacity: 1;
+.video-card:hover .video-thumb img,
+.video-card.mobile-playing .video-thumb img {
+    opacity: 0;
 }
 
 .video-info {
@@ -476,7 +478,8 @@ h3 {
     transform: translateY(-5px);
 }
 
-.video-card:hover .quick-add-btn {
+.video-card:hover .quick-add-btn,
+.video-card.mobile-playing .quick-add-btn {
     opacity: 1;
     transform: translateY(0);
 }

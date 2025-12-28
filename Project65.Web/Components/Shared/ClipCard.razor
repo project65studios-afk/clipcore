@@ -4,9 +4,10 @@
 @inject Project65.Web.Services.CartService CartService
 @inject IWebHostEnvironment Environment
 @inject NavigationManager Navigation
+@inject IJSRuntime JSRuntime
 @implements IDisposable
 
-<div @key="Clip.Id" @onclick="NavigateToClip" class="video-card" data-enhance-nav="false">
+<div id="clip-card-@Clip.Id" @ref="_cardElement" @key="Clip.Id" @onclick="NavigateToClip" class="video-card" data-enhance-nav="false">
     <div class="video-thumb">
         @if (IsPurchased)
         {
@@ -96,6 +97,7 @@
     [Parameter] public bool IsPurchased { get; set; }
     [Parameter] public string? WatermarkUrl { get; set; }
 
+    private ElementReference _cardElement;
     private Dictionary<string, string> _tokenCache = new();
     private bool _isAddingToCart = false;
 
@@ -123,6 +125,22 @@
         if (!string.IsNullOrEmpty(PreviewId) && !PreviewId.StartsWith("mock"))
         {
             await LoadTokensForClip(PreviewId);
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender && !string.IsNullOrEmpty(PreviewId) && !PreviewId.StartsWith("mock"))
+        {
+            try
+            {
+                await JSRuntime.InvokeVoidAsync("VideoObserver.observe", _cardElement);
+            }
+            catch (Exception ex)
+            {
+                // Likely due to prerendering or navigation cancellation, ignore
+                Console.WriteLine($"Observer error: {ex.Message}");
+            }
         }
     }
 
@@ -161,9 +179,9 @@
 
     private bool HasTokens(string playbackId)
     {
-        return _tokenCache.TryGetValue($"{playbackId}-v", out var v) && !string.IsNullOrEmpty(v) &&
-               _tokenCache.TryGetValue($"{playbackId}-t", out var t) && !string.IsNullOrEmpty(t) &&
-               _tokenCache.TryGetValue($"{playbackId}-s", out var s) && !string.IsNullOrEmpty(s);
+        // Only enforce Video token presence for playback.
+        // Thumbnail and Storyboard are optional enhancements.
+        return _tokenCache.TryGetValue($"{playbackId}-v", out var v) && !string.IsNullOrEmpty(v);
     }
 
     private string GetThumbnailUrl()
