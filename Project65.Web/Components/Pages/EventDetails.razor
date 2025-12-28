@@ -9,6 +9,7 @@
 @inject IJSRuntime JSRuntime
 @inject Project65.Web.Services.CartService CartService
 @inject IWebHostEnvironment Environment
+@inject IPurchaseRepository PurchaseRepository
 @using System.IO
 @implements IDisposable
 
@@ -63,139 +64,7 @@ else
         <div class="video-grid">
             @foreach (var clip in _event.Clips)
             {
-                <div @key="clip.Id" @onclick="() => NavigateToClip(clip.Id)" class="video-card" data-enhance-nav="false">
-                    <div class="video-thumb">
-                        @if (IsInCart(clip.Id))
-                        {
-                            <button class="btn-quick-add added" @onclick:stopPropagation="true" @onclick="() => ToggleCart(clip)">
-                                <i class="bi bi-dash-lg"></i>
-                            </button>
-                        }
-                        else
-                        {
-                            <button class="btn-quick-add" @onclick:stopPropagation="true" @onclick="() => ToggleCart(clip)">
-                                <i class="bi bi-plus-lg"></i>
-                            </button>
-                        }
-
-                        @if (clip.PlaybackIdTeaser?.StartsWith("mock") == true)
-                        {
-                             <div style="width: 100%; height: 100%; background: linear-gradient(45deg, #1e293b, #0f172a); display: flex; align-items: center; justify-content: center; color: var(--text-muted);">
-                                 <span>Mock Video</span>
-                             </div>
-                        }
-                        else if (!string.IsNullOrEmpty(clip.ThumbnailFileName))
-                        {
-                             var thumbUrl = GetHybridThumbnailUrl(clip);
-                             <!-- Local High-Res Thumbnail (Immediate & High Quality) -->
-                             <img src="@thumbUrl" 
-                                  alt="@clip.Title" 
-                                  style="width: 100%; aspect-ratio: 16/9; object-fit: cover; border-radius: 4px;" />
-                        }
-                        else if (string.IsNullOrEmpty(GetThumbnailId(clip)))
-                        {
-                             <div style="width: 100%; height: 100%; background: #0f172a; display: flex; align-items: center; justify-content: center; color: var(--text-muted); border-radius: 4px;">
-                                 <div class="text-center">
-                                     <div class="spinner-border spinner-border-sm mb-2" role="status"></div>
-                                     <div style="font-size: 0.7rem;">Processing...</div>
-                                 </div>
-                             </div>
-                        }
-                        else
-                        {
-                            <!-- Fallback to Mux Thumbnail -->
-                            <img src="https://image.mux.com/@GetThumbnailId(clip)/thumbnail.jpg?token=@GetToken(clip)" 
-                                 alt="@clip.Title" 
-                                 style="width: 100%; aspect-ratio: 16/9; object-fit: cover; border-radius: 4px;" />
-                        }
-                        
-                        <!-- Hover Preview -->
-                          @{
-                              var previewId = string.IsNullOrEmpty(clip.PlaybackIdTeaser) ? clip.PlaybackIdSigned : clip.PlaybackIdTeaser;
-                          }
-                          @if (!string.IsNullOrEmpty(previewId) && !previewId.StartsWith("mock"))
-                          {
-                               <div id="preview-container-@clip.Id" class="video-player-container preview-player">
-                                   @if (!string.IsNullOrEmpty(_watermarkUrl))
-                                   {
-                                       <div class="watermark-grid" style="--wm-url: url('@_watermarkUrl');">
-                                           @for (int i = 0; i < 36; i++)
-                                           {
-                                               int row = i / 6;
-                                               int col = i % 6;
-                                               bool isActive = (row + col) % 2 == 0;
-                                               <div class="watermark-cell @(isActive ? "active" : "")"></div>
-                                           }
-                                       </div>
-                                   }
-
-                                   @if (HasTokens(previewId))
-                                   {
-                                       <mux-player
-                                         playback-id="@previewId"
-                                         playback-token="@GetTokenFromCache(previewId, "v")"
-                                         thumbnail-token="@GetTokenFromCache(previewId, "t")"
-                                         storyboard-token="@GetTokenFromCache(previewId, "s")"
-                                         metadata-video-title="@clip.Title"
-                                         muted
-                                         autoplay
-                                         loop
-                                         fullscreen-element="preview-container-@clip.Id"
-                                         style="width: 100%; height: 100%; object-fit: cover;"
-                                         controls="false"
-                                       ></mux-player>
-                                   }
-                                   else
-                                   {
-                                        <div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background: #000;">
-                                            <div class="spinner-border spinner-border-sm text-info" role="status"></div>
-                                        </div>
-                                   }
-                               </div>
-                          }
-                    </div>
-                        
-                         @if (!string.IsNullOrEmpty(clip.TagsJson) && clip.TagsJson != "[]")
-                         {
-                             <div style="display: flex; gap: 0.25rem; margin-top: 0.4rem; overflow: hidden; flex-wrap: wrap; height: 1.25rem;">
-                                 @{
-                                     var tags = System.Text.Json.JsonSerializer.Deserialize<string[]>(clip.TagsJson) ?? Array.Empty<string>();
-                                     // Debug log to capture AI errors in console
-                                     if (tags.Length > 0 && tags[0].StartsWith("Error"))
-                                     {
-                                         Console.WriteLine($"[AI-DEBUG] Tag Error for {clip.Title}: {tags[0]}");
-                                     }
-                                 }
-                                 @foreach (var tag in tags.Take(3))
-                                 {
-                                     <a href="/search?q=@tag" @onclick:stopPropagation="true" class="badge text-decoration-none" style="background: var(--bg-dark-900); color: var(--text-secondary); border: 1px solid var(--border-color); font-weight: 500; font-size: 0.65rem; padding: 0.15rem 0.4rem;">
-                                         @tag
-                                     </a>
-                                 }
-                             </div>
-                         }
-                    <div class="video-info">
-                        <div style="flex-grow: 1; min-width: 0;">
-                            <div style="font-weight: 600; font-size: 1rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="@clip.Title">@clip.Title</div>
-                             <div style="font-size: 0.85rem; color: var(--accent-cyan); margin-top: 0.1rem; font-weight: 500; display: flex; gap: 0.5rem; align-items: center;">
-                                 @if (clip.RecordingStartedAt.HasValue)
-                                 {
-                                     <span style="color: var(--text-secondary);">@clip.RecordingStartedAt.Value.ToString("MMM dd, h:mm tt")</span>
-                                     <span style="color: var(--text-muted); font-size: 0.7rem; margin: 0 0.3rem;">•</span>
-                                 }
-                                 @if (clip.DurationSec.HasValue)
-                                 {
-                                     <span>@TimeSpan.FromSeconds(clip.DurationSec.Value).ToString(@"mm\:ss")</span>
-                                 }
-                                 else if (!clip.RecordingStartedAt.HasValue)
-                                 {
-                                     <span style="color: var(--text-muted); font-style: italic;">Processing...</span>
-                                 }
-                             </div>
-                        </div>
-                        <span class="price-tag" style="align-self: flex-start; margin-top: 0.2rem;">$@(clip.PriceCents / 100.00)</span>
-                    </div>
-                </div>
+                <ClipCard Clip="clip" IsPurchased="_purchasedClipIds.Contains(clip.Id)" WatermarkUrl="@_watermarkUrl" />
             }
         </div>
     }
@@ -209,9 +78,11 @@ else
     private bool _loading = true;
     private string? _watermarkUrl;
     private string _sortBy = "TimeUsedAsc"; // Default sort
-    private Dictionary<string, string> _tokenCache = new();
     private bool _showCopiedMessage = false;
-    private HashSet<string> _cartItemIds = new();
+    private HashSet<string> _purchasedClipIds = new();
+
+    [CascadingParameter]
+    private Task<AuthenticationState> AuthenticationStateTask { get; set; } = null!;
 
     private async Task CopyLinkAsync()
     {
@@ -243,49 +114,6 @@ else
         Navigation.NavigateTo($"/clips/{clipId}");
     }
 
-    private bool IsInCart(string clipId)
-    {
-        return _cartItemIds.Contains(clipId);
-    }
-
-    private async Task ToggleCart(Clip clip)
-    {
-        if (IsInCart(clip.Id))
-        {
-            await CartService.RemoveAsync(clip.Id);
-            _cartItemIds.Remove(clip.Id);
-        }
-        else
-        {
-            var item = new Project65.Web.Models.CartItem
-            {
-                Id = clip.Id,
-                Title = clip.Title,
-                PriceCents = clip.PriceCents,
-                DurationSec = clip.DurationSec,
-                PlaybackId = clip.PlaybackIdSigned,
-                EventId = clip.EventId
-            };
-            await CartService.AddAsync(item);
-            _cartItemIds.Add(clip.Id);
-        }
-    }
-
-    public void Dispose()
-    {
-        CartService.OnChange -= OnCartChanged;
-    }
-
-    private void OnCartChanged()
-    {
-        UpdateCartState();
-        StateHasChanged();
-    }
-
-    private void UpdateCartState()
-    {
-        _cartItemIds = CartService.GetItems().Select(i => i.Id).ToHashSet();
-    }
 
     protected override async Task OnInitializedAsync()
     {
@@ -315,17 +143,24 @@ else
             }
             // ---------------------------------------------------------
 
-            // Valid clips should now have IDs, load tokens
-            foreach (var clip in _event.Clips)
+            // Valid clips should now have IDs
+        }
+        
+        if (AuthenticationStateTask != null)
+        {
+            var authState = await AuthenticationStateTask;
+            var user = authState.User;
+            if (user.Identity?.IsAuthenticated == true)
             {
-                var pid = string.IsNullOrEmpty(clip.PlaybackIdTeaser) ? clip.PlaybackIdSigned : clip.PlaybackIdTeaser;
-                if (!string.IsNullOrEmpty(pid) && !pid.StartsWith("mock"))
+                var userIdStr = user.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+                if (Guid.TryParse(userIdStr, out var userId))
                 {
-                    await LoadTokensForClip(pid);
+                    var purchases = await PurchaseRepository.GetByUserIdAsync(userId);
+                    _purchasedClipIds = purchases.Select(p => p.ClipId).ToHashSet();
                 }
             }
         }
-        
+
         _loading = false;
     }
 
@@ -397,10 +232,9 @@ else
     {
         if (firstRender)
         {
-            CartService.OnChange += OnCartChanged;
+            CartService.OnChange += StateHasChanged;
             await CartService.InitializeAsync();
              // Initial check
-            UpdateCartState();
             StateHasChanged();
 
             if (_event?.Clips != null)
@@ -501,11 +335,9 @@ else
                         }
                     }
 
-                    // 3. If fixed, load tokens and mark for UI update
+                    // 3. If fixed, mark for UI update
                     if (clipFixed)
                     {
-                        var pid = string.IsNullOrEmpty(clip.PlaybackIdTeaser) ? clip.PlaybackIdSigned : clip.PlaybackIdTeaser;
-                        await LoadTokensForClip(pid);
                         uiUpdated = true;
                     }
                 }
@@ -524,37 +356,6 @@ else
             // Check more frequently at first (1s), then back off (2s, 5s)
             int delay = i < 10 ? 1000 : (i < 20 ? 2000 : 5000);
             await Task.Delay(delay); 
-        }
-    }
-
-    private async Task LoadTokensForClip(string playbackId)
-    {
-        bool tokensAdded = false;
-
-        // Video Token (v)
-        if (!_tokenCache.ContainsKey($"{playbackId}-v"))
-        {
-            var token = await VideoService.GetPlaybackToken(playbackId, "v", "480p");
-            if (!string.IsNullOrEmpty(token)) { _tokenCache[$"{playbackId}-v"] = token; tokensAdded = true; }
-        }
-            
-        // Thumbnail Token (t)
-        if (!_tokenCache.ContainsKey($"{playbackId}-t"))
-        {
-            var token = await VideoService.GetPlaybackToken(playbackId, "t", "480p");
-            if (!string.IsNullOrEmpty(token)) { _tokenCache[$"{playbackId}-t"] = token; tokensAdded = true; }
-        }
-
-        // Storyboard Token (s)
-        if (!_tokenCache.ContainsKey($"{playbackId}-s"))
-        {
-            var token = await VideoService.GetPlaybackToken(playbackId, "s", "480p");
-            if (!string.IsNullOrEmpty(token)) { _tokenCache[$"{playbackId}-s"] = token; tokensAdded = true; }
-        }
-
-        if (tokensAdded)
-        {
-            await InvokeAsync(StateHasChanged);
         }
     }
 
@@ -594,41 +395,8 @@ else
         }
     }
 
-    private string GetHybridThumbnailUrl(Clip clip)
+    public void Dispose()
     {
-        if (string.IsNullOrEmpty(clip.ThumbnailFileName)) return "";
-
-        var localPath = Path.Combine(Environment.WebRootPath, "thumbnails", clip.ThumbnailFileName);
-        if (File.Exists(localPath))
-        {
-            return $"/thumbnails/{clip.ThumbnailFileName}";
-        }
-        
-        return StorageService.GetPresignedDownloadUrl($"thumbnails/{clip.ThumbnailFileName}");
-    }
-
-    private string GetThumbnailId(Clip clip)
-    {
-        return clip.PlaybackIdTeaser ?? clip.PlaybackIdSigned;
-    }
-
-    private string GetToken(Clip clip)
-    {
-        // This is only used for the static img src tag, which is rendered synchronously.
-        // We can grab it from cache if available, or empty.
-        var id = GetThumbnailId(clip);
-        return GetTokenFromCache(id, "t");
-    }
-    
-    private string GetTokenFromCache(string playbackId, string type)
-    {
-        return _tokenCache.TryGetValue($"{playbackId}-{type}", out var token) ? token : "";
-    }
-
-    private bool HasTokens(string playbackId)
-    {
-        return _tokenCache.TryGetValue($"{playbackId}-v", out var v) && !string.IsNullOrEmpty(v) && 
-               _tokenCache.TryGetValue($"{playbackId}-t", out var t) && !string.IsNullOrEmpty(t) && 
-               _tokenCache.TryGetValue($"{playbackId}-s", out var s) && !string.IsNullOrEmpty(s);
+        CartService.OnChange -= StateHasChanged;
     }
 }

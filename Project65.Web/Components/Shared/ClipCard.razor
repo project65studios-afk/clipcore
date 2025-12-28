@@ -1,0 +1,221 @@
+@using System.IO
+@inject IVideoService VideoService
+@inject IStorageService StorageService
+@inject Project65.Web.Services.CartService CartService
+@inject IWebHostEnvironment Environment
+@inject NavigationManager Navigation
+@implements IDisposable
+
+<div @key="Clip.Id" @onclick="NavigateToClip" class="video-card" data-enhance-nav="false">
+    <div class="video-thumb">
+        @if (IsPurchased)
+        {
+            <div class="purchased-badge">
+                <i class="bi bi-check-circle-fill"></i> Purchased
+            </div>
+        }
+        else if (IsInCart())
+        {
+            <div class="cart-badge">
+                <i class="bi bi-cart-check-fill"></i> In Cart
+            </div>
+        }
+
+        <!-- AI Vehicle Tags -->
+        @if (VehicleTags.Any())
+        {
+            <div class="tags-container">
+                @foreach (var tag in VehicleTags)
+                {
+                    <div class="vehicle-tag">
+                        <i class="bi bi-tag-fill" style="font-size: 0.6rem; opacity: 0.7;"></i> @tag
+                    </div>
+                }
+            </div>
+        }
+
+        <img src="@GetThumbnailUrl()" alt="@Clip.Title" class="video-thumb-img" />
+
+        <!-- Hover Preview -->
+        @if (!string.IsNullOrEmpty(PreviewId) && !PreviewId.StartsWith("mock"))
+        {
+            <div id="preview-container-@Clip.Id" class="video-player-container preview-player">
+                @if (!string.IsNullOrEmpty(WatermarkUrl))
+                {
+                    <div class="watermark-grid" style="--wm-url: url('@WatermarkUrl');">
+                        @for (int i = 0; i < 36; i++)
+                        {
+                            int row = i / 6;
+                            int col = i % 6;
+                            bool isActive = (row + col) % 2 == 0;
+                            <div class="watermark-cell @(isActive ? "active" : "")"></div>
+                        }
+                    </div>
+                }
+
+                @if (HasTokens(PreviewId))
+                {
+                    <mux-player playback-id="@PreviewId"
+                                playback-token="@GetTokenFromCache(PreviewId, "v")"
+                                thumbnail-token="@GetTokenFromCache(PreviewId, "t")"
+                                storyboard-token="@GetTokenFromCache(PreviewId, "s")"
+                                muted
+                                autoplay
+                                loop
+                                style="width: 100%; height: 100%; object-fit: cover;">
+                    </mux-player>
+                }
+            </div>
+        }
+
+        <div class="video-duration">
+            @(Clip.DurationSec.HasValue ? TimeSpan.FromSeconds(Clip.DurationSec.Value).ToString(@"mm\:ss") : "--:--")
+        </div>
+        
+        @if (!IsPurchased && !IsInCart())
+        {
+            <button class="quick-add-btn" @onclick:stopPropagation="true" @onclick="AddToCart" title="Quick Add to Cart">
+                <i class="bi bi-cart-plus"></i>
+            </button>
+        }
+    </div>
+
+    <div class="video-info">
+        <h3 class="video-title">@Clip.Title</h3>
+        <div class="video-meta">
+            <span class="price-tag">$@(Clip.PriceCents / 100.00)</span>
+            <span class="dot"></span>
+            <span>@Clip.RecordingStartedAt?.ToString("h:mm tt")</span>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter] public Clip Clip { get; set; } = null!;
+    [Parameter] public bool IsPurchased { get; set; }
+    [Parameter] public string? WatermarkUrl { get; set; }
+
+    private Dictionary<string, string> _tokenCache = new();
+    private bool _isAddingToCart = false;
+
+    private string? PreviewId => string.IsNullOrEmpty(Clip.PlaybackIdTeaser) ? Clip.PlaybackIdSigned : Clip.PlaybackIdTeaser;
+
+    private List<string> VehicleTags
+    {
+        get
+        {
+            if (string.IsNullOrEmpty(Clip.TagsJson) || Clip.TagsJson == "[]") return new List<string>();
+            try
+            {
+                var tags = System.Text.Json.JsonSerializer.Deserialize<string[]>(Clip.TagsJson);
+                // Return up to 3 tags as requested
+                return tags?.Take(3).ToList() ?? new List<string>();
+            }
+            catch { return new List<string>(); }
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        CartService.OnChange += StateHasChanged;
+        
+        if (!string.IsNullOrEmpty(PreviewId) && !PreviewId.StartsWith("mock"))
+        {
+            await LoadTokensForClip(PreviewId);
+        }
+    }
+
+    private async Task LoadTokensForClip(string playbackId)
+    {
+        bool tokensAdded = false;
+
+        if (!_tokenCache.ContainsKey($"{playbackId}-v"))
+        {
+            var token = await VideoService.GetPlaybackToken(playbackId, "v", "480p");
+            if (!string.IsNullOrEmpty(token)) { _tokenCache[$"{playbackId}-v"] = token; tokensAdded = true; }
+        }
+
+        if (!_tokenCache.ContainsKey($"{playbackId}-t"))
+        {
+            var token = await VideoService.GetPlaybackToken(playbackId, "t", "480p");
+            if (!string.IsNullOrEmpty(token)) { _tokenCache[$"{playbackId}-t"] = token; tokensAdded = true; }
+        }
+
+        if (!_tokenCache.ContainsKey($"{playbackId}-s"))
+        {
+            var token = await VideoService.GetPlaybackToken(playbackId, "s", "480p");
+            if (!string.IsNullOrEmpty(token)) { _tokenCache[$"{playbackId}-s"] = token; tokensAdded = true; }
+        }
+
+        if (tokensAdded)
+        {
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private string GetTokenFromCache(string playbackId, string type)
+    {
+        return _tokenCache.TryGetValue($"{playbackId}-{type}", out var token) ? token : "";
+    }
+
+    private bool HasTokens(string playbackId)
+    {
+        return _tokenCache.TryGetValue($"{playbackId}-v", out var v) && !string.IsNullOrEmpty(v);
+    }
+
+    private string GetThumbnailUrl()
+    {
+        // 1. High Res Thumbnail (R2 / Local)
+        if (!string.IsNullOrEmpty(Clip.ThumbnailFileName))
+        {
+            var localPath = Path.Combine(Environment.WebRootPath, "thumbnails", Clip.ThumbnailFileName);
+            if (File.Exists(localPath)) return $"/thumbnails/{Clip.ThumbnailFileName}";
+            return StorageService.GetPresignedDownloadUrl($"thumbnails/{Clip.ThumbnailFileName}");
+        }
+
+        // 2. Mux Fallback
+        if (string.IsNullOrEmpty(PreviewId) || PreviewId.StartsWith("mock")) return "";
+
+        var token = GetTokenFromCache(PreviewId, "t");
+        return $"https://image.mux.com/{PreviewId}/thumbnail.jpg?token={token}&width=400";
+    }
+
+    private void NavigateToClip()
+    {
+        Navigation.NavigateTo($"/clips/{Clip.Id}", forceLoad: false);
+    }
+
+    private bool IsInCart()
+    {
+        return CartService.GetItems().Any(c => c.Id == Clip.Id);
+    }
+
+    private async Task AddToCart()
+    {
+        if (_isAddingToCart) return;
+        _isAddingToCart = true;
+        
+        try
+        {
+            var item = new Project65.Web.Models.CartItem
+            {
+                Id = Clip.Id,
+                Title = Clip.Title,
+                PriceCents = Clip.PriceCents,
+                DurationSec = Clip.DurationSec,
+                PlaybackId = Clip.PlaybackIdSigned,
+                EventId = Clip.EventId
+            };
+            await CartService.AddAsync(item);
+        }
+        finally
+        {
+            _isAddingToCart = false;
+        }
+    }
+
+    public void Dispose()
+    {
+        CartService.OnChange -= StateHasChanged;
+    }
+}
