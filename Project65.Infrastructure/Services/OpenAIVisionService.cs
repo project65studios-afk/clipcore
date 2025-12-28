@@ -105,16 +105,16 @@ public class OpenAIVisionService : IVisionService
     // Helper classes for OpenAI Response
     private class OpenAIResponse
     {
-        public Choice[] choices { get; set; }
+        public Choice[] choices { get; set; } = null!;
     }
 
     private class Choice
     {
-        public Message message { get; set; }
+        public Message message { get; set; } = null!;
     }
 
     private class Message
     {
-        public string content { get; set; }
+        public string content { get; set; } = null!;
     }
 }
