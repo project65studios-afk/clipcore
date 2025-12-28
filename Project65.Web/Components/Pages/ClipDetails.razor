@@ -63,6 +63,7 @@ else
                                  primary-color="#06b6d4"
                                  accent-color="#ec4899"
                                  fullscreen-element="player-container"
+                                 disable-tracking
                                  style="width: 100%; height: 100%;"
                               >
                                  @if (!string.IsNullOrEmpty(_watermarkUrl))
@@ -100,6 +101,7 @@ else
                                 muted
                                 autoplay
                                 fullscreen-element="player-container"
+                                disable-tracking
                                 style="width: 100%; height: 100%;"
                             >
                                 @if (!string.IsNullOrEmpty(_watermarkUrl))
@@ -472,9 +474,9 @@ else
         }
     }
 
-    private string GetTokenFromCache(string playbackId, string type)
+    private string? GetTokenFromCache(string playbackId, string type)
     {
-        return _tokenCache.TryGetValue($"{playbackId}-{type}", out var token) ? token : "";
+        return _tokenCache.TryGetValue($"{playbackId}-{type}", out var token) ? token : null;
     }
 
     private bool HasTokens(string playbackId)
@@ -499,7 +501,6 @@ else
 
     private async Task BuyAsync()
     {
-        Console.WriteLine($"[DEBUG] BuyAsync Clicked for {Id}"); // DEBUG
         if (_clip == null) return;
         var successUrl = Navigation.BaseUri + $"clips/{Id}?session_id={{CHECKOUT_SESSION_ID}}";
         var cancelUrl = Navigation.BaseUri + $"clips/{Id}";
@@ -530,7 +531,6 @@ else
 
     private async Task AddToCart()
     {
-        Console.WriteLine($"[DEBUG] AddToCart Clicked for {Id}. Adding? {_isAddingToCart}"); // DEBUG
         if (_clip != null && !_isAddingToCart)
         {
             _isAddingToCart = true;

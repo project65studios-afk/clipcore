@@ -62,6 +62,7 @@
                                 muted
                                 autoplay
                                 loop
+                                disable-tracking
                                 style="width: 100%; height: 100%; object-fit: cover;">
                     </mux-player>
                 }
@@ -153,14 +154,16 @@
         }
     }
 
-    private string GetTokenFromCache(string playbackId, string type)
+    private string? GetTokenFromCache(string playbackId, string type)
     {
-        return _tokenCache.TryGetValue($"{playbackId}-{type}", out var token) ? token : "";
+        return _tokenCache.TryGetValue($"{playbackId}-{type}", out var token) ? token : null;
     }
 
     private bool HasTokens(string playbackId)
     {
-        return _tokenCache.TryGetValue($"{playbackId}-v", out var v) && !string.IsNullOrEmpty(v);
+        return _tokenCache.TryGetValue($"{playbackId}-v", out var v) && !string.IsNullOrEmpty(v) &&
+               _tokenCache.TryGetValue($"{playbackId}-t", out var t) && !string.IsNullOrEmpty(t) &&
+               _tokenCache.TryGetValue($"{playbackId}-s", out var s) && !string.IsNullOrEmpty(s);
     }
 
     private string GetThumbnailUrl()
@@ -177,6 +180,8 @@
         if (string.IsNullOrEmpty(PreviewId) || PreviewId.StartsWith("mock")) return "";
 
         var token = GetTokenFromCache(PreviewId, "t");
+        if (string.IsNullOrEmpty(token)) return ""; // Wait for token to avoid 403 or missing token errors
+
         return $"https://image.mux.com/{PreviewId}/thumbnail.jpg?token={token}&width=400";
     }
 
