@@ -215,22 +215,13 @@ else
                 }
                 else
                 {
-                    <button class="btn-primary" style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 0.5rem;" @onclick="DownloadOriginalAsync" disabled="@_isDownloading">
-                         @if (_isDownloading)
-                         {
-                             <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
-                             <span>Preparing Download...</span>
-                         }
-                         else
-                         {
-                             <i class="bi bi-cloud-arrow-down-fill"></i>
-                             <span>Download 4K Master</span>
-                         }
+                    <button class="btn-primary" style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 0.5rem; background-color: var(--bg-dark-900); border-color: var(--accent-cyan); color: var(--accent-cyan); cursor: default; opacity: 1;" disabled>
+                         <i class="bi bi-check-circle-fill"></i>
+                         <span>Purchased</span>
                     </button>
-                    @if (!string.IsNullOrEmpty(_errorMessage))
-                    {
-                        <div class="text-danger small mt-2 text-center">@_errorMessage</div>
-                    }
+                    <p style="font-size: 0.8rem; color: var(--text-muted); text-align: center; margin-top: 1rem;">
+                        You own this clip. View it in <a href="/my-purchases" style="color: var(--accent-cyan);">My Purchases</a>.
+                    </p>
                 }
             </div>
         </div>
@@ -498,57 +489,7 @@ else
         Navigation.NavigateTo(url);
     }
 
-    private bool _isDownloading = false;
 
-    private async Task DownloadOriginalAsync()
-    {
-        _isDownloading = true;
-        _errorMessage = "";
-        StateHasChanged();
-
-        try 
-        {
-            // Priority 1: Cloudflare R2 Master
-            if (!string.IsNullOrEmpty(_clip?.MasterFileName))
-            {
-                var url = StorageService.GetPresignedDownloadUrl(_clip.MasterFileName);
-                if (!string.IsNullOrEmpty(url))
-                {
-                    await JSRuntime.InvokeVoidAsync("open", url, "_blank");
-                    _isDownloading = false;
-                    StateHasChanged();
-                    return;
-                }
-            }
-
-            // Priority 2: Mux Fallback (Legacy)
-            if (_clip != null && !string.IsNullOrEmpty(_clip.MuxAssetId))
-            {
-                // Sanitize filename
-                var cleanTitle = string.Join("_", _clip.Title.Split(Path.GetInvalidFileNameChars()));
-                var url = await VideoService.GetDownloadUrlAsync(_clip.MuxAssetId, $"{cleanTitle}.mp4");
-                
-                if (!string.IsNullOrEmpty(url))
-                {
-                    await JSRuntime.InvokeVoidAsync("open", url, "_blank");
-                }
-                else
-                {
-                    _errorMessage = "Download unavailable. Please contact support.";
-                }
-            }
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"Download failed: {ex.Message}");
-            _errorMessage = "Download failed. Please try again.";
-        }
-        finally
-        {
-            _isDownloading = false;
-            StateHasChanged();
-        }
-    }
 
     private async Task AddToCart()
     {
