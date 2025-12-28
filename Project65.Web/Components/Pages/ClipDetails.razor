@@ -14,6 +14,7 @@
 @inject IJSRuntime JSRuntime
 @inject Project65.Web.Services.CartService CartService
 @inject IStorageService StorageService
+@inject Project65.Web.Services.VideoHealingService VideoHealingService
 @implements IDisposable
 
 <PageTitle>@_clip?.Title - Project65</PageTitle>
@@ -207,7 +208,7 @@ else
                             </Authorized>
                             <NotAuthorized>
                                 <div style="display: flex; flex-direction: column; align-items: flex-end;">
-                                    <span style="font-weight: 700; font-size: 1.25rem;">$@(_clip.PriceCents / 100.00)</span>
+                                    <span style="font-weight: 700; font-size: 1.25rem;">$@(_clip?.PriceCents / 100.00)</span>
                                     @if (_isAuthenticated)
                                     {
                                         
@@ -344,65 +345,9 @@ else
             
             if (_clip != null)
             {
-                 // Self-Healing Logic (Repair PlaybackId/Duration)
-                if (string.IsNullOrEmpty(_clip.MuxAssetId) && !string.IsNullOrEmpty(_clip.MuxUploadId))
-                {
-                    var resolvedAssetId = await VideoService.GetAssetIdFromUploadAsync(_clip.MuxUploadId);
-                    if (!string.IsNullOrEmpty(resolvedAssetId))
-                    {
-                        _clip.MuxAssetId = resolvedAssetId;
-                        await ClipRepository.UpdateAsync(_clip);
-                        Console.WriteLine($"Resolved and saved MuxAssetId for clip {_clip.Id}");
-                    }
-                }
-
-                if (!string.IsNullOrEmpty(_clip.MuxAssetId) && (string.IsNullOrEmpty(_clip.PlaybackIdSigned) || !_clip.DurationSec.HasValue || !_clip.RecordingStartedAt.HasValue))
-                {
-                    // ... (Keep existing repair logic) ...
-                     try 
-                    {
-                        bool needsUpdate = false;
-                        
-                        if (string.IsNullOrEmpty(_clip.PlaybackIdSigned))
-                        {
-                            Console.WriteLine($"Repairing playback ID for Asset {_clip.MuxAssetId}");
-                            var newId = await VideoService.EnsurePlaybackIdAsync(_clip.MuxAssetId);
-                            if (!string.IsNullOrEmpty(newId))
-                            {
-                                _clip.PlaybackIdSigned = newId;
-                                needsUpdate = true;
-                            }
-                        }
-
-                        if (!_clip.DurationSec.HasValue || !_clip.RecordingStartedAt.HasValue)
-                        {
-                            var (duration, startedAt) = await VideoService.GetAssetDetailsAsync(_clip.MuxAssetId);
-                            
-                            if (duration.HasValue && !_clip.DurationSec.HasValue)
-                            {
-                                _clip.DurationSec = duration.Value;
-                                needsUpdate = true;
-                            }
-
-                            if (startedAt.HasValue && !_clip.RecordingStartedAt.HasValue)
-                            {
-                                _clip.RecordingStartedAt = startedAt;
-                                needsUpdate = true;
-                            }
-                        }
-
-                        if (needsUpdate)
-                        {
-                            await ClipRepository.UpdateAsync(_clip); 
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        Console.WriteLine($"Failed to repair asset: {ex.Message}");
-                    }
-                }
-
                 _hasPurchased = await PurchaseRepository.HasPurchasedAsync(_userId, Id);
+                
+                VideoHealingService.OnClipHealed += HandleClipHealed;
                 
                 // Purchase Verification Logic
                 var uri = Navigation.ToAbsoluteUri(Navigation.Uri);
@@ -591,9 +536,23 @@ else
         }
     }
 
+    private void HandleClipHealed(Clip healedClip)
+    {
+        if (_clip == null || _clip.Id != healedClip.Id) return;
+        
+        // Update local object
+        _clip.PlaybackIdSigned = healedClip.PlaybackIdSigned;
+        _clip.DurationSec = healedClip.DurationSec;
+        _clip.RecordingStartedAt = healedClip.RecordingStartedAt;
+        _clip.MuxAssetId = healedClip.MuxAssetId;
+        
+        InvokeAsync(StateHasChanged);
+    }
+
     public void Dispose()
     {
         CartService.OnChange -= StateHasChanged;
+        VideoHealingService.OnClipHealed -= HandleClipHealed;
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -602,7 +561,9 @@ else
         {
             CartService.OnChange += StateHasChanged;
             await CartService.InitializeAsync();
-             // Check if already in cart
+            // Start background healing if needed
+            VideoHealingService.StartHealingForClips(new[] { _clip });
+
             _isInCart = CartService.GetItems().Any(c => c.Id == _clip.Id);
             StateHasChanged();
 

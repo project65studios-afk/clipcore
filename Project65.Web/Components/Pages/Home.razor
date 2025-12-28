@@ -6,6 +6,8 @@
 @inject IStorageService StorageService
 @inject IWebHostEnvironment Environment
 @using System.IO
+@inject Project65.Web.Services.VideoHealingService VideoHealingService
+@implements IDisposable
 
 <PageTitle>Project65 Studios</PageTitle>
 
@@ -61,6 +63,7 @@ else
     protected override async Task OnInitializedAsync()
     {
         _events = await EventRepository.ListAsync();
+        VideoHealingService.OnClipHealed += HandleClipHealed;
         
         if (_events != null)
         {
@@ -81,6 +84,41 @@ else
                 }
             }
         }
+    }
+
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if (firstRender && _events != null)
+        {
+            var clipsToHeal = _events.Select(e => e.Clips?.OrderBy(c => c.PublishedAt).FirstOrDefault())
+                                     .Where(c => c != null)
+                                     .Cast<Clip>();
+            VideoHealingService.StartHealingForClips(clipsToHeal);
+        }
+    }
+
+    private void HandleClipHealed(Clip clip)
+    {
+        if (_events == null) return;
+        
+        bool isRelevant = _events.Any(e => e.Clips?.Any(c => c.Id == clip.Id) == true);
+        if (isRelevant)
+        {
+            InvokeAsync(async () => {
+                var playbackId = clip.PlaybackIdTeaser ?? clip.PlaybackIdSigned;
+                if (!string.IsNullOrEmpty(playbackId) && !playbackId.StartsWith("mock"))
+                {
+                    var token = await VideoService.GetPlaybackToken(playbackId, "t");
+                    _tokenCache[playbackId] = token;
+                }
+                StateHasChanged();
+            });
+        }
+    }
+
+    public void Dispose()
+    {
+        VideoHealingService.OnClipHealed -= HandleClipHealed;
     }
 
     private string? GetThumbnailUrl(Clip? clip)

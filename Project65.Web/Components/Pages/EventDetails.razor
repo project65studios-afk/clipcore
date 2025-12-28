@@ -11,6 +11,7 @@
 @inject IWebHostEnvironment Environment
 @inject IPurchaseRepository PurchaseRepository
 @using System.IO
+@inject Project65.Web.Services.VideoHealingService VideoHealingService
 @implements IDisposable
 
 <PageTitle>@_event?.Name - Project65</PageTitle>
@@ -26,7 +27,7 @@ else
         <a href="/" style="color: var(--text-secondary); font-size: 0.9rem;">← Back to Events</a>
     </div>
 
-    <div style="background: var(--bg-dark-800); border-radius: var(--radius-lg); padding: 2rem; margin-bottom: 3rem; border: 1px solid var(--border-color);">
+    <div style="background: var(--bg-dark-800); border-radius: var(--radius-lg); padding: 2rem; margin-bottom: 2rem; border: 1px solid var(--border-color);">
         <h1 style="font-size: 2.5rem; margin-bottom: 0.5rem;">@_event.Name</h1>
         <div style="display: flex; gap: 1rem; color: var(--text-secondary); margin-bottom: 1.5rem;">
             <span>@_event.Date.ToLongDateString()</span>
@@ -42,6 +43,17 @@ else
              </button>
         </div>
     </div>
+
+    @if (_event.Clips.Count >= 3)
+    {
+        <div class="bundle-banner" style="background: linear-gradient(90deg, rgba(6, 182, 212, 0.1) 0%, rgba(2, 132, 199, 0.1) 100%); border: 1px solid var(--accent-cyan-dim); border-radius: var(--radius-md); padding: 1rem; margin-bottom: 3rem; display: flex; align-items: center; gap: 1rem;">
+            <i class="bi bi-stars" style="font-size: 1.5rem; color: var(--accent-cyan);"></i>
+            <div>
+                <div style="font-weight: 700; color: white;">Event Bundle Discount!</div>
+                <div style="font-size: 0.9rem; color: var(--text-secondary);">Add 3 or more clips from this event to your cart and get <span style="color: var(--accent-cyan); font-weight: 600;">25% OFF</span> your entire order.</div>
+            </div>
+        </div>
+    }
     
     <div class="mb-4 event-details-header" style="display: flex; justify-content: space-between; align-items: center;">
         <h3 class="section-title">All Clips</h3>
@@ -109,11 +121,6 @@ else
         }
     }
 
-    private void NavigateToClip(string clipId)
-    {
-        Navigation.NavigateTo($"/clips/{clipId}");
-    }
-
 
     protected override async Task OnInitializedAsync()
     {
@@ -123,28 +130,9 @@ else
         if (_event?.Clips != null)
         {
             SortClips(); 
-            
-            // ---------------------------------------------------------
-            // SELF-HEALING LOGIC (Matches ClipDetails.razor)
-            // ---------------------------------------------------------
-            // Identify clips that look broken (uploaded but no playback ID)
-            var brokenClips = _event.Clips.Where(c => 
-                string.IsNullOrEmpty(c.PlaybackIdSigned) && 
-                !string.IsNullOrEmpty(c.MuxUploadId)
-            ).ToList();
-
-            if (brokenClips.Any())
-            {
-                // Fix them NOW (before page load finishes)
-                foreach (var clip in brokenClips)
-                {
-                    await TryRepairClipAsync(clip);
-                }
-            }
-            // ---------------------------------------------------------
-
-            // Valid clips should now have IDs
         }
+        
+        VideoHealingService.OnClipHealed += HandleClipHealed;
         
         if (AuthenticationStateTask != null)
         {
@@ -164,199 +152,46 @@ else
         _loading = false;
     }
 
-    private async Task TryRepairClipAsync(Clip clip)
+    private void HandleClipHealed(Clip healedClip)
     {
-        try
+        if (_event?.Clips == null) return;
+        
+        var existing = _event.Clips.FirstOrDefault(c => c.Id == healedClip.Id);
+        if (existing != null)
         {
-            bool needsUpdate = false;
-
-            // 1. Resolve Asset ID
-            if (string.IsNullOrEmpty(clip.MuxAssetId))
-            {
-                var assetId = await VideoService.GetAssetIdFromUploadAsync(clip.MuxUploadId!);
-                if (!string.IsNullOrEmpty(assetId))
-                {
-                    clip.MuxAssetId = assetId;
-                    needsUpdate = true;
-                }
-            }
-
-            // 2. Resolve Playback ID & Metadata
-            if (!string.IsNullOrEmpty(clip.MuxAssetId))
-            {
-                if (string.IsNullOrEmpty(clip.PlaybackIdSigned))
-                {
-                    var newId = await VideoService.EnsurePlaybackIdAsync(clip.MuxAssetId);
-                    if (!string.IsNullOrEmpty(newId))
-                    {
-                        clip.PlaybackIdSigned = newId;
-                        needsUpdate = true;
-                    }
-                }
-
-                if (!clip.DurationSec.HasValue || !clip.RecordingStartedAt.HasValue)
-                {
-                    var (duration, startedAt) = await VideoService.GetAssetDetailsAsync(clip.MuxAssetId);
-                    if (duration.HasValue && !clip.DurationSec.HasValue) { clip.DurationSec = duration; needsUpdate = true; }
-                    if (startedAt.HasValue && !clip.RecordingStartedAt.HasValue) { clip.RecordingStartedAt = startedAt; needsUpdate = true; }
-                }
-            }
-
-            if (needsUpdate)
-            {
-                // We use the injected ClipRepository directly (Main Thread)
-                // This updates the ACTUAL object _event.Clips references because EF tracks it
-                await InvokeAsync(async () => {
-                     // We need a tiny separate scope or repo to avoid conflict with EventRepo reading?
-                     // Actually, since EventRepository is Scoped and tracks these entities, 
-                     // we should use a specific update method on the entities.
-                     // But simpler: just update the clip using a fresh scope to be safe,
-                     // OR rely on the fact that we modified the entity in memory and _event references it.
-                     
-                     // Best approach: Just update it.
-                     using var scope = ScopeFactory.CreateScope();
-                     var repo = scope.ServiceProvider.GetRequiredService<IClipRepository>();
-                     await repo.UpdateAsync(clip);
-                });
-            }
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"[EventDetails] Repair failed for {clip.Id}: {ex.Message}");
+            // Update the existing object in the list
+            existing.PlaybackIdSigned = healedClip.PlaybackIdSigned;
+            existing.DurationSec = healedClip.DurationSec;
+            existing.RecordingStartedAt = healedClip.RecordingStartedAt;
+            existing.MuxAssetId = healedClip.MuxAssetId;
+            
+            InvokeAsync(() => {
+                SortClips();
+                StateHasChanged();
+            });
         }
     }
 
-@inject IServiceScopeFactory ScopeFactory
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender)
         {
-            CartService.OnChange += StateHasChanged;
             await CartService.InitializeAsync();
              // Initial check
             StateHasChanged();
 
             if (_event?.Clips != null)
             {
-                // Start continuous self-healing for any processing clips
-                _ = ContinuousSelfHealAsync();
+                // Start background healing for any processing clips
+                VideoHealingService.StartHealingForClips(_event.Clips);
             }
         }
     }
 
-    private async Task ContinuousSelfHealAsync()
+    public void Dispose()
     {
-        await JSRuntime.InvokeVoidAsync("console.log", "[EventDetails] Starting continuous self-healing...");
-
-        // Try for up to 3 minutes
-        for (int i = 0; i < 36; i++)
-        {
-            if (_event?.Clips == null) break;
-
-            // Clips needing repair: No PlaybackId but has UploadId
-            // OR Missing Metadata (Duration or StartedAt)
-            var brokenClips = _event.Clips.Where(c => 
-                (string.IsNullOrEmpty(c.PlaybackIdSigned) && string.IsNullOrEmpty(c.PlaybackIdTeaser) && !string.IsNullOrEmpty(c.MuxUploadId))
-                || (!c.RecordingStartedAt.HasValue && !string.IsNullOrEmpty(c.MuxAssetId)) // NEW: Missing timestamp + has AssetID
-            ).ToList();
-
-            if (!brokenClips.Any()) 
-            {
-                 // Check one last time if we are done or if new clips appeared (unlikely without refresh)
-                 if (i > 5) break; 
-            }
-
-            bool uiUpdated = false;
-
-            foreach (var clip in brokenClips)
-            {
-                bool clipFixed = false;
-                try
-                {
-                    await JSRuntime.InvokeVoidAsync("console.log", $"[EventDetails] Attempting to heal clip {clip.Title} ({clip.Id})...");
-
-                    // 1. Try to fetch fresh data from DB first (fastest/cheapest)
-                    using (var scope = ScopeFactory.CreateScope())
-                    {
-                        var repo = scope.ServiceProvider.GetRequiredService<IClipRepository>();
-                        var freshClip = await repo.GetByIdAsync(clip.Id);
-                        
-                        if (freshClip != null && !string.IsNullOrEmpty(freshClip.PlaybackIdSigned))
-                        {
-                             // DB has it! Sync local
-                             clip.PlaybackIdSigned = freshClip.PlaybackIdSigned;
-                             clip.DurationSec = freshClip.DurationSec;
-                             clip.MuxAssetId = freshClip.MuxAssetId;
-                             clip.RecordingStartedAt = freshClip.RecordingStartedAt;
-                             clipFixed = true;
-                             await JSRuntime.InvokeVoidAsync("console.log", $"[EventDetails] Healed {clip.Title} from DB.");
-                        }
-                    }
-
-                    // 2. If locally still broken, hit Mux API (Active Repair)
-                    if (!clipFixed)
-                    {
-                        // A. Resolve Asset ID
-                        if (string.IsNullOrEmpty(clip.MuxAssetId))
-                        {
-                            var assetId = await VideoService.GetAssetIdFromUploadAsync(clip.MuxUploadId!);
-                            if (!string.IsNullOrEmpty(assetId))
-                            {
-                                clip.MuxAssetId = assetId;
-                                // Save progress to DB
-                                using var scope = ScopeFactory.CreateScope();
-                                var repo = scope.ServiceProvider.GetRequiredService<IClipRepository>();
-                                await repo.UpdateAsync(clip);
-                            }
-                        }
-
-                        // B. Resolve Playback ID
-                        if (!string.IsNullOrEmpty(clip.MuxAssetId))
-                        {
-                             var playbackId = await VideoService.EnsurePlaybackIdAsync(clip.MuxAssetId);
-                             if (!string.IsNullOrEmpty(playbackId))
-                             {
-                                 clip.PlaybackIdSigned = playbackId;
-                                 
-                                 // C. Get Details
-                                 var (duration, startedAt) = await VideoService.GetAssetDetailsAsync(clip.MuxAssetId);
-                                 if (duration.HasValue) clip.DurationSec = duration;
-                                 if (startedAt.HasValue) clip.RecordingStartedAt = startedAt;
-
-                                 // Save complete fix to DB
-                                 using var scope = ScopeFactory.CreateScope();
-                                 var repo = scope.ServiceProvider.GetRequiredService<IClipRepository>();
-                                 await repo.UpdateAsync(clip);
-                                 
-                                 clipFixed = true;
-                                 await JSRuntime.InvokeVoidAsync("console.log", $"[EventDetails] Healed {clip.Title} via Mux API.");
-                             }
-                        }
-                    }
-
-                    // 3. If fixed, mark for UI update
-                    if (clipFixed)
-                    {
-                        uiUpdated = true;
-                    }
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"[EventDetails] Error healing {clip.Id}: {ex.Message}");
-                }
-            }
-
-            if (uiUpdated)
-            {
-                SortClips();
-                await InvokeAsync(StateHasChanged);
-            }
-
-            // Check more frequently at first (1s), then back off (2s, 5s)
-            int delay = i < 10 ? 1000 : (i < 20 ? 2000 : 5000);
-            await Task.Delay(delay); 
-        }
+        VideoHealingService.OnClipHealed -= HandleClipHealed;
     }
 
     private void OnSortChanged(ChangeEventArgs e)
@@ -395,8 +230,4 @@ else
         }
     }
 
-    public void Dispose()
-    {
-        CartService.OnChange -= StateHasChanged;
-    }
 }

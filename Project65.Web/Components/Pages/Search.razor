@@ -12,6 +12,7 @@
 @inject IWebHostEnvironment Environment
 @inject IPurchaseRepository PurchaseRepository
 @using System.IO
+@inject Project65.Web.Services.VideoHealingService VideoHealingService
 @implements IDisposable
 @rendermode RenderMode.InteractiveServer
 
@@ -102,7 +103,7 @@
     protected override async Task OnInitializedAsync()
     {
         _watermarkUrl = await SettingsRepository.GetValueAsync("WatermarkUrl");
-        CartService.OnChange += OnCartChanged;
+        VideoHealingService.OnClipHealed += HandleClipHealed;
     }
 
     protected override async Task OnParametersSetAsync()
@@ -129,16 +130,8 @@
 
             if (_clips != null)
             {
-                // Identifiy clips needing repair
-                var brokenClips = _clips.Where(c => 
-                    (string.IsNullOrEmpty(c.PlaybackIdSigned) && string.IsNullOrEmpty(c.PlaybackIdTeaser) && !string.IsNullOrEmpty(c.MuxUploadId))
-                ).ToList();
-
-                foreach (var clip in brokenClips)
-                {
-                    await TryRepairClipAsync(clip);
-                }
-                StateHasChanged();
+                // Start background healing for any processing clips
+                VideoHealingService.StartHealingForClips(_clips);
             }
 
             if (AuthenticationStateTask != null)
@@ -166,74 +159,34 @@
         }
     }
 
-    private async Task TryRepairClipAsync(Clip clip)
+    private void HandleClipHealed(Clip healedClip)
     {
-        try
+        if (_clips == null) return;
+        
+        var existing = _clips.FirstOrDefault(c => c.Id == healedClip.Id);
+        if (existing != null)
         {
-            bool needsUpdate = false;
-            if (string.IsNullOrEmpty(clip.MuxAssetId) && !string.IsNullOrEmpty(clip.MuxUploadId))
-            {
-                var assetId = await VideoService.GetAssetIdFromUploadAsync(clip.MuxUploadId!);
-                if (!string.IsNullOrEmpty(assetId)) { clip.MuxAssetId = assetId; needsUpdate = true; }
-            }
-
-            if (!string.IsNullOrEmpty(clip.MuxAssetId) && string.IsNullOrEmpty(clip.PlaybackIdSigned))
-            {
-                var newId = await VideoService.EnsurePlaybackIdAsync(clip.MuxAssetId);
-                if (!string.IsNullOrEmpty(newId)) { clip.PlaybackIdSigned = newId; needsUpdate = true; }
-            }
-
-            if (needsUpdate)
-            {
-                using var scope = ScopeFactory.CreateScope();
-                var repo = scope.ServiceProvider.GetRequiredService<IClipRepository>();
-                await repo.UpdateAsync(clip);
-                await JSRuntime.InvokeVoidAsync("console.log", $"[Search] Healed clip: {clip.Title}");
-            }
-        }
-        catch (Exception ex)
-        {
-             Console.WriteLine($"[Search] Repair failed: {ex.Message}");
+            existing.PlaybackIdSigned = healedClip.PlaybackIdSigned;
+            existing.DurationSec = healedClip.DurationSec;
+            existing.RecordingStartedAt = healedClip.RecordingStartedAt;
+            existing.MuxAssetId = healedClip.MuxAssetId;
+            
+            InvokeAsync(StateHasChanged);
         }
     }
 
-    [Inject] 
-    private IServiceScopeFactory ScopeFactory { get; set; } = default!;
+    public void Dispose()
+    {
+        VideoHealingService.OnClipHealed -= HandleClipHealed;
+    }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender)
         {
             await CartService.InitializeAsync();
-            UpdateCartState();
             StateHasChanged();
         }
     }
 
-    private void NavigateToClip(string clipId)
-    {
-        Navigation.NavigateTo($"/clips/{clipId}");
-    }
-
-    private async Task ToggleCart(Clip clip)
-    {
-        // Handled by ClipCard
-    }
-
-    private void OnCartChanged()
-    {
-        UpdateCartState();
-        StateHasChanged();
-    }
-
-    private void UpdateCartState()
-    {
-        // CliipCard handles cart
-    }
-
-    public void Dispose()
-    {
-        CartService.OnChange -= OnCartChanged;
-    }
 }
-```
