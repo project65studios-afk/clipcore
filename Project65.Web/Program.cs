@@ -4,6 +4,7 @@ using Project65.Infrastructure.Data;
 using Project65.Core.Interfaces;
 using Project65.Infrastructure.Data.Repositories;
 using Project65.Infrastructure.Services;
+using Project65.Core.Entities;
 using Amazon.S3;
 using Amazon.Extensions.NETCore.Setup;
 // Ensure Repositories namespace is included, which it is.
@@ -17,11 +18,12 @@ builder.Services.AddRazorComponents()
         options.DetailedErrors = true; // Enable detailed exceptions
     });
 builder.Services.AddCascadingAuthenticationState();
+builder.Services.AddSignalR();
 
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-builder.Services.AddDefaultIdentity<Microsoft.AspNetCore.Identity.IdentityUser>(options => options.SignIn.RequireConfirmedAccount = false)
+builder.Services.AddDefaultIdentity<ApplicationUser>(options => options.SignIn.RequireConfirmedAccount = false)
     .AddRoles<Microsoft.AspNetCore.Identity.IdentityRole>()
     .AddEntityFrameworkStores<AppDbContext>();
 
@@ -138,12 +140,13 @@ app.MapRazorComponents<App>()
 
 app.MapRazorPages(); // Required for Identity UI endpoints
 app.MapControllers(); // Required for API endpoints
+app.MapHub<Project65.Web.Hubs.ProcessingHub>("/processingHub");
 
 using (var scope = app.Services.CreateScope())
 {
     var services = scope.ServiceProvider;
     var context = services.GetRequiredService<AppDbContext>();
-    var userManager = services.GetRequiredService<Microsoft.AspNetCore.Identity.UserManager<Microsoft.AspNetCore.Identity.IdentityUser>>();
+    var userManager = services.GetRequiredService<Microsoft.AspNetCore.Identity.UserManager<ApplicationUser>>();
     var roleManager = services.GetRequiredService<Microsoft.AspNetCore.Identity.RoleManager<Microsoft.AspNetCore.Identity.IdentityRole>>();
     
     // Configure CORS for R2

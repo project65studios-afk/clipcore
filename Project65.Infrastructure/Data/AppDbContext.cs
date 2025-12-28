@@ -4,7 +4,7 @@ using Project65.Core.Entities;
 
 namespace Project65.Infrastructure.Data;
 
-public class AppDbContext : IdentityDbContext
+public class AppDbContext : IdentityDbContext<ApplicationUser>
 {
     public AppDbContext(DbContextOptions<AppDbContext> options) : base(options)
     {
@@ -19,6 +19,13 @@ public class AppDbContext : IdentityDbContext
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
+
+        // User -> Purchases Relationship
+        modelBuilder.Entity<Purchase>()
+            .HasOne(p => p.User)
+            .WithMany(u => u.Purchases)
+            .HasForeignKey(p => p.UserId)
+            .OnDelete(DeleteBehavior.SetNull);
 
         // Event configuration
         modelBuilder.Entity<Event>()

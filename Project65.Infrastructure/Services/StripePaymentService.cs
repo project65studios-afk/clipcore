@@ -17,7 +17,7 @@ public class StripePaymentService : IPaymentService
         StripeConfiguration.ApiKey = _apiKey; // Global setting, simpler for MVP
     }
 
-    public async Task<string> CreateCheckoutSessionAsync(IEnumerable<CheckoutItem> items, string successUrl, string cancelUrl, string? userEmail = null)
+    public async Task<string> CreateCheckoutSessionAsync(IEnumerable<CheckoutItem> items, string successUrl, string cancelUrl, string? userEmail = null, string? userId = null)
     {
         var itemsList = items.ToList();
         Console.WriteLine($"[STRIPE] Creating Session for {itemsList.Count} items.");
@@ -56,7 +56,8 @@ public class StripePaymentService : IPaymentService
             {
                 { "ClipIds", string.Join(",", clipIds) }
             },
-            InvoiceCreation = new SessionInvoiceCreationOptions { Enabled = true }
+            InvoiceCreation = new SessionInvoiceCreationOptions { Enabled = true },
+            ClientReferenceId = userId
         };
 
         if (!string.IsNullOrEmpty(userEmail))
@@ -113,6 +114,7 @@ public class StripePaymentService : IPaymentService
         var session = await service.GetAsync(sessionId, options);
         var purchases = new List<Purchase>();
         var foundClipIds = new HashSet<string>();
+        var userId = session.ClientReferenceId;
 
         if (session.PaymentStatus == "paid")
         {
@@ -147,6 +149,7 @@ public class StripePaymentService : IPaymentService
                         var purchase = new Purchase
                         {
                             ClipId = clipId,
+                            UserId = userId,
                             StripeSessionId = session.Id,
                             CreatedAt = DateTime.UtcNow,
                             CustomerEmail = session.CustomerDetails?.Email ?? session.CustomerEmail,
@@ -185,6 +188,7 @@ public class StripePaymentService : IPaymentService
                     purchases.Add(new Purchase
                     {
                         ClipId = expectedId,
+                        UserId = userId,
                         StripeSessionId = session.Id,
                         CreatedAt = DateTime.UtcNow,
                         CustomerEmail = session.CustomerDetails?.Email ?? session.CustomerEmail,

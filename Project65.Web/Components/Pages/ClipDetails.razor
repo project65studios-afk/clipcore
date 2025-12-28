@@ -15,7 +15,8 @@
 @inject Project65.Web.Services.CartService CartService
 @inject IStorageService StorageService
 @inject Project65.Web.Services.VideoHealingService VideoHealingService
-@implements IDisposable
+@using Microsoft.AspNetCore.SignalR.Client
+@implements IAsyncDisposable
 
 <PageTitle>@_clip?.Title - Project65</PageTitle>
 
@@ -286,7 +287,7 @@ else
     private bool _loading = true;
     private bool _hasPurchased = false; 
     private bool _processingPurchase = false;
-    private Guid _userId = Guid.NewGuid(); // TODO: Use ClaimsPrincipal
+    private string? _userId;
     private bool _isAuthenticated = false;
 
     private bool _isEditingPrice = false;
@@ -333,11 +334,7 @@ else
                 
                 if (_isAuthenticated)
                 {
-                     var userIdClaim = user.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
-                     if (Guid.TryParse(userIdClaim, out var parsed)) 
-                     {
-                         _userId = parsed;
-                     }
+                     _userId = user.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
                 }
             }
 
@@ -502,7 +499,7 @@ else
             Title = _clip.Title,
             PriceCents = _clip.PriceCents
         };
-        var url = await PaymentService.CreateCheckoutSessionAsync(new[] { checkoutItem }, successUrl, cancelUrl, userEmail);
+        var url = await PaymentService.CreateCheckoutSessionAsync(new[] { checkoutItem }, successUrl, cancelUrl, userEmail, _userId);
         Navigation.NavigateTo(url);
     }
 
@@ -549,39 +546,68 @@ else
         InvokeAsync(StateHasChanged);
     }
 
-    public void Dispose()
-    {
-        CartService.OnChange -= StateHasChanged;
-        VideoHealingService.OnClipHealed -= HandleClipHealed;
-    }
+    private HubConnection? _hubConnection;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (firstRender && _clip != null)
+        if (firstRender)
         {
-            CartService.OnChange += StateHasChanged;
-            await CartService.InitializeAsync();
-            // Start background healing if needed
-            VideoHealingService.StartHealingForClips(new[] { _clip });
-
-            _isInCart = CartService.GetItems().Any(c => c.Id == _clip.Id);
-            StateHasChanged();
-
-            try
+            if (_clip != null)
             {
-                if (_hasPurchased)
+                CartService.OnChange += StateHasChanged;
+                await CartService.InitializeAsync();
+                
+                // Start background healing if needed
+                VideoHealingService.StartHealingForClips(new[] { _clip });
+
+                _isInCart = CartService.GetItems().Any(c => c.Id == _clip.Id);
+                
+                // SignalR Connection
+                _hubConnection = new HubConnectionBuilder()
+                    .WithUrl(Navigation.ToAbsoluteUri("/processingHub"))
+                    .WithAutomaticReconnect()
+                    .Build();
+
+                _hubConnection.On<string, string>("ClipStatusUpdated", (clipId, status) =>
                 {
-                    await JSRuntime.InvokeVoidAsync("setFullscreenElement", "#purchased-player", "player-container");
+                    if (clipId == _clip.Id)
+                    {
+                        InvokeAsync(async () => {
+                             _clip = await ClipRepository.GetByIdAsync(clipId);
+                             StateHasChanged();
+                        });
+                    }
+                });
+
+                await _hubConnection.StartAsync();
+                StateHasChanged();
+
+                try
+                {
+                    if (_hasPurchased)
+                    {
+                        await JSRuntime.InvokeVoidAsync("setFullscreenElement", "#purchased-player", "player-container");
+                    }
+                    else if (GetPreviewId() != null)
+                    {
+                        await JSRuntime.InvokeVoidAsync("setFullscreenElement", "#preview-player", "player-container");
+                    }
                 }
-                else if (GetPreviewId() != null)
+                catch (Exception ex)
                 {
-                    await JSRuntime.InvokeVoidAsync("setFullscreenElement", "#preview-player", "player-container");
+                    Console.WriteLine($"JS Error: {ex.Message}");
                 }
             }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"JS Error: {ex.Message}");
-            }
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        CartService.OnChange -= StateHasChanged;
+        VideoHealingService.OnClipHealed -= HandleClipHealed;
+        if (_hubConnection is not null)
+        {
+            await _hubConnection.DisposeAsync();
         }
     }
 }

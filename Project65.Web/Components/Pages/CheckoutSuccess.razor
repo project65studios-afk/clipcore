@@ -107,27 +107,22 @@
                 // 2. Identify User
                 var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
                 var user = authState.User;
-                Guid? userId = null;
+                string? userId = null;
 
                 if (user.Identity != null && user.Identity.IsAuthenticated)
                 {
-                    // Try to parse the User ID claim
-                    var userIdClaim = user.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
-                    if (Guid.TryParse(userIdClaim, out var parsedId))
-                    {
-                        userId = parsedId;
-                    }
+                    userId = user.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
                 }
                 
                 foreach (var p in purchases)
                 {
-                    p.UserId = userId; 
+                    if (p.UserId == null) p.UserId = userId; 
                     
-                    // Only check duplication if logged in
+                    // Only check duplication if we have a userId
                     bool shouldAdd = true;
-                    if (userId.HasValue)
+                    if (!string.IsNullOrEmpty(p.UserId))
                     {
-                         if (await PurchaseRepository.HasPurchasedAsync(userId.Value, p.ClipId))
+                         if (await PurchaseRepository.HasPurchasedAsync(p.UserId, p.ClipId))
                          {
                              shouldAdd = false;
                          }

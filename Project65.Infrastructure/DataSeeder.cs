@@ -7,7 +7,7 @@ namespace Project65.Infrastructure;
 public static class DataSeeder
 {
     public static async Task SeedAsync(AppDbContext context, 
-        Microsoft.AspNetCore.Identity.UserManager<Microsoft.AspNetCore.Identity.IdentityUser> userManager,
+        Microsoft.AspNetCore.Identity.UserManager<ApplicationUser> userManager,
         Microsoft.AspNetCore.Identity.RoleManager<Microsoft.AspNetCore.Identity.IdentityRole> roleManager)
     {
         // Seed Roles
@@ -22,7 +22,7 @@ public static class DataSeeder
         var user = await userManager.FindByEmailAsync(adminEmail);
         if (user == null)
         {
-            user = new Microsoft.AspNetCore.Identity.IdentityUser
+            user = new ApplicationUser
             {
                 UserName = adminEmail,
                 Email = adminEmail,
@@ -42,7 +42,7 @@ public static class DataSeeder
         var regularUser = await userManager.FindByEmailAsync(userEmail);
         if (regularUser == null)
         {
-            regularUser = new Microsoft.AspNetCore.Identity.IdentityUser
+            regularUser = new ApplicationUser
             {
                 UserName = userEmail,
                 Email = userEmail,

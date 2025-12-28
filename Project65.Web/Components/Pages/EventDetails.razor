@@ -12,7 +12,8 @@
 @inject IPurchaseRepository PurchaseRepository
 @using System.IO
 @inject Project65.Web.Services.VideoHealingService VideoHealingService
-@implements IDisposable
+@using Microsoft.AspNetCore.SignalR.Client
+@implements IAsyncDisposable
 
 <PageTitle>@_event?.Name - Project65</PageTitle>
 
@@ -90,6 +91,8 @@ else
     private bool _loading = true;
     private string? _watermarkUrl;
     private string _sortBy = "TimeUsedAsc"; // Default sort
+    private string? _userId;
+    private bool _isAuthenticated = false;
     private bool _showCopiedMessage = false;
     private HashSet<string> _purchasedClipIds = new();
 
@@ -138,14 +141,13 @@ else
         {
             var authState = await AuthenticationStateTask;
             var user = authState.User;
-            if (user.Identity?.IsAuthenticated == true)
+            _isAuthenticated = user.Identity?.IsAuthenticated == true;
+            
+            if (_isAuthenticated)
             {
-                var userIdStr = user.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
-                if (Guid.TryParse(userIdStr, out var userId))
-                {
-                    var purchases = await PurchaseRepository.GetByUserIdAsync(userId);
-                    _purchasedClipIds = purchases.Select(p => p.ClipId).ToHashSet();
-                }
+                _userId = user.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+                var purchases = await PurchaseRepository.GetByUserIdAsync(_userId);
+                _purchasedClipIds = purchases.Select(p => p.ClipId).ToHashSet();
             }
         }
 
@@ -172,26 +174,57 @@ else
         }
     }
 
+    private HubConnection? _hubConnection;
+    [Inject] private IClipRepository ClipRepository { get; set; } = default!;
+
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (firstRender)
+        if (firstRender && _event != null)
         {
             await CartService.InitializeAsync();
-             // Initial check
+             // Start background healing if needed
+            VideoHealingService.StartHealingForClips(_event.Clips);
+
             StateHasChanged();
 
-            if (_event?.Clips != null)
+            // SignalR Connection
+            _hubConnection = new HubConnectionBuilder()
+                .WithUrl(Navigation.ToAbsoluteUri("/processingHub"))
+                .WithAutomaticReconnect()
+                .Build();
+
+            _hubConnection.On<string, string>("ClipStatusUpdated", (clipId, status) =>
             {
-                // Start background healing for any processing clips
-                VideoHealingService.StartHealingForClips(_event.Clips);
-            }
+                var clip = _event.Clips.FirstOrDefault(c => c.Id == clipId);
+                if (clip != null)
+                {
+                    InvokeAsync(async () => {
+                        var freshClip = await ClipRepository.GetByIdAsync(clipId);
+                        if (freshClip != null)
+                        {
+                            clip.PlaybackIdSigned = freshClip.PlaybackIdSigned;
+                            clip.DurationSec = freshClip.DurationSec;
+                            clip.RecordingStartedAt = freshClip.RecordingStartedAt;
+                            clip.MuxAssetId = freshClip.MuxAssetId;
+                            SortClips();
+                            StateHasChanged();
+                        }
+                    });
+                }
+            });
+
+            await _hubConnection.StartAsync();
         }
     }
 
-    public void Dispose()
+    public async ValueTask DisposeAsync()
     {
         VideoHealingService.OnClipHealed -= HandleClipHealed;
+        if (_hubConnection is not null)
+        {
+            await _hubConnection.DisposeAsync();
+        }
     }
 
     private void OnSortChanged(ChangeEventArgs e)

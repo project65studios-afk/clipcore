@@ -11,7 +11,8 @@ public enum FulfillmentStatus
 public class Purchase
 {
     public int Id { get; set; }
-    public Guid? UserId { get; set; } // Nullable for Guest Checkout
+    public string? UserId { get; set; } // Nullable for Guest Checkout
+    public virtual ApplicationUser? User { get; set; }
     public string ClipId { get; set; } = string.Empty;
     public Clip Clip { get; set; } = null!;
     

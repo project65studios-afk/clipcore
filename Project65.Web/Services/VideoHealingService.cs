@@ -2,6 +2,8 @@ using Project65.Core.Entities;
 using Project65.Core.Interfaces;
 using Microsoft.Extensions.DependencyInjection;
 using System.Collections.Concurrent;
+using Microsoft.AspNetCore.SignalR;
+using Project65.Web.Hubs;
 
 namespace Project65.Web.Services;
 
@@ -12,16 +14,18 @@ namespace Project65.Web.Services;
 public class VideoHealingService
 {
     private readonly IServiceScopeFactory _scopeFactory;
-    private readonly ConcurrentDictionary<string, bool> _activeHealingTasks = new();
+    private readonly IHubContext<ProcessingHub> _hubContext;
+    private readonly ConcurrentDictionary<string, Task> _activeHealingTasks = new();
 
     /// <summary>
     /// Event fired when a clip has been successfully healed (PlaybackId and Metadata resolved).
     /// </summary>
     public event Action<Clip>? OnClipHealed;
 
-    public VideoHealingService(IServiceScopeFactory scopeFactory)
+    public VideoHealingService(IServiceScopeFactory scopeFactory, IHubContext<ProcessingHub> hubContext)
     {
         _scopeFactory = scopeFactory;
+        _hubContext = hubContext;
     }
 
     /// <summary>
@@ -38,9 +42,9 @@ public class VideoHealingService
 
         foreach (var clip in brokenClips)
         {
-            if (_activeHealingTasks.TryAdd(clip.Id, true))
+            if (_activeHealingTasks.TryAdd(clip.Id, Task.Run(() => HealClipLoopAsync(clip.Id))))
             {
-                _ = Task.Run(() => HealClipLoopAsync(clip.Id));
+                // Task is already started by TryAdd, no need for separate Task.Run
             }
         }
     }
@@ -102,6 +106,7 @@ public class VideoHealingService
                 {
                     Console.WriteLine($"[VideoHealingService] Successfully healed clip: {clip.Id}");
                     OnClipHealed?.Invoke(clip);
+                    await _hubContext.Clients.All.SendAsync("ClipStatusUpdated", clip.Id, "Healed");
                     break;
                 }
 

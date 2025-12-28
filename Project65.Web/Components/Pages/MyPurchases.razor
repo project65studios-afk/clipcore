@@ -153,12 +153,9 @@
 
         if (user.Identity != null && user.Identity.IsAuthenticated)
         {
-             var userIdClaim = user.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
-             if (Guid.TryParse(userIdClaim, out var userId))
-             {
-                 _purchases = await PurchaseRepository.GetByUserIdAsync(userId);
-                 await LoadThumbnailsAsync();
-             }
+             var userId = user.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+             _purchases = await PurchaseRepository.GetByUserIdAsync(userId);
+             await LoadThumbnailsAsync();
         }
         _isLoading = false;
     }

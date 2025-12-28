@@ -13,7 +13,8 @@
 @inject IPurchaseRepository PurchaseRepository
 @using System.IO
 @inject Project65.Web.Services.VideoHealingService VideoHealingService
-@implements IDisposable
+@using Microsoft.AspNetCore.SignalR.Client
+@implements IAsyncDisposable
 @rendermode RenderMode.InteractiveServer
 
 <PageTitle>Search Results - Project65</PageTitle>
@@ -140,12 +141,9 @@
                 var user = authState.User;
                 if (user.Identity?.IsAuthenticated == true)
                 {
-                    var userIdStr = user.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
-                    if (Guid.TryParse(userIdStr, out var userId))
-                    {
-                        var purchases = await PurchaseRepository.GetByUserIdAsync(userId);
-                        _purchasedClipIds = purchases.Select(p => p.ClipId).ToHashSet();
-                    }
+                    var userId = user.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+                    var purchases = await PurchaseRepository.GetByUserIdAsync(userId);
+                    _purchasedClipIds = purchases.Select(p => p.ClipId).ToHashSet();
                 }
             }
         }
@@ -175,9 +173,15 @@
         }
     }
 
-    public void Dispose()
+    private HubConnection? _hubConnection;
+
+    public async ValueTask DisposeAsync()
     {
         VideoHealingService.OnClipHealed -= HandleClipHealed;
+        if (_hubConnection is not null)
+        {
+            await _hubConnection.DisposeAsync();
+        }
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -185,6 +189,32 @@
         if (firstRender)
         {
             await CartService.InitializeAsync();
+             // SignalR Connection
+            _hubConnection = new HubConnectionBuilder()
+                .WithUrl(Navigation.ToAbsoluteUri("/processingHub"))
+                .WithAutomaticReconnect()
+                .Build();
+
+            _hubConnection.On<string, string>("ClipStatusUpdated", (clipId, status) =>
+            {
+                var clip = _clips.FirstOrDefault(c => c.Id == clipId);
+                if (clip != null)
+                {
+                    InvokeAsync(async () => {
+                         var freshClip = await ClipRepository.GetByIdAsync(clipId);
+                         if (freshClip != null)
+                         {
+                             clip.PlaybackIdSigned = freshClip.PlaybackIdSigned;
+                             clip.DurationSec = freshClip.DurationSec;
+                             clip.RecordingStartedAt = freshClip.RecordingStartedAt;
+                             clip.MuxAssetId = freshClip.MuxAssetId;
+                             StateHasChanged();
+                         }
+                    });
+                }
+            });
+
+            await _hubConnection.StartAsync();
             StateHasChanged();
         }
     }
