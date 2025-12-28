@@ -217,7 +217,8 @@
         {
              // Use JS to show "Preparing..." if needed, but for now just open the link.
              // We need to fetch the signed URL from the server.
-             var cleanTitle = string.Join("_", purchase.Clip.Title.Split(Path.GetInvalidFileNameChars()));
+             var clipTitle = purchase.Clip?.Title ?? "Video";
+             var cleanTitle = string.Join("_", clipTitle.Split(Path.GetInvalidFileNameChars()));
              var url = await VideoService.GetDownloadUrlAsync(purchase.FulfillmentMuxAssetId, $"{cleanTitle}_MASTER.mp4");
              
              if (!string.IsNullOrEmpty(url))

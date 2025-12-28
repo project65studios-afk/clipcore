@@ -31,7 +31,7 @@ public class LoginModel : PageModel
         public string Password { get; set; } = "";
     }
 
-    public IList<AuthenticationScheme> ExternalLogins { get; set; }
+    public IList<AuthenticationScheme> ExternalLogins { get; set; } = new List<AuthenticationScheme>();
 
     public async Task OnGetAsync(string? returnUrl = null)
     {
@@ -66,7 +66,7 @@ public class LoginModel : PageModel
         return Page();
     }
 
-    public IActionResult OnPostExternalLogin(string provider, string returnUrl = null)
+    public IActionResult OnPostExternalLogin(string provider, string? returnUrl = null)
     {
         // Request a redirect to the external login provider.
         var redirectUrl = Url.Page("./ExternalLogin", pageHandler: "Callback", values: new { returnUrl });
