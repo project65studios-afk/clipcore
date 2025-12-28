@@ -429,56 +429,59 @@ h3 {
     background: #000;
 }
 
-.watermark-overlay {
+/* Watermark Grid System */
+.watermark-grid {
     position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
     pointer-events: none;
     z-index: 9999;
-    /* Ensure it's above everything */
-    opacity: 0.4;
-    /* Slightly increased visibility */
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    grid-template-rows: repeat(6, 1fr);
+}
+
+.watermark-cell {
+    width: 100%;
+    height: 100%;
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: 60%;
+    /* Logo size within its cell */
+    opacity: 0;
     transition: opacity 0.3s;
 }
 
-.watermark-overlay img {
-    max-height: 120px;
-    width: auto;
-    transition: max-height 0.3s ease;
+.watermark-cell.active {
+    background-image: var(--wm-url);
+    opacity: 0.15;
 }
 
-.preview-player .watermark-overlay img {
-    max-height: 48px;
+/* Hover Effect */
+.video-player-container:hover .watermark-cell.active {
+    opacity: 0.1;
 }
 
-.video-player-container:hover .watermark-overlay {
-    opacity: 0.2;
-}
-
-/* Specific Fullscreen Handling */
-.video-player-container:fullscreen .watermark-overlay,
-.video-player-container:-webkit-full-screen .watermark-overlay,
-.video-player-container:-moz-full-screen .watermark-overlay {
+/* Fullscreen Handling */
+.video-player-container:fullscreen .watermark-grid,
+.video-player-container:-webkit-full-screen .watermark-grid,
+.video-player-container:-moz-full-screen .watermark-grid {
     z-index: 2147483647;
-    display: flex !important;
+    display: grid !important;
     position: absolute;
-    /* Keep absolute relative to fullscreen container */
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    opacity: 0.6;
+    top: 0;
+    left: 0;
     width: 100%;
     height: 100%;
-    align-items: center;
-    justify-content: center;
 }
 
-.video-player-container:fullscreen .watermark-overlay img,
-.video-player-container:-webkit-full-screen .watermark-overlay img,
-.video-player-container:-moz-full-screen .watermark-overlay img {
-    max-height: 200px;
-    /* Larger in fullscreen */
+/* Ensure visibility persists in FS */
+.video-player-container:fullscreen .watermark-cell.active,
+.video-player-container:-webkit-full-screen .watermark-cell.active,
+.video-player-container:-moz-full-screen .watermark-cell.active {
+    opacity: 0.15;
 }
 
 

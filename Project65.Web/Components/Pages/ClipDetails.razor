@@ -56,8 +56,14 @@ else
                          >
                             @if (!string.IsNullOrEmpty(_watermarkUrl))
                             {
-                                <div class="watermark-overlay">
-                                    <img src="@_watermarkUrl" alt="Watermark" />
+                                <div class="watermark-grid" style="--wm-url: url('@_watermarkUrl');">
+                                    @for (int i = 0; i < 36; i++)
+                                    {
+                                        int row = i / 6;
+                                        int col = i % 6;
+                                        bool isActive = (row + col) % 2 == 0;
+                                        <div class="watermark-cell @(isActive ? "active" : "")"></div>
+                                    }
                                 </div>
                             }
                          </mux-player>
@@ -78,8 +84,14 @@ else
                         >
                             @if (!string.IsNullOrEmpty(_watermarkUrl))
                             {
-                                <div class="watermark-overlay">
-                                    <img src="@_watermarkUrl" alt="Watermark" />
+                                <div class="watermark-grid" style="--wm-url: url('@_watermarkUrl');">
+                                    @for (int i = 0; i < 36; i++)
+                                    {
+                                        int row = i / 6;
+                                        int col = i % 6;
+                                        bool isActive = (row + col) % 2 == 0;
+                                        <div class="watermark-cell @(isActive ? "active" : "")"></div>
+                                    }
                                 </div>
                             }
                             <div class="badge-low-res">
