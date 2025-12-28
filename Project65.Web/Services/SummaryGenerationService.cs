@@ -63,7 +63,10 @@ public class SummaryGenerationService
         // 1. Try R2 Thumbnail (Cloud-accessible URL)
         if (!string.IsNullOrEmpty(clip.ThumbnailFileName))
         {
-            return _storageService.GetPresignedDownloadUrl($"thumbnails/{clip.ThumbnailFileName}");
+            var storageKey = clip.ThumbnailFileName.Contains("/") 
+                ? clip.ThumbnailFileName 
+                : $"thumbnails/{clip.ThumbnailFileName}";
+            return _storageService.GetPresignedDownloadUrl(storageKey);
         }
 
         // 2. Try Mux Snapshot

@@ -26,7 +26,11 @@
         <meta property="og:url" content="@Navigation.Uri" />
         @if (_event.Clips.Any() && !string.IsNullOrEmpty(_event.Clips.First().ThumbnailFileName))
         {
-             <meta property="og:image" content="@($"{Navigation.BaseUri}thumbnails/{_event.Clips.First().ThumbnailFileName}")" />
+             var firstClip = _event.Clips.First();
+             var thumbKey = firstClip.ThumbnailFileName!.Contains("/") 
+                ? firstClip.ThumbnailFileName 
+                : $"thumbnails/{firstClip.ThumbnailFileName}";
+             <meta property="og:image" content="@($"{Navigation.BaseUri}{thumbKey}")" />
         }
     }
 </HeadContent>

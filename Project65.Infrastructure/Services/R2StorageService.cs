@@ -94,6 +94,22 @@ namespace Project65.Infrastructure.Services
             }
         }
 
+        public async Task DeleteAsync(string fileName)
+        {
+            try
+            {
+                _logger.LogInformation($"[R2] Deleting {fileName} from {_bucketName}");
+                await _s3Client.DeleteObjectAsync(_bucketName, fileName);
+                _logger.LogInformation($"[R2] Deletion complete: {fileName}");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"[R2] Delete failed for {fileName}");
+                // We don't necessarily want to crash the whole deletion flow if storage cleanup fails, 
+                // but logging it is critical.
+            }
+        }
+
         public async Task ConfigureCorsAsync()
         {
             try

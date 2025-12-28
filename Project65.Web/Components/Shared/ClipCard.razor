@@ -191,7 +191,13 @@
         {
             var localPath = Path.Combine(Environment.WebRootPath, "thumbnails", Clip.ThumbnailFileName);
             if (File.Exists(localPath)) return $"/thumbnails/{Clip.ThumbnailFileName}";
-            return StorageService.GetPresignedDownloadUrl($"thumbnails/{Clip.ThumbnailFileName}");
+            
+            // If filename contains a folder prefix (e.g. ai-thumbnails/), use it directly
+            var storageKey = Clip.ThumbnailFileName.Contains("/") 
+                ? Clip.ThumbnailFileName 
+                : $"thumbnails/{Clip.ThumbnailFileName}";
+                
+            return StorageService.GetPresignedDownloadUrl(storageKey);
         }
 
         // 2. Mux Fallback

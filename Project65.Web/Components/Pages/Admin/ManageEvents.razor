@@ -7,6 +7,7 @@
 @inject IVideoService VideoService
 @inject IJSRuntime JS
 @inject NavigationManager Navigation
+@inject IStorageService StorageService
 @rendermode RenderMode.InteractiveServer
 
 <div class="admin-container" style="max-width: 1000px; margin: 2rem auto; padding: 0 1rem;">
@@ -211,9 +212,18 @@
                 {
                     await VideoService.DeleteAssetAsync(assetId);
                 }
+
+                // 2. Delete Thumbnail from Storage
+                if (!string.IsNullOrEmpty(clip.ThumbnailFileName) && !clip.ThumbnailFileName.StartsWith("http"))
+                {
+                    var storageKey = clip.ThumbnailFileName.Contains("/") 
+                        ? clip.ThumbnailFileName 
+                        : $"thumbnails/{clip.ThumbnailFileName}";
+                    await StorageService.DeleteAsync(storageKey);
+                }
             }
 
-            // 2. Delete from DB
+            // 3. Delete from DB
             await EventRepository.DeleteAsync(_eventToDelete.Id);
             
             // 3. Refresh
