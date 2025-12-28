@@ -23,7 +23,18 @@
             <button class="nav-close-btn" @onclick="ToggleNav">✕</button>
         </div>
 
-        <input type="text" class="search-bar" placeholder="Search this event..." />
+        <div class="search-wrapper" style="position: relative;">
+            <input type="text" class="search-bar" placeholder="Search events & clips..." 
+                   @bind="_searchQuery" 
+                   @bind:event="oninput" 
+                   @onkeyup="HandleSearchKeyUp" />
+            @if (!string.IsNullOrWhiteSpace(_searchQuery))
+            {
+                 <button class="search-btn" @onclick="Search" style="position: absolute; right: 8px; top: 50%; transform: translateY(-50%); background: none; border: none; color: var(--text-muted); cursor: pointer;">
+                    <i class="bi bi-search"></i>
+                 </button>
+            }
+        </div>
         
         <div class="nav-links">
             <ThemeToggle />
@@ -69,6 +80,25 @@
 @code {
     private bool _isNavOpen = false;
     private string NavOpenClass => _isNavOpen ? "active" : "";
+    private string _searchQuery = "";
+
+    private void HandleSearchKeyUp(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            Search();
+        }
+    }
+
+    private void Search()
+    {
+        if (!string.IsNullOrWhiteSpace(_searchQuery))
+        {
+            Navigation.NavigateTo($"/search?q={Uri.EscapeDataString(_searchQuery)}");
+            _isNavOpen = false; // Close mobile nav if open
+            _searchQuery = ""; // Optional: Clear after search? Or keep it? Usually good to keep, but here it's global nav. Let's clear to avoid stale state.
+        }
+    }
 
     protected override async Task OnInitializedAsync()
     {

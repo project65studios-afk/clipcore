@@ -46,6 +46,8 @@ builder.Services.AddAuthentication()
 builder.Services.AddScoped<IEventRepository, EventRepository>();
 builder.Services.AddScoped<IClipRepository, ClipRepository>();
 builder.Services.AddScoped<IVideoService, MuxVideoService>();
+builder.Services.AddScoped<IVisionService, OpenAIVisionService>();
+builder.Services.AddHttpClient<OpenAIVisionService>(); // Best practice for HttpClient injection
 
 // Configure R2 (via AWS SDK)
 var r2Options = builder.Configuration.GetAWSOptions();
@@ -143,6 +145,11 @@ using (var scope = app.Services.CreateScope())
     var context = services.GetRequiredService<AppDbContext>();
     var userManager = services.GetRequiredService<Microsoft.AspNetCore.Identity.UserManager<Microsoft.AspNetCore.Identity.IdentityUser>>();
     var roleManager = services.GetRequiredService<Microsoft.AspNetCore.Identity.RoleManager<Microsoft.AspNetCore.Identity.IdentityRole>>();
+    
+    // Configure CORS for R2
+    var storageService = services.GetRequiredService<IStorageService>();
+    await storageService.ConfigureCorsAsync();
+    
     await context.Database.MigrateAsync();
     await Project65.Infrastructure.DataSeeder.SeedAsync(context, userManager, roleManager);
 }

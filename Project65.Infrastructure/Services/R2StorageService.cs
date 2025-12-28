@@ -102,10 +102,11 @@ namespace Project65.Infrastructure.Services
                 {
                     new CORSRule
                     {
-                        AllowedOrigins = new System.Collections.Generic.List<string> { "*" },
+                        AllowedOrigins = new System.Collections.Generic.List<string> { "http://localhost:5094", "https://localhost:7192", "*" },
                         AllowedMethods = new System.Collections.Generic.List<string> { "GET", "PUT", "POST", "HEAD" },
                         AllowedHeaders = new System.Collections.Generic.List<string> { "*" },
-                        MaxAgeSeconds = 3000
+                        ExposeHeaders = new System.Collections.Generic.List<string> { "ETag", "Content-Length", "Access-Control-Allow-Origin" },
+                        MaxAgeSeconds = 3600
                     }
                 };
 

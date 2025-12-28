@@ -20,7 +20,7 @@ public class MuxVideoService : IVideoService
     private readonly IHttpContextAccessor _httpContextAccessor;
     private readonly IUsageRepository _usageRepository;
     private readonly IMemoryCache _cache; // Added
-    private const int MaxDailyTokens = 50; // Increased buffer
+    private const int MaxDailyTokens = 1000; // Increased buffer for dev/testing
 
     public MuxVideoService(IConfiguration configuration, IHttpContextAccessor httpContextAccessor, IUsageRepository usageRepository, IMemoryCache cache) // Added IMemoryCache
     {

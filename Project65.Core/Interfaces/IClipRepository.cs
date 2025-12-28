@@ -5,6 +5,7 @@ namespace Project65.Core.Interfaces;
 public interface IClipRepository
 {
     Task<Clip?> GetByIdAsync(string id);
+    Task<List<Clip>> SearchAsync(string query);
     Task AddAsync(Clip clip);
     Task UpdateAsync(Clip clip); // For updating processing status/metadata
 }

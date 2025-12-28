@@ -296,18 +296,16 @@ h3 {
     width: 100%;
     height: 100%;
     opacity: 0;
-    pointer-events: none;
     transition: opacity 0.3s;
+    z-index: 5;
 }
 
 .video-card:hover .video-thumb img {
     opacity: 0;
-    /* Hide static thumb on hover */
 }
 
 .video-card:hover .video-thumb .preview-player {
     opacity: 1;
-    /* Show preview player */
 }
 
 .video-info {

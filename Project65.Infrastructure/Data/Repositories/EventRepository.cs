@@ -28,6 +28,16 @@ public class EventRepository : IEventRepository
             .ToListAsync();
     }
 
+    public async Task<List<Event>> SearchAsync(string query)
+    {
+        return await _context.Events
+            .AsNoTracking()
+            .Include(e => e.Clips) // Include clips so we can show counts
+            .Where(e => e.Name.ToLower().Contains(query.ToLower()) || (e.Summary != null && e.Summary.ToLower().Contains(query.ToLower())))
+            .OrderByDescending(e => e.Date)
+            .ToListAsync();
+    }
+
     public async Task AddAsync(Event evt)
     {
         await _context.Events.AddAsync(evt);

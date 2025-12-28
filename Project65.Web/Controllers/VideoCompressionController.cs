@@ -14,17 +14,20 @@ public class VideoCompressionController : ControllerBase
     private readonly IVideoService _videoService;
     private readonly IClipRepository _clipRepository;
     private readonly IStorageService _storageService;
+    private readonly IVisionService _visionService;
     private readonly ILogger<VideoCompressionController> _logger;
 
     public VideoCompressionController(
         IVideoService videoService,
         IClipRepository clipRepository,
         IStorageService storageService,
+        IVisionService visionService,
         ILogger<VideoCompressionController> logger)
     {
         _videoService = videoService;
         _clipRepository = clipRepository;
         _storageService = storageService;
+        _visionService = visionService;
         _logger = logger;
     }
 
@@ -105,12 +108,27 @@ public class VideoCompressionController : ControllerBase
                         // Close stream so we can delete file
                         thumbStream.Close();
                         
+                        // 2. AI Analysis (Async - don't block upload too long, but wait since it's fast)
+                        // Trigger AI Analysis on the local high-res thumbnail
+                        try
+                        {
+                            _logger.LogInformation($"[AI] Analyzing frame for auto-tagging...");
+                            using var analysisStream = new FileStream(thumbPath, FileMode.Open, FileAccess.Read);
+                            var aiTags = await _visionService.AnalyzeImageAsync(analysisStream);
+                            if (aiTags.Length > 0)
+                            {
+                                 _logger.LogInformation($"[AI] Identified tags: {string.Join(", ", aiTags)}");
+                                // We'll save these to the Clip object later
+                                HttpContext.Items["AiTags"] = aiTags; 
+                            }
+                        }
+                        catch (Exception aiEx)
+                        {
+                            _logger.LogError($"[AI] Analysis failed: {aiEx.Message}");
+                        }
+                        
                         // Delete local thumbnail
                         System.IO.File.Delete(thumbPath);
-                        
-                        // Update thumbName to store just the filename (or full key if preferred, but let's store filename for consistency and prefix later)
-                        // Actually, let's store the FILENAME in DB, and prepend "thumbnails/" when generating URL. 
-                        // Current logic in DB seems to be just filename.
                     }
                 }
                 catch (Exception ex)
@@ -194,6 +212,12 @@ public class VideoCompressionController : ControllerBase
                     MasterFileName = null, // No R2 master for standard event uploads
                     ThumbnailFileName = thumbName
                 };
+
+                // Apply AI Tags if found
+                if (HttpContext.Items.TryGetValue("AiTags", out var tagsObj) && tagsObj is string[] tags)
+                {
+                    clip.TagsJson = System.Text.Json.JsonSerializer.Serialize(tags);
+                }
 
                 // Capture browser's Modified Date if provided
                 if (DateTime.TryParse(lastModified, out var modifiedDate))

@@ -63,7 +63,7 @@ else
         <div class="video-grid">
             @foreach (var clip in _event.Clips)
             {
-                <div @onclick="() => NavigateToClip(clip.Id)" class="video-card" data-enhance-nav="false">
+                <div @key="clip.Id" @onclick="() => NavigateToClip(clip.Id)" class="video-card" data-enhance-nav="false">
                     <div class="video-thumb">
                         @if (IsInCart(clip.Id))
                         {
@@ -110,35 +110,70 @@ else
                         }
                         
                         <!-- Hover Preview -->
-                         @{
-                             var previewId = clip.PlaybackIdTeaser ?? clip.PlaybackIdSigned;
-                         }
-                         @if (!string.IsNullOrEmpty(previewId) && !previewId.StartsWith("mock"))
-                         {
-                              <div id="preview-container-@clip.Id" class="video-player-container preview-player">
-                                  @if (!string.IsNullOrEmpty(_watermarkUrl))
-                                  {
-                                      <div class="watermark-overlay">
-                                          <img src="@_watermarkUrl" alt="Watermark" />
-                                      </div>
-                                  }
+                          @{
+                              var previewId = string.IsNullOrEmpty(clip.PlaybackIdTeaser) ? clip.PlaybackIdSigned : clip.PlaybackIdTeaser;
+                          }
+                          @if (!string.IsNullOrEmpty(previewId) && !previewId.StartsWith("mock"))
+                          {
+                               <div id="preview-container-@clip.Id" class="video-player-container preview-player">
+                                   @if (!string.IsNullOrEmpty(_watermarkUrl))
+                                   {
+                                       <div class="watermark-grid" style="--wm-url: url('@_watermarkUrl');">
+                                           @for (int i = 0; i < 36; i++)
+                                           {
+                                               int row = i / 6;
+                                               int col = i % 6;
+                                               bool isActive = (row + col) % 2 == 0;
+                                               <div class="watermark-cell @(isActive ? "active" : "")"></div>
+                                           }
+                                       </div>
+                                   }
 
-                                  <mux-player
-                                    playback-id="@previewId"
-                                    playback-token="@GetTokenFromCache(previewId, "v")"
-                                    thumbnail-token="@GetTokenFromCache(previewId, "t")"
-                                    storyboard-token="@GetTokenFromCache(previewId, "s")"
-                                    metadata-video-title="@clip.Title"
-                                    muted
-                                    autoplay
-                                    loop
-                                    fullscreen-element="preview-container-@clip.Id"
-                                    style="width: 100%; height: 100%; object-fit: cover;"
-                                    controls="false"
-                                  ></mux-player>
-                              </div>
-                         }
+                                   @if (HasTokens(previewId))
+                                   {
+                                       <mux-player
+                                         playback-id="@previewId"
+                                         playback-token="@GetTokenFromCache(previewId, "v")"
+                                         thumbnail-token="@GetTokenFromCache(previewId, "t")"
+                                         storyboard-token="@GetTokenFromCache(previewId, "s")"
+                                         metadata-video-title="@clip.Title"
+                                         muted
+                                         autoplay
+                                         loop
+                                         fullscreen-element="preview-container-@clip.Id"
+                                         style="width: 100%; height: 100%; object-fit: cover;"
+                                         controls="false"
+                                       ></mux-player>
+                                   }
+                                   else
+                                   {
+                                        <div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background: #000;">
+                                            <div class="spinner-border spinner-border-sm text-info" role="status"></div>
+                                        </div>
+                                   }
+                               </div>
+                          }
                     </div>
+                        
+                         @if (!string.IsNullOrEmpty(clip.TagsJson) && clip.TagsJson != "[]")
+                         {
+                             <div style="display: flex; gap: 0.25rem; margin-top: 0.4rem; overflow: hidden; flex-wrap: wrap; height: 1.25rem;">
+                                 @{
+                                     var tags = System.Text.Json.JsonSerializer.Deserialize<string[]>(clip.TagsJson) ?? Array.Empty<string>();
+                                     // Debug log to capture AI errors in console
+                                     if (tags.Length > 0 && tags[0].StartsWith("Error"))
+                                     {
+                                         Console.WriteLine($"[AI-DEBUG] Tag Error for {clip.Title}: {tags[0]}");
+                                     }
+                                 }
+                                 @foreach (var tag in tags.Take(3))
+                                 {
+                                     <a href="/search?q=@tag" @onclick:stopPropagation="true" class="badge text-decoration-none" style="background: var(--bg-dark-900); color: var(--text-secondary); border: 1px solid var(--border-color); font-weight: 500; font-size: 0.65rem; padding: 0.15rem 0.4rem;">
+                                         @tag
+                                     </a>
+                                 }
+                             </div>
+                         }
                     <div class="video-info">
                         <div style="flex-grow: 1; min-width: 0;">
                             <div style="font-weight: 600; font-size: 1rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="@clip.Title">@clip.Title</div>
@@ -283,7 +318,7 @@ else
             // Valid clips should now have IDs, load tokens
             foreach (var clip in _event.Clips)
             {
-                var pid = clip.PlaybackIdTeaser ?? clip.PlaybackIdSigned;
+                var pid = string.IsNullOrEmpty(clip.PlaybackIdTeaser) ? clip.PlaybackIdSigned : clip.PlaybackIdTeaser;
                 if (!string.IsNullOrEmpty(pid) && !pid.StartsWith("mock"))
                 {
                     await LoadTokensForClip(pid);
@@ -469,7 +504,7 @@ else
                     // 3. If fixed, load tokens and mark for UI update
                     if (clipFixed)
                     {
-                        var pid = clip.PlaybackIdTeaser ?? clip.PlaybackIdSigned;
+                        var pid = string.IsNullOrEmpty(clip.PlaybackIdTeaser) ? clip.PlaybackIdSigned : clip.PlaybackIdTeaser;
                         await LoadTokensForClip(pid);
                         uiUpdated = true;
                     }
@@ -494,17 +529,33 @@ else
 
     private async Task LoadTokensForClip(string playbackId)
     {
+        bool tokensAdded = false;
+
         // Video Token (v)
         if (!_tokenCache.ContainsKey($"{playbackId}-v"))
-            _tokenCache[$"{playbackId}-v"] = await VideoService.GetPlaybackToken(playbackId, "v", "480p");
+        {
+            var token = await VideoService.GetPlaybackToken(playbackId, "v", "480p");
+            if (!string.IsNullOrEmpty(token)) { _tokenCache[$"{playbackId}-v"] = token; tokensAdded = true; }
+        }
             
         // Thumbnail Token (t)
         if (!_tokenCache.ContainsKey($"{playbackId}-t"))
-            _tokenCache[$"{playbackId}-t"] = await VideoService.GetPlaybackToken(playbackId, "t", "480p");
+        {
+            var token = await VideoService.GetPlaybackToken(playbackId, "t", "480p");
+            if (!string.IsNullOrEmpty(token)) { _tokenCache[$"{playbackId}-t"] = token; tokensAdded = true; }
+        }
 
         // Storyboard Token (s)
         if (!_tokenCache.ContainsKey($"{playbackId}-s"))
-            _tokenCache[$"{playbackId}-s"] = await VideoService.GetPlaybackToken(playbackId, "s", "480p");
+        {
+            var token = await VideoService.GetPlaybackToken(playbackId, "s", "480p");
+            if (!string.IsNullOrEmpty(token)) { _tokenCache[$"{playbackId}-s"] = token; tokensAdded = true; }
+        }
+
+        if (tokensAdded)
+        {
+            await InvokeAsync(StateHasChanged);
+        }
     }
 
     private void OnSortChanged(ChangeEventArgs e)
@@ -572,5 +623,12 @@ else
     private string GetTokenFromCache(string playbackId, string type)
     {
         return _tokenCache.TryGetValue($"{playbackId}-{type}", out var token) ? token : "";
+    }
+
+    private bool HasTokens(string playbackId)
+    {
+        return _tokenCache.TryGetValue($"{playbackId}-v", out var v) && !string.IsNullOrEmpty(v) && 
+               _tokenCache.TryGetValue($"{playbackId}-t", out var t) && !string.IsNullOrEmpty(t) && 
+               _tokenCache.TryGetValue($"{playbackId}-s", out var s) && !string.IsNullOrEmpty(s);
     }
 }

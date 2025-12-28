@@ -42,62 +42,80 @@ else
                  <div id="player-container" class="video-player-container mobile-full-width" style="border: 1px solid var(--border-color); box-shadow: 0 0 40px rgba(0,0,0,0.5); position: relative;">
                     @if (_hasPurchased)
                     {
-                         <mux-player
-                            id="purchased-player"
-                            playback-id="@_clip.PlaybackIdSigned"
-                            playback-token="@GetTokenFromCache(_clip.PlaybackIdSigned, "v")"
-                            thumbnail-token="@GetTokenFromCache(_clip.PlaybackIdSigned, "t")"
-                            storyboard-token="@GetTokenFromCache(_clip.PlaybackIdSigned, "s")"
-                            metadata-video-title="@_clip.Title"
-                            primary-color="#06b6d4"
-                            accent-color="#ec4899"
-                            fullscreen-element="player-container"
-                            style="width: 100%; height: 100%;"
-                         >
-                            @if (!string.IsNullOrEmpty(_watermarkUrl))
-                            {
-                                <div class="watermark-grid" style="--wm-url: url('@_watermarkUrl');">
-                                    @for (int i = 0; i < 36; i++)
-                                    {
-                                        int row = i / 6;
-                                        int col = i % 6;
-                                        bool isActive = (row + col) % 2 == 0;
-                                        <div class="watermark-cell @(isActive ? "active" : "")"></div>
-                                    }
-                                </div>
-                            }
-                         </mux-player>
+                         @if (HasTokens(_clip.PlaybackIdSigned!))
+                         {
+                              <mux-player
+                                 id="purchased-player"
+                                 playback-id="@_clip.PlaybackIdSigned"
+                                 playback-token="@GetTokenFromCache(_clip.PlaybackIdSigned!, "v")"
+                                 thumbnail-token="@GetTokenFromCache(_clip.PlaybackIdSigned!, "t")"
+                                 storyboard-token="@GetTokenFromCache(_clip.PlaybackIdSigned!, "s")"
+                                 metadata-video-title="@_clip.Title"
+                                 primary-color="#06b6d4"
+                                 accent-color="#ec4899"
+                                 fullscreen-element="player-container"
+                                 style="width: 100%; height: 100%;"
+                              >
+                                 @if (!string.IsNullOrEmpty(_watermarkUrl))
+                                 {
+                                     <div class="watermark-grid" style="--wm-url: url('@_watermarkUrl');">
+                                         @for (int i = 0; i < 36; i++)
+                                         {
+                                             int row = i / 6;
+                                             int col = i % 6;
+                                             bool isActive = (row + col) % 2 == 0;
+                                             <div class="watermark-cell @(isActive ? "active" : "")"></div>
+                                         }
+                                     </div>
+                                 }
+                              </mux-player>
+                         }
+                         else
+                         {
+                              <div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background: #000; min-height: 400px;">
+                                  <div class="spinner-border text-info" role="status"></div>
+                              </div>
+                         }
                     }
                     else if (GetPreviewId() is string previewId)
                     {
-                        <mux-player
-                            id="preview-player"
-                            playback-id="@previewId"
-                            playback-token="@GetTokenFromCache(previewId, "v")"
-                            thumbnail-token="@GetTokenFromCache(previewId, "t")"
-                            storyboard-token="@GetTokenFromCache(previewId, "s")"
-                            metadata-video-title="@_clip.Title (Preview)"
-                            muted
-                            autoplay
-                            fullscreen-element="player-container"
-                            style="width: 100%; height: 100%;"
-                        >
-                            @if (!string.IsNullOrEmpty(_watermarkUrl))
-                            {
-                                <div class="watermark-grid" style="--wm-url: url('@_watermarkUrl');">
-                                    @for (int i = 0; i < 36; i++)
-                                    {
-                                        int row = i / 6;
-                                        int col = i % 6;
-                                        bool isActive = (row + col) % 2 == 0;
-                                        <div class="watermark-cell @(isActive ? "active" : "")"></div>
-                                    }
+                         @if (HasTokens(previewId))
+                         {
+                            <mux-player
+                                id="preview-player"
+                                playback-id="@previewId"
+                                playback-token="@GetTokenFromCache(previewId, "v")"
+                                thumbnail-token="@GetTokenFromCache(previewId, "t")"
+                                storyboard-token="@GetTokenFromCache(previewId, "s")"
+                                metadata-video-title="@_clip.Title (Preview)"
+                                muted
+                                autoplay
+                                fullscreen-element="player-container"
+                                style="width: 100%; height: 100%;"
+                            >
+                                @if (!string.IsNullOrEmpty(_watermarkUrl))
+                                {
+                                    <div class="watermark-grid" style="--wm-url: url('@_watermarkUrl');">
+                                        @for (int i = 0; i < 36; i++)
+                                        {
+                                            int row = i / 6;
+                                            int col = i % 6;
+                                            bool isActive = (row + col) % 2 == 0;
+                                            <div class="watermark-cell @(isActive ? "active" : "")"></div>
+                                        }
+                                    </div>
+                                }
+                                <div class="badge-low-res">
+                                    Low-Res Preview (540p)
                                 </div>
-                            }
-                            <div class="badge-low-res">
-                                Low-Res Preview (540p)
-                            </div>
-                        </mux-player>
+                            </mux-player>
+                         }
+                         else
+                         {
+                             <div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background: #000; min-height: 400px;">
+                                 <div class="spinner-border text-info" role="status"></div>
+                             </div>
+                         }
                     }
                     else
                     {
@@ -123,6 +141,30 @@ else
                         @(_clip.DurationSec.HasValue ? TimeSpan.FromSeconds(_clip.DurationSec.Value).ToString(@"mm\:ss") : "--:--")
                     </span>
                 </div>
+                
+                @if (string.IsNullOrEmpty(_clip?.TagsJson) || _clip.TagsJson == "[]")
+                {
+                    <span class="text-secondary" style="font-size: 0.9rem; font-style: italic;">No tags detected</span>
+                }
+                else
+                {
+                    <div style="display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 1rem;">
+                        @{
+                            var tags = System.Text.Json.JsonSerializer.Deserialize<string[]>(_clip.TagsJson) ?? Array.Empty<string>();
+                             // Debug log to capture AI errors in console
+                             if (tags.Length > 0 && tags[0].StartsWith("Error"))
+                             {
+                                 Console.WriteLine($"[AI-DEBUG] Tag Error for {_clip.Title}: {tags[0]}");
+                             }
+                        }
+                        @foreach (var tag in tags)
+                        {
+                            <a href="/search?q=@tag" class="badge text-decoration-none me-1" style="background: var(--bg-dark-900); color: var(--text-secondary); border: 1px solid var(--border-color); font-weight: 500;">
+                                @tag
+                            </a>
+                        }
+                    </div>
+                }
             </div>
             
             <!-- Purchase / Details Column -->
@@ -432,19 +474,42 @@ else
 
     private async Task LoadTokensForClip(string playbackId, string? resolution = null)
     {
+        bool tokensAdded = false;
+
         if (!_tokenCache.ContainsKey($"{playbackId}-v"))
-            _tokenCache[$"{playbackId}-v"] = await VideoService.GetPlaybackToken(playbackId, "v", resolution);
+        {
+            var token = await VideoService.GetPlaybackToken(playbackId, "v", resolution);
+            if (!string.IsNullOrEmpty(token)) { _tokenCache[$"{playbackId}-v"] = token; tokensAdded = true; }
+        }
         
         if (!_tokenCache.ContainsKey($"{playbackId}-t"))
-            _tokenCache[$"{playbackId}-t"] = await VideoService.GetPlaybackToken(playbackId, "t");
+        {
+            var token = await VideoService.GetPlaybackToken(playbackId, "t");
+            if (!string.IsNullOrEmpty(token)) { _tokenCache[$"{playbackId}-t"] = token; tokensAdded = true; }
+        }
 
         if (!_tokenCache.ContainsKey($"{playbackId}-s"))
-            _tokenCache[$"{playbackId}-s"] = await VideoService.GetPlaybackToken(playbackId, "s");
+        {
+            var token = await VideoService.GetPlaybackToken(playbackId, "s");
+            if (!string.IsNullOrEmpty(token)) { _tokenCache[$"{playbackId}-s"] = token; tokensAdded = true; }
+        }
+
+        if (tokensAdded)
+        {
+            await InvokeAsync(StateHasChanged);
+        }
     }
 
     private string GetTokenFromCache(string playbackId, string type)
     {
         return _tokenCache.TryGetValue($"{playbackId}-{type}", out var token) ? token : "";
+    }
+
+    private bool HasTokens(string playbackId)
+    {
+        return _tokenCache.TryGetValue($"{playbackId}-v", out var v) && !string.IsNullOrEmpty(v) && 
+               _tokenCache.TryGetValue($"{playbackId}-t", out var t) && !string.IsNullOrEmpty(t) && 
+               _tokenCache.TryGetValue($"{playbackId}-s", out var s) && !string.IsNullOrEmpty(s);
     }
 
     private string? GetPreviewId()

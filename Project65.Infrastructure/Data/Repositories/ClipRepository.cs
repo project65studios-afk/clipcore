@@ -16,7 +16,18 @@ public class ClipRepository : IClipRepository
     public async Task<Clip?> GetByIdAsync(string id)
     {
         return await _context.Clips
+            .Include(c => c.Event)
             .FirstOrDefaultAsync(c => c.Id == id);
+    }
+
+    public async Task<List<Clip>> SearchAsync(string query)
+    {
+        return await _context.Clips
+            .AsNoTracking()
+            .Include(c => c.Event)
+            .Where(c => c.Title.ToLower().Contains(query.ToLower()) || c.TagsJson.ToLower().Contains(query.ToLower()))
+            .OrderByDescending(c => c.RecordingStartedAt)
+            .ToListAsync();
     }
 
     public async Task AddAsync(Clip clip)
