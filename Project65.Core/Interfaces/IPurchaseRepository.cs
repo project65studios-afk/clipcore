@@ -14,4 +14,8 @@ public interface IPurchaseRepository
     Task<List<Purchase>> GetByOrderNumberAsync(string email, string partialOrderId);
     Task<List<Purchase>> ListAsync();
     Task UpdateAsync(Purchase purchase);
+    Task<long> GetTotalRevenueAsync();
+    Task<int> GetTotalSalesCountAsync();
+    Task<List<Purchase>> GetRecentSalesAsync(int count);
+    Task<Dictionary<DateOnly, long>> GetDailyRevenueAsync(int days);
 }

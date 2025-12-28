@@ -91,4 +91,37 @@ public class PurchaseRepository : IPurchaseRepository
             _context.Entry(existingPurchase).State = EntityState.Detached;
         }
     }
+
+    public async Task<long> GetTotalRevenueAsync()
+    {
+        return await _context.Purchases.SumAsync(p => (long)p.PricePaidCents);
+    }
+
+    public async Task<int> GetTotalSalesCountAsync()
+    {
+        return await _context.Purchases.CountAsync();
+    }
+
+    public async Task<List<Purchase>> GetRecentSalesAsync(int count)
+    {
+        return await _context.Purchases
+            .AsNoTracking()
+            .Include(p => p.Clip)
+            .OrderByDescending(p => p.CreatedAt)
+            .Take(count)
+            .ToListAsync();
+    }
+
+    public async Task<Dictionary<DateOnly, long>> GetDailyRevenueAsync(int days)
+    {
+        var cutoff = DateTime.UtcNow.AddDays(-days);
+        
+        var dailySales = await _context.Purchases
+            .Where(p => p.CreatedAt >= cutoff)
+            .GroupBy(p => p.CreatedAt.Date)
+            .Select(g => new { Date = g.Key, Total = g.Sum(p => (long)p.PricePaidCents) })
+            .ToListAsync();
+
+        return dailySales.ToDictionary(k => DateOnly.FromDateTime(k.Date), v => v.Total);
+    }
 }
