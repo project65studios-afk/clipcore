@@ -22,7 +22,7 @@ window.muxUpload = {
             theme: 'dark',
             width: '100%',
             height: 450,
-            note: 'PhotoReflect Mode: Videos will be compressed on server and uploaded as 480p proofs.'
+            note: 'Standard Mode: Videos will be compressed on server and uploaded as 480p proofs.'
         });
 
         function ServerCompressionPlugin(uppy) {

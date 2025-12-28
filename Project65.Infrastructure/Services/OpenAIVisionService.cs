@@ -117,4 +117,59 @@ public class OpenAIVisionService : IVisionService
     {
         public string content { get; set; } = null!;
     }
+
+    public async Task<string> GenerateBatchSummaryAsync(IEnumerable<string> imageUrls)
+    {
+        if (string.IsNullOrEmpty(_apiKey))
+        {
+            return "AI summary generation is currently disabled (No API Key).";
+        }
+
+        try
+        {
+            var contentList = new List<object>();
+            contentList.Add(new { type = "text", text = "I am providing a batch of images from a single event. Based on these images, generate a punchy, descriptive, and engaging summary for the event (2-3 sentences max). Focus on the atmosphere, the action, and the subjects." });
+
+            foreach (var url in imageUrls)
+            {
+                contentList.Add(new { type = "image_url", image_url = new { url = url } });
+            }
+
+            var requestBody = new
+            {
+                model = "gpt-4o-mini",
+                messages = new object[]
+                {
+                    new
+                    {
+                        role = "user",
+                        content = contentList.ToArray()
+                    }
+                },
+                max_tokens = 300
+            };
+
+            var jsonContent = JsonSerializer.Serialize(requestBody);
+            var request = new HttpRequestMessage(HttpMethod.Post, "https://api.openai.com/v1/chat/completions");
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _apiKey);
+            request.Content = new StringContent(jsonContent, Encoding.UTF8, "application/json");
+
+            var response = await _httpClient.SendAsync(request);
+            if (!response.IsSuccessStatusCode)
+            {
+                 var errorDetail = await response.Content.ReadAsStringAsync();
+                 Console.WriteLine($"[VisionService] Batch Summary HTTP Error: {response.StatusCode} - {errorDetail}");
+                 return "Error generating AI summary.";
+            }
+
+            var responseString = await response.Content.ReadAsStringAsync();
+            var result = JsonSerializer.Deserialize<OpenAIResponse>(responseString);
+            return result?.choices?[0]?.message?.content?.Trim() ?? "Summary generation failed.";
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[VisionService] Batch Summary Error: {ex.Message}");
+            return "Error during summary generation.";
+        }
+    }
 }

@@ -12,6 +12,7 @@
 @inject IPurchaseRepository PurchaseRepository
 @using System.IO
 @inject Project65.Web.Services.VideoHealingService VideoHealingService
+@inject Project65.Web.Services.SummaryGenerationService SummaryGenerationService
 @using Microsoft.AspNetCore.SignalR.Client
 @implements IAsyncDisposable
 
@@ -32,6 +33,11 @@ else
         <h1 style="font-size: 2.5rem; margin-bottom: 0.5rem;">@_event.Name</h1>
         <div style="display: flex; gap: 1rem; color: var(--text-secondary); margin-bottom: 1.5rem;">
             <span>@_event.Date.ToLongDateString()</span>
+            @if (!string.IsNullOrEmpty(_event.Location))
+            {
+                <span>•</span>
+                <span>@_event.Location</span>
+            }
             <span>•</span>
             <span>@_event.Clips.Count clips</span>
         </div>
@@ -42,6 +48,14 @@ else
              <button class="btn-secondary" @onclick="CopyLinkAsync">
                  @(_showCopiedMessage ? "Link Copied!" : "Copy Link")
              </button>
+             
+             @* Hiding for now per user request
+             <AuthorizeView Roles="Admin">
+                 <button class="btn-outline-info ms-2" @onclick="RegenerateSummaryAsync" disabled="@_isGeneratingSummary">
+                     @(_isGeneratingSummary ? "Generating..." : "AI Summary")
+                 </button>
+             </AuthorizeView>
+             *@
         </div>
     </div>
 
@@ -95,6 +109,7 @@ else
     private bool _isAuthenticated = false;
     private bool _showCopiedMessage = false;
     private HashSet<string> _purchasedClipIds = new();
+    // private bool _isGeneratingSummary = false; // Unused while AI button is hidden
 
     [CascadingParameter]
     private Task<AuthenticationState> AuthenticationStateTask { get; set; } = null!;
@@ -110,6 +125,34 @@ else
         StateHasChanged();
     }
 
+    /* Unused while AI button is hidden
+    private async Task RegenerateSummaryAsync()
+    {
+        if (_event == null) return;
+        
+        _isGeneratingSummary = true;
+        StateHasChanged();
+        
+        try 
+        {
+            var summary = await SummaryGenerationService.GenerateEventSummaryAsync(_event.Id);
+            if (!string.IsNullOrEmpty(summary) && !summary.StartsWith("Error"))
+            {
+                _event.Summary = summary;
+            }
+            else 
+            {
+                await JSRuntime.InvokeVoidAsync("alert", summary);
+            }
+        }
+        finally
+        {
+            _isGeneratingSummary = false;
+            StateHasChanged();
+        }
+    }
+    */
+
     private async Task ShareEventAsync()
     {
         var uri = Navigation.Uri;
@@ -119,7 +162,6 @@ else
         }
         catch 
         {
-            // Fallback to copy link if share not supported or cancelled
             await CopyLinkAsync();
         }
     }

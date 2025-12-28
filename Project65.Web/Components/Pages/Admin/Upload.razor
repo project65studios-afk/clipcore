@@ -48,6 +48,10 @@
                  <input class="form-control" type="date" @bind="_newEvent.Date" />
              </div>
              <div class="mb-3">
+                 <label class="form-label" style="color: var(--text-secondary); font-size: 0.85rem;">Event Location</label>
+                 <input class="form-control" placeholder="e.g. Los Angeles, CA" @bind="_newEvent.Location" />
+             </div>
+             <div class="mb-3">
                  <label class="form-label" style="color: var(--text-secondary); font-size: 0.85rem;">Summary</label>
                  <textarea class="form-control" placeholder="Brief description of the event..." @bind="_newEvent.Summary" rows="3"></textarea>
              </div>

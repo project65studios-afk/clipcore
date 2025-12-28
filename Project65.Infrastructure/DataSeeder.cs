@@ -51,13 +51,15 @@ public static class DataSeeder
             await userManager.CreateAsync(regularUser, "User123!");
         }
 
-        if (await context.Events.AnyAsync()) return;
-
+        // Check for existing events to update their locations if needed
+        var existingEvents = await context.Events.ToListAsync();
+        
         var events = new List<Event>
         {
             new Event
             {
                 Name = "LA Night Run",
+                Location = "Los Angeles, CA",
                 Date = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-5)),
                 Summary = "Downtown neon sweeps, underpass light trails, and late-night highway ambience.",
                 CreatedAt = DateTime.UtcNow,
@@ -73,6 +75,7 @@ public static class DataSeeder
             new Event
             {
                 Name = "Pacific Blue",
+                Location = "Malibu, CA",
                 Date = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-12)),
                 Summary = "Ocean waves, coastline drones, and deep blue water textures.",
                 CreatedAt = DateTime.UtcNow,
@@ -86,6 +89,7 @@ public static class DataSeeder
             new Event
             {
                 Name = "Warehouse Light Lab",
+                Location = "Brooklyn, NY",
                 Date = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-20)),
                 Summary = "Experimental lighting setups in an abandoned industrial warehouse.",
                 CreatedAt = DateTime.UtcNow,
@@ -97,7 +101,24 @@ public static class DataSeeder
             }
         };
 
-        await context.Events.AddRangeAsync(events);
+        foreach (var evt in events)
+        {
+            var existing = existingEvents.FirstOrDefault(e => e.Name == evt.Name);
+            if (existing != null)
+            {
+                // Update existing event location if missing
+                if (string.IsNullOrEmpty(existing.Location))
+                {
+                    existing.Location = evt.Location;
+                }
+            }
+            else
+            {
+                // Add new event
+                await context.Events.AddAsync(evt);
+            }
+        }
+
         await context.SaveChangesAsync();
     }
 }

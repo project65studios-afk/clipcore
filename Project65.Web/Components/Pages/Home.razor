@@ -45,8 +45,15 @@ else
                 </div>
                 
                 <h3 class="card-title">@evt.Name</h3>
+                @if (!string.IsNullOrEmpty(evt.Location))
+                {
+                    <div style="font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 0.35rem; display: flex; align-items: center; gap: 0.35rem;">
+                         <span>📍</span> @evt.Location
+                    </div>
+                }
                 <div class="card-meta">
-                    @evt.Date.ToString("MMM dd, yyyy") • @(evt.Clips?.Count ?? 0) clips
+                    @evt.Date.ToString("MMM dd, yyyy") 
+                    • @(evt.Clips?.Count ?? 0) clips
                 </div>
                 <p style="font-size: 0.9rem; color: var(--text-muted); margin-top: 0.5rem; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">
                     @evt.Summary

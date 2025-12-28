@@ -46,8 +46,18 @@ public class EventRepository : IEventRepository
 
     public async Task UpdateAsync(Event evt)
     {
-        _context.Events.Update(evt);
-        await _context.SaveChangesAsync();
+        var existing = await _context.Events.FirstOrDefaultAsync(e => e.Id == evt.Id);
+        
+        if (existing != null)
+        {
+            existing.Name = evt.Name;
+            existing.Date = evt.Date;
+            existing.Location = evt.Location;
+            existing.Summary = evt.Summary;
+            // Note: We are not updating CreatedAt or Clips here to avoid complexity
+            
+            await _context.SaveChangesAsync();
+        }
     }
 
     public async Task DeleteAsync(string id)
