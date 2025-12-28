@@ -276,6 +276,20 @@ else
                 }
             </div>
         </div>
+        
+         <!-- Related Clips Section -->
+        @if (_relatedClips.Any())
+        {
+            <div style="margin-top: 4rem;">
+                <h3 class="section-title">Related Clips</h3>
+                 <div class="video-grid">
+                    @foreach (var clip in _relatedClips)
+                    {
+                        <ClipCard Clip="clip" IsPurchased="false" WatermarkUrl="@_watermarkUrl" />
+                    }
+                </div>
+            </div>
+        }
     </div>
 }
 
@@ -284,6 +298,7 @@ else
     public string Id { get; set; } = string.Empty;
 
     private Clip? _clip;
+    private List<Clip> _relatedClips = new();
     private bool _loading = true;
     private bool _hasPurchased = false; 
     private bool _processingPurchase = false;
@@ -345,6 +360,14 @@ else
                 _hasPurchased = await PurchaseRepository.HasPurchasedAsync(_userId, Id);
                 
                 VideoHealingService.OnClipHealed += HandleClipHealed;
+
+                // Load Related Clips
+                string[] tags = Array.Empty<string>();
+                if (!string.IsNullOrEmpty(_clip.TagsJson))
+                {
+                    try { tags = System.Text.Json.JsonSerializer.Deserialize<string[]>(_clip.TagsJson) ?? Array.Empty<string>(); } catch {}
+                }
+                _relatedClips = await ClipRepository.GetRelatedAsync(_clip.EventId, tags, _clip.Id, 4);
                 
                 // Purchase Verification Logic
                 var uri = Navigation.ToAbsoluteUri(Navigation.Uri);

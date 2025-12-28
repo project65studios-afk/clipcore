@@ -30,6 +30,47 @@ public class ClipRepository : IClipRepository
             .ToListAsync();
     }
 
+    public async Task<List<Clip>> GetByEventIdAsync(string eventId)
+    {
+        return await _context.Clips
+            .AsNoTracking()
+            .Where(c => c.EventId == eventId)
+            .OrderBy(c => c.RecordingStartedAt)
+            .ToListAsync();
+    }
+
+    public async Task<List<Clip>> GetRelatedAsync(string eventId, string[] tags, string excludeClipId, int count = 4)
+    {
+        // 1. Get other clips from same event
+        var query = _context.Clips
+            .AsNoTracking()
+            .Where(c => c.EventId == eventId && c.Id != excludeClipId);
+
+        // 2. Fetch all candidates (client-side weighting due to JSON tags)
+        var eventClips = await query.ToListAsync();
+
+        // 3. Weighting Logic
+        var scoredClips = eventClips.Select(c =>
+        {
+            int score = 0;
+            if (!string.IsNullOrEmpty(c.TagsJson))
+            {
+                foreach (var tag in tags)
+                {
+                    if (c.TagsJson.Contains(tag, StringComparison.OrdinalIgnoreCase)) score += 2;
+                }
+            }
+            return new { Clip = c, Score = score };
+        });
+
+        return scoredClips
+            .OrderByDescending(x => x.Score)
+            .ThenByDescending(x => x.Clip.RecordingStartedAt)
+            .Take(count)
+            .Select(x => x.Clip)
+            .ToList();
+    }
+
     public async Task AddAsync(Clip clip)
     {
         await _context.Clips.AddAsync(clip);
