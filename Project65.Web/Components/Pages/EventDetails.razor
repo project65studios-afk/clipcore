@@ -17,6 +17,19 @@
 @implements IAsyncDisposable
 
 <PageTitle>@_event?.Name - Project65</PageTitle>
+<HeadContent>
+    @if (_event != null)
+    {
+        <meta property="og:title" content="@_event.Name | Project65 Studios" />
+        <meta property="og:description" content="@_event.Summary" />
+        <meta property="og:type" content="website" />
+        <meta property="og:url" content="@Navigation.Uri" />
+        @if (_event.Clips.Any() && !string.IsNullOrEmpty(_event.Clips.First().ThumbnailFileName))
+        {
+             <meta property="og:image" content="@($"{Navigation.BaseUri}thumbnails/{_event.Clips.First().ThumbnailFileName}")" />
+        }
+    }
+</HeadContent>
 
 @if (_event == null)
 {
