@@ -180,11 +180,26 @@
                 }
 
                 // 5. Send Branded Email Receipt
-                var customerEmail = await PaymentService.GetCustomerEmailFromSessionAsync(SessionId!) ?? "customer@example.com";
-                var customerName = _purchases.FirstOrDefault()?.CustomerName ?? "Customer";
-                
-                var htmlBody = EmailTemplateService.GenerateOrderReceiptHtml(SessionId!, _purchases, customerName);
-                await EmailService.SendEmailAsync(customerEmail, "Your Project65 Order Receipt", htmlBody);
+                try
+                {
+                    var customerEmail = await PaymentService.GetCustomerEmailFromSessionAsync(SessionId!) ?? "customer@example.com";
+                    var customerName = _purchases.FirstOrDefault()?.CustomerName ?? "Customer";
+                    
+                    var htmlBody = EmailTemplateService.GenerateOrderReceiptHtml(SessionId!, _purchases, customerName);
+                    await EmailService.SendEmailAsync(customerEmail, "Your Project65 Order Receipt", htmlBody);
+                }
+                catch (Exception emailEx)
+                {
+                    // Log the error but don't fail the whole page - the user already paid!
+                    Console.WriteLine($"Failed to send receipt email: {emailEx.Message}");
+                    await AuditService.LogActionAsync(
+                        userId,
+                        null,
+                        "Email Receipt Failed",
+                        "Email",
+                        SessionId,
+                        $"Error: {emailEx.Message}");
+                }
             }
         }
         catch (Exception ex)
