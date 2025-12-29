@@ -87,7 +87,7 @@
         <div class="video-meta">
             <span class="price-tag">$@(Clip.PriceCents / 100.00)</span>
             <span class="dot"></span>
-            <span>@Clip.RecordingStartedAt?.ToString("h:mm tt")</span>
+            <span>@Clip.RecordingStartedAt?.ToLocalTime().ToString("h:mm tt")</span>
         </div>
     </div>
 </div>

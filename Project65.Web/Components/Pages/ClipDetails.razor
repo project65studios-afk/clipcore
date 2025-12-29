@@ -145,7 +145,7 @@ else
                     @if (_clip.RecordingStartedAt.HasValue)
                     {
                         <span style="color: var(--text-muted); font-size: 0.8rem;">•</span>
-                        <p style="color: var(--text-secondary); margin: 0;">Filmed: @_clip.RecordingStartedAt.Value.ToString("MMM dd, yyyy h:mm tt")</p>
+                        <p style="color: var(--text-secondary); margin: 0;">Filmed: @_clip.RecordingStartedAt.Value.ToLocalTime().ToString("MMM dd, yyyy h:mm tt")</p>
                     }
                     <span style="color: var(--text-muted); font-size: 0.8rem;">•</span>
                     <span style="color: var(--accent-cyan); font-weight: 600; font-size: 0.9rem;">
