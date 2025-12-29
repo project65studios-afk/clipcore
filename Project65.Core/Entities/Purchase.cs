@@ -26,6 +26,7 @@ public class Purchase
     public string? ClipThumbnailFileName { get; set; }
     
     public string StripeSessionId { get; set; } = string.Empty;
+    public string OrderId { get; set; } = string.Empty;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
     public FulfillmentStatus FulfillmentStatus { get; set; } = FulfillmentStatus.Pending;

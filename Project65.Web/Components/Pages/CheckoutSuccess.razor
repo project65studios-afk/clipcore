@@ -34,14 +34,9 @@
 
         @if (!string.IsNullOrEmpty(SessionId))
         {
-            <div class="alert alert-info d-inline-block px-4 py-3 mb-4" style="background: rgba(13, 202, 240, 0.1); border-color: rgba(13, 202, 240, 0.2); color: #0dcaf0;">
-                <div class="small text-uppercase fw-bold opacity-75 mb-1">Your Order Number</div>
-                <div class="h3 m-0" style="font-family: monospace; letter-spacing: 2px;">
-                    @(SessionId.Length > 8 ? SessionId.Substring(SessionId.Length - 8).ToUpper() : SessionId)
-                </div>
-                <div class="small mt-2" style="font-size: 0.8rem; opacity: 0.8;">
-                    Keep this to look up your order later.
-                </div>
+            <div class="bg-dark/50 border border-white/10 rounded-xl p-8 mb-8 text-center backdrop-blur-sm">
+                <p class="text-white/40 text-sm uppercase tracking-widest mb-2">Order Number</p>
+                <p class="text-3xl font-bold font-display text-primary tracking-wider">@(_purchases.FirstOrDefault()?.OrderId ?? "PROCESSING")</p>
             </div>
         }
         
@@ -51,7 +46,7 @@
                 @foreach (var p in _purchases)
                 {
                     <li style="margin-bottom: 0.5rem;">
-                        Clip #@p.ClipId 
+                        @(p.ClipTitle ?? $"Clip #{p.ClipId}")
                         <a href="/clips/@p.ClipId" style="color: var(--accent-cyan); margin-left: 0.5rem; font-size: 0.9rem;">View Now →</a>
                     </li>
                 }
@@ -104,7 +99,7 @@
         try
         {
             // 1. Get Purchases from Stripe Session
-            var purchases = await PaymentService.GetPurchasesFromSessionAsync(SessionId!);
+            var purchases = (await PaymentService.GetPurchasesFromSessionAsync(SessionId!)).ToList();
             
             if (purchases.Any())
             {
@@ -117,6 +112,9 @@
                 {
                     userId = user.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
                 }
+
+                // Generate a unique 6-character short hash for this order
+                var shortOrderId = Guid.NewGuid().ToString("N").Substring(0, 6).ToUpper();
                 
                 foreach (var p in purchases)
                 {
@@ -134,7 +132,12 @@
 
                     if (shouldAdd && !string.IsNullOrEmpty(p.ClipId))
                     {
-                        // 2b. Healing Snapshots: If Stripe metadata failed but clip exists in DB, populate snapshots
+                        p.FulfillmentStatus = FulfillmentStatus.Pending;
+                        p.StripeSessionId = SessionId!;
+                        p.OrderId = shortOrderId; 
+                        p.CreatedAt = DateTime.UtcNow;
+
+                        // Healing Snapshots: If Stripe metadata failed but clip exists in DB, populate snapshots
                         var dbClip = await ClipRepository.GetByIdAsync(p.ClipId!);
                         if (dbClip != null)
                         {
@@ -185,7 +188,7 @@
                     var customerEmail = await PaymentService.GetCustomerEmailFromSessionAsync(SessionId!) ?? "customer@example.com";
                     var customerName = _purchases.FirstOrDefault()?.CustomerName ?? "Customer";
                     
-                    var htmlBody = EmailTemplateService.GenerateOrderReceiptHtml(SessionId!, _purchases, customerName);
+                    var htmlBody = EmailTemplateService.GenerateOrderReceiptHtml(shortOrderId, _purchases, customerName);
                     await EmailService.SendEmailAsync(customerEmail, "Your Project65 Order Receipt", htmlBody);
                 }
                 catch (Exception emailEx)

@@ -5,99 +5,77 @@ namespace Project65.Web.Services;
 
 public class EmailTemplateService
 {
-    public string GenerateOrderReceiptHtml(string orderNumber, List<Purchase> purchases, string customerName)
+    public string GenerateOrderReceiptHtml(string orderId, List<Purchase> items, string customerName)
     {
-        var sb = new StringBuilder();
-        int totalCents = purchases.Sum(p => p.PricePaidCents);
-        
-        sb.Append($@"
+        var itemRows = string.Join("\n", items.Select(i => $@"
+            <tr>
+                <td style=""padding: 12px 0;"">
+                    <div style=""font-weight: bold; color: #ffffff;"">{i.ClipTitle}</div>
+                    <div style=""font-size: 12px; color: #a0a0a0;"">{i.EventName}</div>
+                </td>
+                <td style=""padding: 12px 0; text-align: right; color: #ffffff;"">${(i.PricePaidCents / 100.0):N2}</td>
+            </tr>
+        "));
+
+        var total = items.Sum(i => i.PricePaidCents) / 100.0;
+
+        return $@"
 <!DOCTYPE html>
 <html>
 <head>
     <style>
-        body {{ font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; background-color: #f4f4f4; }}
-        .container {{ max-width: 600px; margin: 20px auto; background: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }}
-        .header {{ background: #0f172a; color: #ffffff; padding: 40px 20px; text-align: center; }}
-        .header h1 {{ margin: 0; font-size: 24px; letter-spacing: 1px; }}
-        .content {{ padding: 30px; }}
-        .order-number {{ background: #f8fafc; border: 1px dashed #cbd5e1; padding: 15px; text-align: center; margin-bottom: 25px; border-radius: 6px; }}
-        .order-number span {{ display: block; font-size: 12px; color: #64748b; text-transform: uppercase; font-weight: bold; }}
-        .order-number strong {{ font-size: 20px; color: #0f172a; font-family: monospace; }}
-        .item-list {{ width: 100%; border-collapse: collapse; margin-bottom: 25px; }}
-        .item-list th {{ text-align: left; border-bottom: 2px solid #f1f5f9; padding-bottom: 10px; color: #64748b; font-size: 12px; text-transform: uppercase; }}
-        .item-list td {{ padding: 15px 0; border-bottom: 1px solid #f1f5f9; vertical-align: top; }}
-        .item-title {{ font-weight: bold; color: #0f172a; display: block; }}
-        .item-details {{ font-size: 13px; color: #64748b; }}
-        .price {{ text-align: right; font-weight: bold; color: #0f172a; }}
-        .totals {{ float: right; width: 200px; }}
-        .totals-row {{ display: flex; justify-content: space-between; padding: 5px 0; }}
-        .total {{ font-size: 18px; font-weight: bold; color: #0f172a; border-top: 2px solid #f1f5f9; margin-top: 10px; padding-top: 10px; }}
-        .footer {{ background: #f8fafc; padding: 20px; text-align: center; font-size: 12px; color: #94a3b8; }}
-        .btn {{ display: inline-block; background: #0ea5e9; color: #ffffff; padding: 12px 25px; text-decoration: none; border-radius: 6px; font-weight: bold; margin-top: 20px; }}
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap');
     </style>
 </head>
-<body>
-    <div class='container'>
-        <div class='header'>
-            <h1>Order Confirmed</h1>
+<body style=""margin: 0; padding: 0; background-color: #0d0d0d; font-family: 'Inter', -apple-system, sans-serif; color: #ffffff;"">
+    <div style=""max-width: 600px; margin: 0 auto; background-color: #1a1a1a; border-radius: 12px; overflow: hidden; margin-top: 40px; margin-bottom: 40px; border: 1px solid #333333;"">
+        <!-- Header -->
+        <div style=""background-color: #0d0d0d; padding: 40px; text-align: center; border-bottom: 1px solid #333333;"">
+            <h1 style=""margin: 0; font-size: 28px; letter-spacing: 2px; text-transform: uppercase;"">Order Confirmed</h1>
         </div>
-        <div class='content'>
-            <p>Hi {customerName},</p>
-            <p>Thank you for your purchase from Project65 Studios! Your order has been processed successfully.</p>
-            
-            <div class='order-number'>
-                <span>Order Number</span>
-                <strong>{orderNumber.ToUpper()}</strong>
+
+        <!-- Body -->
+        <div style=""padding: 40px;"">
+            <p style=""font-size: 16px; line-height: 1.6; color: #e0e0e0;"">Hi {customerName},</p>
+            <p style=""font-size: 16px; line-height: 1.6; color: #e0e0e0;"">Thank you for your purchase from Project65 Studios! Your order has been processed successfully.</p>
+
+            <!-- Order Box -->
+            <div style=""background-color: #0d0d0d; border-radius: 8px; border: 1px dashed #444444; padding: 24px; margin: 32px 0; text-align: center;"">
+                <div style=""font-size: 12px; color: #888888; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 8px;"">Order Number</div>
+                <div style=""font-size: 32px; font-weight: bold; color: #3b82f6; letter-spacing: 2px;"">{orderId}</div>
             </div>
 
-            <table class='item-list'>
+            <!-- Items -->
+            <table style=""width: 100%; border-collapse: collapse; margin-bottom: 32px;"">
                 <thead>
-                    <tr>
-                        <th>Item</th>
-                        <th style='text-align: right;'>Price</th>
+                    <tr style=""border-bottom: 1px solid #333333;"">
+                        <th style=""text-align: left; padding-bottom: 12px; color: #888888; font-size: 12px; text-transform: uppercase;"">Item</th>
+                        <th style=""text-align: right; padding-bottom: 12px; color: #888888; font-size: 12px; text-transform: uppercase;"">Price</th>
                     </tr>
                 </thead>
-                <tbody>");
-
-        foreach (var p in purchases)
-        {
-            var eventName = p.EventName ?? "Event";
-            var clipTitle = p.ClipTitle ?? $"Clip #{p.ClipId}";
-            sb.Append($@"
-                    <tr>
-                        <td>
-                            <span class='item-title'>{clipTitle}</span>
-                            <span class='item-details'>{eventName}</span>
-                        </td>
-                        <td class='price'>${(p.PricePaidCents / 100.0).ToString("N2")}</td>
-                    </tr>");
-        }
-
-        sb.Append($@"
+                <tbody>
+                    {itemRows}
                 </tbody>
+                <tfoot>
+                    <tr style=""border-top: 2px solid #333333;"">
+                        <td style=""padding-top: 16px; font-weight: bold; font-size: 18px;"">Total</td>
+                        <td style=""padding-top: 16px; text-align: right; font-weight: bold; font-size: 18px; color: #3b82f6;"">${total:N2}</td>
+                    </tr>
+                </tfoot>
             </table>
 
-            <div style='overflow: hidden;'>
-                <div class='totals'>
-                    <div class='total totals-row'>
-                        <span>Total Paid</span>
-                        <span>${(totalCents / 100.0).ToString("N2")}</span>
-                    </div>
-                </div>
-            </div>
-
-            <div style='text-align: center;'>
-                <a href='https://project65.com/my-purchases' class='btn'>View Your Clips</a>
-            </div>
+            <p style=""font-size: 14px; color: #888888; text-align: center; margin-top: 40px;"">
+                You can access your high-resolution downloads anytime from your dashboard.
+            </p>
         </div>
-        <div class='footer'>
-            &copy; {DateTime.UtcNow.Year} Project65 Studios. All rights reserved.<br/>
-            If you have any questions, please reply to this email.
+
+        <!-- Footer -->
+        <div style=""background-color: #0d0d0d; padding: 24px; text-align: center; border-top: 1px solid #333333; font-size: 12px; color: #666666;"">
+            &copy; {DateTime.UtcNow.Year} Project65 Studios. All rights reserved.
         </div>
     </div>
 </body>
-</html>");
-
-        return sb.ToString();
+</html>
+" ;
     }
 }
