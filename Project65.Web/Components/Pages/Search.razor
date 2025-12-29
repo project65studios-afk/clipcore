@@ -143,7 +143,10 @@
                 {
                     var userId = user.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
                     var purchases = await PurchaseRepository.GetByUserIdAsync(userId);
-                    _purchasedClipIds = purchases.Select(p => p.ClipId).ToHashSet();
+                    _purchasedClipIds = purchases
+                        .Where(p => !string.IsNullOrEmpty(p.ClipId))
+                        .Select(p => p.ClipId!)
+                        .ToHashSet();
                 }
             }
         }

@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Components.Server.ProtectedBrowserStorage;
 using Project65.Web.Models;
+using Project65.Core.Entities;
 
 namespace Project65.Web.Services;
 
@@ -12,6 +13,9 @@ public class CartService
     public event Action? OnChange;
 
     private readonly SemaphoreSlim _semaphore = new(1, 1);
+
+    private PromoCode? _appliedPromo;
+    public PromoCode? AppliedPromoCode => _appliedPromo;
 
     public CartService(ProtectedLocalStorage storage)
     {
@@ -27,11 +31,18 @@ public class CartService
         {
             if (_isInitialized) return;
 
-            var result = await _storage.GetAsync<List<CartItem>>("cart_items");
-            if (result.Success && result.Value != null)
+            var cartResult = await _storage.GetAsync<List<CartItem>>("cart_items");
+            if (cartResult.Success && cartResult.Value != null)
             {
-                _cart = result.Value;
+                _cart = cartResult.Value;
             }
+
+            var promoResult = await _storage.GetAsync<PromoCode>("applied_promo");
+            if (promoResult.Success && promoResult.Value != null)
+            {
+                _appliedPromo = promoResult.Value;
+            }
+
             _isInitialized = true;
             NotifyStateChanged();
         }
@@ -70,10 +81,26 @@ public class CartService
         }
     }
 
+    public async Task ApplyPromoAsync(PromoCode promo)
+    {
+        _appliedPromo = promo;
+        await _storage.SetAsync("applied_promo", _appliedPromo);
+        NotifyStateChanged();
+    }
+
+    public async Task RemovePromoAsync()
+    {
+        _appliedPromo = null;
+        await _storage.DeleteAsync("applied_promo");
+        NotifyStateChanged();
+    }
+
     public async Task ClearAsync()
     {
         _cart.Clear();
+        _appliedPromo = null;
         await _storage.DeleteAsync("cart_items");
+        await _storage.DeleteAsync("applied_promo");
         NotifyStateChanged();
     }
 
@@ -81,15 +108,17 @@ public class CartService
     
     public int Count => _cart.Count;
     
-    
-    
     public long SubTotalCents => _cart.Sum(c => c.PriceCents);
     
-    public bool IsDiscountApplied => Count >= 3;
+    public bool IsBundleDiscountApplied => Count >= 3;
     
-    public long DiscountAmountCents => IsDiscountApplied ? (long)(SubTotalCents * 0.25) : 0;
+    public long BundleDiscountCents => IsBundleDiscountApplied ? (long)(SubTotalCents * 0.25) : 0;
     
-    public long TotalPriceCents => SubTotalCents - DiscountAmountCents;
+    public long PromoDiscountCents => _appliedPromo?.CalculateDiscount(SubTotalCents) ?? 0;
+
+    public long TotalDiscountCents => Math.Max(BundleDiscountCents, PromoDiscountCents);
+    
+    public long TotalPriceCents => SubTotalCents - TotalDiscountCents;
 
     private async Task SaveCartAsync()
     {

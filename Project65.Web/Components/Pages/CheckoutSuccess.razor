@@ -9,6 +9,8 @@
 @inject IEmailService EmailService
 @inject NavigationManager Navigation
 @inject AuthenticationStateProvider AuthenticationStateProvider
+@inject IPromoCodeRepository PromoCodeRepository
+@inject IAuditService AuditService
 @rendermode RenderMode.InteractiveServer
 
 <PageTitle>Order Confirmed - Project65</PageTitle>
@@ -119,9 +121,9 @@
                 {
                     if (p.UserId == null) p.UserId = userId; 
                     
-                    // Only check duplication if we have a userId
+                    // Only check duplication if we have a userId and ClipId
                     bool shouldAdd = true;
-                    if (!string.IsNullOrEmpty(p.UserId))
+                    if (!string.IsNullOrEmpty(p.UserId) && !string.IsNullOrEmpty(p.ClipId))
                     {
                          if (await PurchaseRepository.HasPurchasedAsync(p.UserId, p.ClipId))
                          {
@@ -129,10 +131,10 @@
                          }
                     }
 
-                    if (shouldAdd)
+                    if (shouldAdd && !string.IsNullOrEmpty(p.ClipId))
                     {
                         // 2b. Healing Snapshots: If Stripe metadata failed but clip exists in DB, populate snapshots
-                        var dbClip = await ClipRepository.GetByIdAsync(p.ClipId);
+                        var dbClip = await ClipRepository.GetByIdAsync(p.ClipId!);
                         if (dbClip != null)
                         {
                             if (string.IsNullOrEmpty(p.ClipTitle)) p.ClipTitle = dbClip.Title;
@@ -161,7 +163,22 @@
                 await CartService.InitializeAsync();
                 await CartService.ClearAsync();
 
-                // 4. Send Email
+                // 4. Handle Promo Code Usage
+                var promoId = await PaymentService.GetPromoCodeIdFromSessionAsync(SessionId!);
+                if (promoId.HasValue)
+                {
+                    await PromoCodeRepository.IncrementUsageAsync(promoId.Value);
+                    var promo = await PromoCodeRepository.GetByIdAsync(promoId.Value);
+                    await AuditService.LogActionAsync(
+                        userId, 
+                        null, 
+                        "Apply Promo Code", 
+                        "PromoCode", 
+                        promoId.Value.ToString(), 
+                        $"Code: {promo?.Code ?? "Unknown"} used in order {SessionId}");
+                }
+
+                // 5. Send Email
                 var customerEmail = await PaymentService.GetCustomerEmailFromSessionAsync(SessionId!) ?? "customer@example.com";
                 await EmailService.SendEmailAsync(customerEmail, "Order Receipt", $"You purchased {purchases.Count} items.");
             }

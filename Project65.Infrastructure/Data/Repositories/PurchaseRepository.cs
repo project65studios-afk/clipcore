@@ -30,7 +30,7 @@ public class PurchaseRepository : IPurchaseRepository
         return await _context.Purchases
             .AsNoTracking()
             .Include(p => p.Clip)
-            .ThenInclude(c => c.Event)
+            .ThenInclude(c => c!.Event)
             .Where(p => p.UserId == userId)
             .OrderByDescending(p => p.CreatedAt)
             .ToListAsync();
@@ -41,7 +41,7 @@ public class PurchaseRepository : IPurchaseRepository
         return await _context.Purchases
             .AsNoTracking()
             .Include(p => p.Clip)
-            .ThenInclude(c => c.Event)
+            .ThenInclude(c => c!.Event)
             .Where(p => p.CustomerEmail != null && p.CustomerEmail.ToLower() == email.ToLower())
             .OrderByDescending(p => p.CreatedAt)
             .ToListAsync();
@@ -52,7 +52,7 @@ public class PurchaseRepository : IPurchaseRepository
         return await _context.Purchases
             .AsNoTracking()
             .Include(p => p.Clip)
-            .ThenInclude(c => c.Event)
+            .ThenInclude(c => c!.Event)
             .Where(p => 
                 (p.CustomerEmail != null && p.CustomerEmail.ToLower() == email.ToLower()) &&
                 p.StripeSessionId.EndsWith(partialOrderId)
@@ -66,7 +66,7 @@ public class PurchaseRepository : IPurchaseRepository
         return await _context.Purchases
             .AsNoTracking()
             .Include(p => p.Clip)
-            .ThenInclude(c => c.Event)
+            .ThenInclude(c => c!.Event)
             .OrderByDescending(p => p.CreatedAt)
             .ToListAsync();
     }

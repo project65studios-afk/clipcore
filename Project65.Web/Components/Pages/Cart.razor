@@ -8,6 +8,8 @@
 @inject IEventRepository EventRepository
 @implements IDisposable
 @inject AuthenticationStateProvider AuthenticationStateProvider
+@inject IPromoCodeRepository PromoCodeRepository
+@inject IJSRuntime JS
 @rendermode RenderMode.InteractiveServer
 
 <PageTitle>Shopping Cart - Project65</PageTitle>
@@ -66,10 +68,24 @@
         </div>
 
         <div style="background: var(--bg-dark-800); padding: 1.5rem; border-radius: var(--radius-lg); border: 1px solid var(--border-color);">
-            @if (CartService.IsDiscountApplied)
+            <div style="margin-bottom: 2rem; display: flex; gap: 0.5rem;">
+                <input class="form-control" style="background: var(--bg-dark-700); border-color: var(--border-color); color: var(--text-primary); text-transform: uppercase;" @bind="_promoInput" placeholder="Promo Code" disabled="@_isApplyingPromo" />
+                <button class="btn-secondary" style="white-space: nowrap;" @onclick="ApplyPromoAsync" disabled="@(string.IsNullOrWhiteSpace(_promoInput) || _isApplyingPromo)">
+                    @(_isApplyingPromo ? "..." : "Apply")
+                </button>
+            </div>
+
+            @if (CartService.IsBundleDiscountApplied)
             {
                 <div style="background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.2); color: #34d399; padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem; text-align: center; font-weight: 500;">
                     🎉 Volume Discount Unlocked: 25% Off!
+                </div>
+            }
+            else if (CartService.AppliedPromoCode != null)
+            {
+                 <div style="background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.2); color: #34d399; padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem; text-align: center; font-weight: 500; display: flex; justify-content: center; align-items: center; gap: 0.5rem;">
+                    <span>🎟️ Promo Applied: <strong>@CartService.AppliedPromoCode.Code</strong></span>
+                    <button class="btn-link" style="color: #ef4444; font-size: 0.8rem; text-decoration: none; padding: 0; border: none; background: none; cursor: pointer;" @onclick="CartService.RemovePromoAsync">Remove</button>
                 </div>
             }
             else
@@ -81,18 +97,25 @@
 
             <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem; font-size: 1rem; color: var(--text-muted);">
                 <span>Subtotal</span>
-                <span style="@(CartService.IsDiscountApplied ? "text-decoration: line-through;" : "")">$@(CartService.SubTotalCents / 100.00)</span>
+                <span style="@(CartService.TotalDiscountCents > 0 ? "text-decoration: line-through;" : "")">$@(CartService.SubTotalCents / 100.00)</span>
             </div>
 
-            @if (CartService.IsDiscountApplied)
+            @if (CartService.BundleDiscountCents > 0 && CartService.BundleDiscountCents >= CartService.PromoDiscountCents)
             {
                 <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem; font-size: 1rem; color: #34d399;">
-                    <span>Discount (25%)</span>
-                    <span>-$@((CartService.DiscountAmountCents / 100.00).ToString("N2"))</span>
+                    <span>Volume Discount (25%)</span>
+                    <span>-$@((CartService.BundleDiscountCents / 100.00).ToString("N2"))</span>
+                </div>
+            }
+            else if (CartService.PromoDiscountCents > 0)
+            {
+                 <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem; font-size: 1rem; color: #34d399;">
+                    <span>Promo Discount (@(CartService.AppliedPromoCode?.Code))</span>
+                    <span>-$@((CartService.PromoDiscountCents / 100.00).ToString("N2"))</span>
                 </div>
             }
 
-            <div style="display: flex; justify-content: space-between; margin-bottom: 1.5rem; font-size: 1.25rem; font-weight: 700; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 1rem;">
+            <div style="display: flex; justify-content: space-between; margin-bottom: 1.5rem; font-size: 1.25rem; font-weight: 700; border-top: 1px solid var(--border-color); padding-top: 1rem;">
                 <span>Total</span>
                 <span>$@((CartService.TotalPriceCents / 100.00).ToString("N2"))</span>
             </div>
@@ -157,6 +180,38 @@
         await CartService.RemoveAsync(item.Id);
     }
 
+    private string _promoInput = "";
+    private bool _isApplyingPromo = false;
+
+    private async Task ApplyPromoAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_promoInput)) return;
+
+        _isApplyingPromo = true;
+        try
+        {
+            var code = _promoInput.Trim().ToUpper();
+            var promo = await PromoCodeRepository.GetByCodeAsync(code);
+
+            if (promo == null || !promo.IsValid())
+            {
+                await JS.InvokeVoidAsync("alert", "Invalid or expired promo code.");
+                return;
+            }
+
+            await CartService.ApplyPromoAsync(promo);
+            _promoInput = "";
+        }
+        catch (Exception ex)
+        {
+            await JS.InvokeVoidAsync("alert", $"Error: {ex.Message}");
+        }
+        finally
+        {
+            _isApplyingPromo = false;
+        }
+    }
+
     private async Task CheckoutAsync()
     {
         var items = CartService.GetItems();
@@ -173,16 +228,44 @@
             userEmail = user.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value ?? user.Identity.Name;
         }
 
+        // Calculate final prices after best available discount
+        double discountFactor = 1.0;
+        string discountLabel = "";
+
+        if (CartService.TotalDiscountCents > 0)
+        {
+            if (CartService.BundleDiscountCents >= CartService.PromoDiscountCents)
+            {
+                discountFactor = 0.75; // 25% off
+                discountLabel = " (25% Bundle Offer)";
+            }
+            else
+            {
+                // For promo codes, it's either percentage or fixed.
+                // If it's percentage, we use the factor. If it's fixed, we redistribute it.
+                var promo = CartService.AppliedPromoCode!;
+                if (promo.DiscountType == DiscountType.Percentage)
+                {
+                    discountFactor = (100 - promo.Value) / 100.0;
+                    discountLabel = $" ({promo.Value}% Promo)";
+                }
+                else
+                {
+                    // Fixed redistribution
+                    discountFactor = (double)CartService.TotalPriceCents / CartService.SubTotalCents;
+                    discountLabel = $" (Promo Discount Applied)";
+                }
+            }
+        }
+
         var checkoutItems = items.Select(i => new Project65.Core.DTOs.CheckoutItem 
         {
             Id = i.Id,
-            Title = i.Title + (CartService.IsDiscountApplied ? " (25% Bundle Offer)" : ""),
-            PriceCents = CartService.IsDiscountApplied 
-                ? (int)(i.PriceCents * 0.75) // Apply 25% discount individually to each item
-                : i.PriceCents
+            Title = i.Title + discountLabel,
+            PriceCents = (int)Math.Round(i.PriceCents * discountFactor)
         });
 
-        var url = await PaymentService.CreateCheckoutSessionAsync(checkoutItems, successUrl, cancelUrl, userEmail);
+        var url = await PaymentService.CreateCheckoutSessionAsync(checkoutItems, successUrl, cancelUrl, userEmail, null, CartService.AppliedPromoCode?.Id);
         Navigation.NavigateTo(url);
     }
 

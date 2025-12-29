@@ -17,7 +17,7 @@ public class StripePaymentService : IPaymentService
         StripeConfiguration.ApiKey = _apiKey; // Global setting, simpler for MVP
     }
 
-    public async Task<string> CreateCheckoutSessionAsync(IEnumerable<CheckoutItem> items, string successUrl, string cancelUrl, string? userEmail = null, string? userId = null)
+    public async Task<string> CreateCheckoutSessionAsync(IEnumerable<CheckoutItem> items, string successUrl, string cancelUrl, string? userEmail = null, string? userId = null, int? promoCodeId = null)
     {
         var itemsList = items.ToList();
         Console.WriteLine($"[STRIPE] Creating Session for {itemsList.Count} items.");
@@ -58,6 +58,11 @@ public class StripePaymentService : IPaymentService
         {
             { "ClipIds", string.Join(",", clipIds) }
         };
+
+        if (promoCodeId.HasValue)
+        {
+            sessionMetadata["PromoCodeId"] = promoCodeId.Value.ToString();
+        }
 
         // Add backup snapshots to session metadata (up to limit of 50 keys)
         for (int i = 0; i < Math.Min(itemsList.Count, 20); i++) // Increased limit
@@ -306,5 +311,16 @@ public class StripePaymentService : IPaymentService
         var service = new SessionService();
         var session = await service.GetAsync(sessionId);
         return session.CustomerDetails?.Email ?? session.CustomerEmail;
+    }
+
+    public async Task<int?> GetPromoCodeIdFromSessionAsync(string sessionId)
+    {
+        var service = new SessionService();
+        var session = await service.GetAsync(sessionId);
+        if (session.Metadata.TryGetValue("PromoCodeId", out var promoIdStr) && int.TryParse(promoIdStr, out var promoId))
+        {
+            return promoId;
+        }
+        return null;
     }
 }
