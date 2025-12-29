@@ -1,4 +1,4 @@
-@page "/admin/events"
+@page "/admin"
 @using Project65.Core.Entities
 @using Project65.Core.Interfaces
 @using Microsoft.AspNetCore.Authorization
@@ -8,6 +8,7 @@
 @inject IJSRuntime JS
 @inject NavigationManager Navigation
 @inject IStorageService StorageService
+@inject IAuditService AuditService
 @rendermode RenderMode.InteractiveServer
 
 <div class="admin-container" style="max-width: 1000px; margin: 2rem auto; padding: 0 1rem;">
@@ -15,6 +16,7 @@
         <h1 style="font-size: 2rem; margin: 0;">Admin Portal</h1>
         <div class="admin-actions" style="display: flex; gap: 1rem;">
             <a href="/admin/sales" class="btn-secondary" style="text-decoration: none;">📊 Sales</a>
+            <a href="/admin/audit-logs" class="btn-secondary" style="text-decoration: none;">📝 Logs</a>
             <a href="/admin/settings" class="btn-secondary" style="text-decoration: none;">⚙️ Settings</a>
             <a href="/admin/upload" class="btn-primary" style="text-decoration: none;">+ Upload New Clip</a>
         </div>
@@ -130,6 +132,9 @@
     private Event? _eventToDelete;
     private Event? _eventToEdit;
 
+    [CascadingParameter]
+    private Task<AuthenticationState> AuthenticationStateTask { get; set; } = null!;
+
     protected override async Task OnInitializedAsync()
     {
         await LoadEventsAsync();
@@ -170,6 +175,21 @@
         try
         {
             await EventRepository.UpdateAsync(_eventToEdit);
+            
+            // Log the action
+            var authState = await AuthenticationStateTask;
+            var user = authState.User;
+            var userId = user.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            var userEmail = user.Identity?.Name;
+
+            await AuditService.LogActionAsync(
+                userId, 
+                userEmail, 
+                "Update Event", 
+                "Event", 
+                _eventToEdit.Id, 
+                $"Event info updated: {_eventToEdit.Name} ({_eventToEdit.Date.ToShortDateString()})");
+
             await LoadEventsAsync();
             _isEditing = false;
             _eventToEdit = null;
@@ -226,6 +246,20 @@
             // 3. Delete from DB
             await EventRepository.DeleteAsync(_eventToDelete.Id);
             
+            // Log the action
+            var authState = await AuthenticationStateTask;
+            var user = authState.User;
+            var userId = user.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            var userEmail = user.Identity?.Name;
+
+            await AuditService.LogActionAsync(
+                userId, 
+                userEmail, 
+                "Delete Event", 
+                "Event", 
+                _eventToDelete.Id, 
+                $"Event deleted: {_eventToDelete.Name} with {_eventToDelete.Clips.Count} clips");
+
             // 3. Refresh
             await LoadEventsAsync();
             _isDeleting = false;

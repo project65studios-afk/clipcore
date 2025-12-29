@@ -10,6 +10,7 @@
 @inject IJSRuntime JSRuntime
 @inject IStorageService StorageService
 @inject IEmailService EmailService
+@inject IAuditService AuditService
 @rendermode RenderMode.InteractiveServer
 
 <div class="container-fluid py-4">
@@ -300,6 +301,9 @@
     private bool _showModal = false;
     private Purchase? _selectedPurchase;
 
+    [CascadingParameter]
+    private Task<AuthenticationState> AuthenticationStateTask { get; set; } = null!;
+
     
     // Upload State
     private string _uploadError = "";
@@ -403,6 +407,20 @@
              _selectedPurchase.FulfillmentStatus = FulfillmentStatus.Fulfilled;
              _selectedPurchase.FulfilledAt = DateTime.UtcNow;
              await PurchaseRepository.UpdateAsync(_selectedPurchase);
+             
+             // Log the action
+             var authState = await AuthenticationStateTask;
+             var user = authState.User;
+             var userId = user.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+             var userEmail = user.Identity?.Name;
+
+             await AuditService.LogActionAsync(
+                 userId, 
+                 userEmail, 
+                 "Fulfill Item", 
+                 "Purchase", 
+                 _selectedPurchase.Id.ToString(), 
+                 $"Item fulfilled. MasterFileName: {_pendingMasterFileName}");
                  
              CloseModal();
              await LoadDataAsync();
@@ -435,6 +453,20 @@
                 await PurchaseRepository.UpdateAsync(p);
             }
         }
+
+        // Log the action
+        var authStateFinal = await AuthenticationStateTask;
+        var userFinal = authStateFinal.User;
+        var userIdFinal = userFinal.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        var userEmailFinal = userFinal.Identity?.Name;
+
+        await AuditService.LogActionAsync(
+            userIdFinal, 
+            userEmailFinal, 
+            "Complete Order", 
+            "Order", 
+            firstItem.StripeSessionId ?? "Legacy", 
+            $"Order completed and notification sent to {customerEmail}. Items: {order.Count}");
 
         // Send Email Notification
         if (!string.IsNullOrEmpty(customerEmail))

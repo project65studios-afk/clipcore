@@ -15,6 +15,7 @@
 @inject Project65.Web.Services.CartService CartService
 @inject IStorageService StorageService
 @inject Project65.Web.Services.VideoHealingService VideoHealingService
+@inject IAuditService AuditService
 @using Microsoft.AspNetCore.SignalR.Client
 @implements IAsyncDisposable
 
@@ -337,8 +338,24 @@ else
     {
         if (_clip != null)
         {
+            var oldPrice = _clip.PriceCents;
             _clip.PriceCents = (int)Math.Round(_editingPrice * 100);
             await ClipRepository.UpdateAsync(_clip);
+
+            // Log the action
+            var authState = await AuthenticationStateTask;
+            var user = authState.User;
+            var userId = user.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            var userEmail = user.Identity?.Name;
+            
+            await AuditService.LogActionAsync(
+                userId, 
+                userEmail, 
+                "Update Price", 
+                "Clip", 
+                _clip.Id, 
+                $"Price changed from ${oldPrice/100.0} to ${_clip.PriceCents/100.0}");
+
             _isEditingPrice = false;
         }
     }

@@ -15,6 +15,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<Purchase> Purchases { get; set; } = null!;
     public DbSet<Setting> Settings { get; set; } = null!;
     public DbSet<DailyWatchUsage> DailyWatchUsages { get; set; } = null!;
+    public DbSet<AuditLog> AuditLogs { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

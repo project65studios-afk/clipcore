@@ -8,6 +8,7 @@
 @inject IClipRepository ClipRepository
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
+@inject IAuditService AuditService
 @rendermode RenderMode.InteractiveServer
 
 <h1>Upload Clips</h1>
@@ -198,6 +199,20 @@
 
         await ClipRepository.AddAsync(clip);
         
+        // Log the action
+        var authState = await AuthenticationStateTask;
+        var user = authState.User;
+        var userId = user.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        var userEmail = user.Identity?.Name;
+
+        await AuditService.LogActionAsync(
+            userId, 
+            userEmail, 
+            "Upload Clip", 
+            "Clip", 
+            clip.Id, 
+            $"New clip uploaded: {clip.Title} for Event ID: {clip.EventId}");
+
         // Start background polling to resolve Asset ID and Playback ID for thumbnails
         _ = ResolveMuxDetailsAsync(clip);
     }
@@ -293,6 +308,21 @@
             await EventRepository.AddAsync(_newEvent);
             _events = await EventRepository.ListAsync();
             _selectedEventId = _newEvent.Id;
+            
+            // Log the action
+            var authState = await AuthenticationStateTask;
+            var user = authState.User;
+            var userId = user.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            var userEmail = user.Identity?.Name;
+
+            await AuditService.LogActionAsync(
+                userId, 
+                userEmail, 
+                "Create Event", 
+                "Event", 
+                _selectedEventId, 
+                $"New event created: {_newEvent.Name} ({_newEvent.Date.ToShortDateString()})");
+
             _isCreatingEvent = false;
             _newEvent = new() { Id = Guid.NewGuid().ToString(), Date = DateOnly.FromDateTime(DateTime.Now) };
         }

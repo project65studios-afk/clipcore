@@ -7,6 +7,7 @@
 @attribute [Authorize(Roles = "Admin")]
 @inject ISettingsRepository SettingsRepository
 @inject IWebHostEnvironment Environment
+@inject IAuditService AuditService
 
 <div class="mb-4">
     <div class="admin-header d-flex justify-content-between align-items-center">
@@ -14,7 +15,7 @@
             <h1 style="font-size: 2rem; margin-bottom: 0.5rem;">Settings</h1>
             <p class="text-secondary">Configure global storefront options.</p>
         </div>
-        <a href="/admin/events" class="btn-secondary">Back to Dashboard</a>
+        <a href="/admin" class="btn-secondary">Back to Dashboard</a>
     </div>
 </div>
 
@@ -106,6 +107,9 @@
     private bool _showSuccess;
     private bool _useUpload = true;
 
+    [CascadingParameter]
+    private Task<AuthenticationState> AuthenticationStateTask { get; set; } = null!;
+
     protected override async Task OnInitializedAsync()
     {
         _watermarkUrl = await SettingsRepository.GetValueAsync("WatermarkUrl");
@@ -175,6 +179,20 @@
             await SettingsRepository.SetValueAsync("DefaultPrice", _defaultPrice.ToString());
             await SettingsRepository.SetValueAsync("MaintenanceMode", _maintenanceMode ? "true" : "false");
             
+            // Log the action
+            var authState = await AuthenticationStateTask;
+            var user = authState.User;
+            var userId = user.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            var userEmail = user.Identity?.Name;
+
+            await AuditService.LogActionAsync(
+                userId, 
+                userEmail, 
+                "Update Settings", 
+                "Settings", 
+                "Global", 
+                $"Settings updated. StoreName: {_storeName}, SupportEmail: {_supportEmail}, Price: ${_defaultPrice}, Maintenance: {_maintenanceMode}");
+
             _showSuccess = true;
             // Hide success message after 3 seconds
             _ = Task.Delay(3000).ContinueWith(_ => { _showSuccess = false; InvokeAsync(StateHasChanged); });

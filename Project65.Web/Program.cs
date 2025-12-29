@@ -65,7 +65,8 @@ builder.Services.AddScoped<IStorageService, R2StorageService>();
 builder.Services.AddScoped<IPaymentService, StripePaymentService>();
 builder.Services.AddScoped<IPurchaseRepository, PurchaseRepository>();
 builder.Services.AddScoped<ISettingsRepository, SettingsRepository>();
-builder.Services.AddScoped<ISettingsRepository, SettingsRepository>();
+builder.Services.AddScoped<IAuditRepository, AuditRepository>();
+builder.Services.AddScoped<IAuditService, AuditService>();
 
 if (!string.IsNullOrEmpty(builder.Configuration["AWS:AccessKeyId"]))
 {
