@@ -66,7 +66,7 @@
                                     <div>@(purchase.CustomerName ?? "Guest")</div>
                                     <div style="font-size: 0.8rem; color: var(--text-muted);">@purchase.CustomerEmail</div>
                                 </td>
-                                <td style="padding: 1rem;">@(purchase.Clip?.Title ?? "Unknown Clip")</td>
+                                <td style="padding: 1rem;">@(purchase.Clip?.Title ?? purchase.ClipTitle ?? "Deleted Clip")</td>
                                 <td style="padding: 1rem; text-align: right; font-weight: 600;">$@(purchase.PricePaidCents / 100.00)</td>
                             </tr>
                         }

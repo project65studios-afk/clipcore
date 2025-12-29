@@ -76,7 +76,7 @@
                                             
                                             <!-- Order Completion Logic -->
                                             @{
-                                                var allFilesUploaded = order.All(p => p.Clip != null && !string.IsNullOrEmpty(p.Clip.MasterFileName));
+                                                var allFilesUploaded = order.All(p => !string.IsNullOrEmpty(p.Clip?.MasterFileName) || !string.IsNullOrEmpty(p.ClipMasterFileName));
                                                 var isFullyFulfilled = order.All(p => p.FulfillmentStatus == FulfillmentStatus.Fulfilled);
                                             }
 
@@ -151,26 +151,51 @@
                                         {
                                             <tr>
                                                 <td class="ps-4">
-                                                    <div class="fw-bold text-dark">@p.Clip.Title</div>
+                                                    <div class="fw-bold text-dark">@(p.Clip?.Title ?? p.ClipTitle ?? "Deleted Clip")</div>
                                                     <div class="small text-muted font-monospace mt-1">
                                                         <i class="bi bi-file-earmark-film me-1"></i>
-                                                        @(p.Clip.MasterFileName ?? "No Master File")
+                                                        @(p.Clip?.MasterFileName ?? p.ClipMasterFileName ?? "No Master File")
                                                     </div>
+                                                    @{
+                                                        var startTime = p.Clip?.RecordingStartedAt ?? p.ClipRecordingStartedAt;
+                                                    }
+                                                    @if (startTime.HasValue)
+                                                    {
+                                                        <div class="small text-secondary mt-1">
+                                                            <i class="bi bi-clock me-1"></i> @startTime.Value.ToLocalTime().ToString("h:mm tt")
+                                                        </div>
+                                                    }
                                                 </td>
                                                 <td>
-                                                    @if (p.Clip.Event != null)
+                                                    @if (!string.IsNullOrEmpty(p.EventName))
+                                                    {
+                                                        <div class="text-dark">@p.EventName</div>
+                                                        @if (p.EventDate.HasValue)
+                                                        {
+                                                            <div class="small text-secondary">@p.EventDate.Value.ToString("d")</div>
+                                                        }
+                                                        @if (p.ClipId == null || p.Clip?.Event == null)
+                                                        {
+                                                            <span class="text-muted fst-italic small" style="font-size: 0.65rem;">(Snapshotted Data)</span>
+                                                        }
+                                                    }
+                                                    else if (p.Clip?.Event != null)
                                                     {
                                                         <div class="text-dark">@p.Clip.Event.Name</div>
                                                         <div class="small text-secondary">@p.Clip.Event.Date.ToString("d")</div>
                                                     }
                                                     else
                                                     {
-                                                        <span class="text-muted fst-italic">Unknown Event</span>
+                                                        <div class="text-danger fst-italic small">Unknown Event</div>
+                                                        <div class="text-muted extra-small" style="font-size: 0.6rem;">Missing Snapshot</div>
                                                     }
                                                 </td>
                                                 <td>
-                                                    <div class="text-dark fw-bold">$@((p.PricePaidCents > 0 ? p.PricePaidCents : p.Clip.PriceCents) / 100.00)</div>
-                                                    <div class="small text-muted">@((int)(p.Clip.DurationSec ?? 0)) seconds</div>
+                                                    <div class="text-dark fw-bold">$@((p.PricePaidCents > 0 ? p.PricePaidCents : (p.Clip?.PriceCents ?? 0)) / 100.00)</div>
+                                                    @{
+                                                        var duration = p.Clip?.DurationSec ?? p.ClipDurationSec ?? 0;
+                                                    }
+                                                    <div class="small text-muted">@((int)duration) seconds</div>
                                                 </td>
                                                 <td>
                                                     @if (p.FulfillmentStatus == FulfillmentStatus.Fulfilled)
@@ -198,12 +223,20 @@
                                                         <button class="btn btn-sm btn-primary shadow-sm" @onclick="() => OpenFulfillModal(p)">
                                                             <i class="bi bi-upload me-1"></i> Fulfill
                                                         </button>
+                                                        @if (p.ClipId == null)
+                                                        {
+                                                            <div class="text-danger extra-small mt-1" style="font-size: 0.7rem;">Clip Deleted</div>
+                                                        }
                                                     }
                                                     else
                                                     {
                                                         <button class="btn btn-sm btn-outline-secondary" @onclick="() => OpenFulfillModal(p)">
                                                             <i class="bi bi-pencil me-1"></i> Update
                                                         </button>
+                                                        @if (p.ClipId == null)
+                                                        {
+                                                            <div class="text-muted extra-small mt-1" style="font-size: 0.7rem;">Clip Deleted</div>
+                                                        }
                                                     }
                                                 </td>
                                             </tr>
@@ -224,14 +257,14 @@
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content bg-dark border-secondary text-white">
                 <div class="modal-header border-secondary">
-                    <h5 class="modal-title">Fulfill: @_selectedPurchase.Clip.Title</h5>
+                    <h5 class="modal-title">Fulfill: @(_selectedPurchase.Clip?.Title ?? _selectedPurchase.ClipTitle ?? "Deleted Clip")</h5>
                     <button type="button" class="btn-close btn-close-white" @onclick="CloseModal"></button>
                 </div>
                 <div class="modal-body">
                     <div class="mb-3">
                         <label class="form-label text-secondary">Step 1: Locate Master File</label>
                         <div class="p-2 bg-black rounded border border-secondary mb-2">
-                            <code>@(_selectedPurchase.Clip.MasterFileName ?? "No filename tracked")</code>
+                            <code>@(_selectedPurchase.Clip?.MasterFileName ?? _selectedPurchase.ClipMasterFileName ?? "No filename tracked")</code>
                         </div>
                         <small class="text-muted">Find this file on your local drive and upload it to a storage service (Mux, WeTransfer, S3, etc.)</small>
                     </div>

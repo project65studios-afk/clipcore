@@ -48,13 +48,17 @@
                             <div class="list-group-item p-4 border-bottom-0 border-top">
                                 <div class="d-flex align-items-center justify-content-between">
                                     <div class="me-3 overflow-hidden">
-                                        <h5 class="mb-1 text-truncate">@item.Clip.Title</h5>
+                                        <h5 class="mb-1 text-truncate">@(item.Clip?.Title ?? item.Purchase.ClipTitle ?? "Deleted Clip")</h5>
                                         <div class="small text-muted mb-2">
-                                            <i class="bi bi-file-earmark-film me-1"></i> @(item.Clip.MasterFileName ?? "Master File")
+                                            <i class="bi bi-file-earmark-film me-1"></i> @(item.Clip?.MasterFileName ?? "Master File")
                                         </div>
-                                        @if (item.Clip.Event != null)
+                                        @if (item.Clip?.Event != null)
                                         {
                                             <span class="badge bg-light text-secondary border">@item.Clip.Event.Name</span>
+                                        }
+                                        else if (!string.IsNullOrEmpty(item.Purchase.EventName))
+                                        {
+                                            <span class="badge bg-light text-secondary border">@item.Purchase.EventName</span>
                                         }
                                     </div>
                                     
@@ -135,7 +139,16 @@
                         _items.Add(new DeliveryItem
                         {
                             Purchase = p,
-                            Clip = p.Clip ?? new Clip { Title = "Video Clip" },
+                            Clip = p.Clip ?? new Clip { Title = p.ClipTitle ?? "Video Clip" },
+                            DownloadUrl = p.HighResDownloadUrl
+                        });
+                    }
+                    else if (p.Clip == null && !string.IsNullOrEmpty(p.HighResDownloadUrl)) // Redundant but safe
+                    {
+                        _items.Add(new DeliveryItem
+                        {
+                            Purchase = p,
+                            Clip = new Clip { Title = p.ClipTitle ?? "Video Clip" },
                             DownloadUrl = p.HighResDownloadUrl
                         });
                     }

@@ -527,6 +527,11 @@ else
         {
             Id = _clip.Id,
             Title = _clip.Title,
+            EventName = _clip.Event?.Name,
+            EventDate = _clip.Event?.Date,
+            ClipRecordingStartedAt = _clip.RecordingStartedAt,
+            MasterFileName = _clip.MasterFileName,
+            ThumbnailFileName = _clip.ThumbnailFileName,
             PriceCents = _clip.PriceCents
         };
         var url = await PaymentService.CreateCheckoutSessionAsync(new[] { checkoutItem }, successUrl, cancelUrl, userEmail, _userId);
@@ -549,7 +554,12 @@ else
                     PriceCents = _clip.PriceCents,
                     DurationSec = _clip.DurationSec,
                     PlaybackId = _clip.PlaybackIdSigned,
-                    EventId = _clip.EventId
+                    EventId = _clip.EventId,
+                    EventName = _clip.Event?.Name,
+                    EventDate = _clip.Event?.Date,
+                    ClipRecordingStartedAt = _clip.RecordingStartedAt,
+                    MasterFileName = _clip.MasterFileName,
+                    ThumbnailFileName = _clip.ThumbnailFileName
                 };
                 await CartService.AddAsync(item);
                 _isInCart = true;

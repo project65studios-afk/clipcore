@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Project65.Infrastructure.Data;
 
@@ -10,9 +11,11 @@ using Project65.Infrastructure.Data;
 namespace Project65.Infrastructure.Data.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251228235527_AddClipMasterFileNameSnapshot")]
+    partial class AddClipMasterFileNameSnapshot
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "10.0.1");
@@ -342,9 +345,6 @@ namespace Project65.Infrastructure.Data.Migrations
                         .HasColumnType("TEXT");
 
                     b.Property<DateTime?>("ClipRecordingStartedAt")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("ClipThumbnailFileName")
                         .HasColumnType("TEXT");
 
                     b.Property<string>("ClipTitle")

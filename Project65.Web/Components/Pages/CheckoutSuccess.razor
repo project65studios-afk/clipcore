@@ -4,6 +4,7 @@
 @using Project65.Infrastructure.Data.Repositories
 @inject IPaymentService PaymentService
 @inject IPurchaseRepository PurchaseRepository
+@inject IClipRepository ClipRepository
 @inject Project65.Web.Services.CartService CartService
 @inject IEmailService EmailService
 @inject NavigationManager Navigation
@@ -130,7 +131,26 @@
 
                     if (shouldAdd)
                     {
-                         await PurchaseRepository.AddAsync(p);
+                        // 2b. Healing Snapshots: If Stripe metadata failed but clip exists in DB, populate snapshots
+                        var dbClip = await ClipRepository.GetByIdAsync(p.ClipId);
+                        if (dbClip != null)
+                        {
+                            if (string.IsNullOrEmpty(p.ClipTitle)) p.ClipTitle = dbClip.Title;
+                            if (string.IsNullOrEmpty(p.EventName)) p.EventName = dbClip.Event?.Name ?? "Event Name Missing in DB";
+                            if (!p.EventDate.HasValue) p.EventDate = dbClip.Event?.Date;
+                            if (!p.ClipRecordingStartedAt.HasValue) p.ClipRecordingStartedAt = dbClip.RecordingStartedAt;
+                            if (!p.ClipDurationSec.HasValue) p.ClipDurationSec = dbClip.DurationSec;
+                            if (string.IsNullOrEmpty(p.ClipMasterFileName)) p.ClipMasterFileName = dbClip.MasterFileName;
+                            if (string.IsNullOrEmpty(p.ClipThumbnailFileName)) p.ClipThumbnailFileName = dbClip.ThumbnailFileName;
+                            
+                            Console.WriteLine($"[ORDER-HEAL] Healed {p.ClipId}. Event: {p.EventName}, Dur: {p.ClipDurationSec}");
+                        }
+                        else 
+                        {
+                            Console.WriteLine($"[ORDER-HEAL] WARNING: Clip {p.ClipId} not found in DB during healing!");
+                        }
+
+                        await PurchaseRepository.AddAsync(p);
                     }
                 }
 

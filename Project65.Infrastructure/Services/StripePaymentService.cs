@@ -38,11 +38,38 @@ public class StripePaymentService : IPaymentService
                     {
                         Name = item.Title,
                         Description = $"Video Clip: {item.Title}",
-                        Metadata = new Dictionary<string, string> { { "ClipId", item.Id } }
+                        Metadata = new Dictionary<string, string> 
+                        { 
+                            { "ClipId", item.Id }, 
+                            { "EventName", item.EventName ?? "" },
+                            { "EventDate", item.EventDate?.ToString("yyyy-MM-dd") ?? "" },
+                            { "ClipRecordingStartedAt", item.ClipRecordingStartedAt?.ToString("o") ?? "" },
+                            { "DurationSec", item.DurationSec?.ToString("F2") ?? "" },
+                            { "MasterFileName", item.MasterFileName ?? "" },
+                            { "ThumbnailFileName", item.ThumbnailFileName ?? "" }
+                        }
                     },
                 },
                 Quantity = 1,
             });
+        }
+
+        var sessionMetadata = new Dictionary<string, string>
+        {
+            { "ClipIds", string.Join(",", clipIds) }
+        };
+
+        // Add backup snapshots to session metadata (up to limit of 50 keys)
+        for (int i = 0; i < Math.Min(itemsList.Count, 20); i++) // Increased limit
+        {
+            var item = itemsList[i];
+            sessionMetadata[$"c{i}_id"] = item.Id;
+            sessionMetadata[$"c{i}_ev"] = item.EventName ?? "";
+            sessionMetadata[$"c{i}_dt"] = item.EventDate?.ToString("yyyy-MM-dd") ?? "";
+            sessionMetadata[$"c{i}_st"] = item.ClipRecordingStartedAt?.ToString("o") ?? "";
+            sessionMetadata[$"c{i}_du"] = item.DurationSec?.ToString("F2") ?? "";
+            sessionMetadata[$"c{i}_mf"] = item.MasterFileName ?? "";
+            sessionMetadata[$"c{i}_tn"] = item.ThumbnailFileName ?? "";
         }
 
         var options = new SessionCreateOptions
@@ -52,10 +79,7 @@ public class StripePaymentService : IPaymentService
             Mode = "payment",
             SuccessUrl = successUrl,
             CancelUrl = cancelUrl,
-            Metadata = new Dictionary<string, string>
-            {
-                { "ClipIds", string.Join(",", clipIds) }
-            },
+            Metadata = sessionMetadata,
             InvoiceCreation = new SessionInvoiceCreationOptions { Enabled = true },
             ClientReferenceId = userId
         };
@@ -142,7 +166,70 @@ public class StripePaymentService : IPaymentService
             {
                 foreach (var item in session.LineItems.Data)
                 {
-                    var clipId = item.Price?.Product?.Metadata?.GetValueOrDefault("ClipId");
+                    var product = item.Price?.Product;
+                    var clipId = product?.Metadata?.GetValueOrDefault("ClipId");
+                    var eventName = product?.Metadata?.GetValueOrDefault("EventName");
+                    var eventDateStr = product?.Metadata?.GetValueOrDefault("EventDate");
+                    var clipStartedStr = product?.Metadata?.GetValueOrDefault("ClipRecordingStartedAt");
+                    var durationStr = product?.Metadata?.GetValueOrDefault("DurationSec");
+                    var masterFile = product?.Metadata?.GetValueOrDefault("MasterFileName");
+                    var thumbFile = product?.Metadata?.GetValueOrDefault("ThumbnailFileName");
+
+                    // Backup lookup from session metadata (by index or by clipId)
+                    // Stripe preserves order of line items, so we can use a counter
+                    var index = session.LineItems.Data.IndexOf(item);
+                    
+                    if (string.IsNullOrEmpty(eventName) || string.IsNullOrEmpty(durationStr) || string.IsNullOrEmpty(masterFile))
+                    {
+                        // 1. Try match by ClipId if we have it
+                        bool foundByClipId = false;
+                        if (!string.IsNullOrEmpty(clipId))
+                        {
+                            for (int i = 0; i < 20; i++) // Check up to 20
+                            {
+                                if (session.Metadata.GetValueOrDefault($"c{i}_id") == clipId)
+                                {
+                                    if (string.IsNullOrEmpty(eventName)) eventName = session.Metadata.GetValueOrDefault($"c{i}_ev");
+                                    if (string.IsNullOrEmpty(eventDateStr)) eventDateStr = session.Metadata.GetValueOrDefault($"c{i}_dt");
+                                    if (string.IsNullOrEmpty(clipStartedStr)) clipStartedStr = session.Metadata.GetValueOrDefault($"c{i}_st");
+                                    if (string.IsNullOrEmpty(durationStr)) durationStr = session.Metadata.GetValueOrDefault($"c{i}_du");
+                                    if (string.IsNullOrEmpty(masterFile)) masterFile = session.Metadata.GetValueOrDefault($"c{i}_mf");
+                                    if (string.IsNullOrEmpty(thumbFile)) thumbFile = session.Metadata.GetValueOrDefault($"c{i}_tn");
+                                    foundByClipId = true;
+                                    break;
+                                }
+                            }
+                        }
+
+                        // 2. Fallback: Match by index (Stripe line items are sequential)
+                        if (!foundByClipId && index >= 0 && index < 20)
+                        {
+                            if (string.IsNullOrEmpty(eventName)) eventName = session.Metadata.GetValueOrDefault($"c{index}_ev");
+                            if (string.IsNullOrEmpty(eventDateStr)) eventDateStr = session.Metadata.GetValueOrDefault($"c{index}_dt");
+                            if (string.IsNullOrEmpty(clipStartedStr)) clipStartedStr = session.Metadata.GetValueOrDefault($"c{index}_st");
+                            if (string.IsNullOrEmpty(durationStr)) durationStr = session.Metadata.GetValueOrDefault($"c{index}_du");
+                            if (string.IsNullOrEmpty(masterFile)) masterFile = session.Metadata.GetValueOrDefault($"c{index}_mf");
+                            if (string.IsNullOrEmpty(thumbFile)) thumbFile = session.Metadata.GetValueOrDefault($"c{index}_tn");
+                            if (string.IsNullOrEmpty(clipId)) clipId = session.Metadata.GetValueOrDefault($"c{index}_id");
+                        }
+                    }
+
+                    // Final Scrub: Treat empty strings as null for consistent persistence
+                    if (string.IsNullOrEmpty(eventName)) eventName = null;
+                    if (string.IsNullOrEmpty(eventDateStr)) eventDateStr = null;
+                    if (string.IsNullOrEmpty(clipStartedStr)) clipStartedStr = null;
+                    if (string.IsNullOrEmpty(durationStr)) durationStr = null;
+                    if (string.IsNullOrEmpty(masterFile)) masterFile = null;
+                    if (string.IsNullOrEmpty(thumbFile)) thumbFile = null;
+
+                    DateOnly? eventDate = null;
+                    if (DateOnly.TryParse(eventDateStr, out var ed)) eventDate = ed;
+                    
+                    DateTime? clipStartedAt = null;
+                    if (DateTime.TryParse(clipStartedStr, out var cs)) clipStartedAt = cs;
+
+                    double? durationSec = null;
+                    if (double.TryParse(durationStr, out var ds)) durationSec = ds;
                     
                     if (!string.IsNullOrEmpty(clipId))
                     {
@@ -156,7 +243,14 @@ public class StripePaymentService : IPaymentService
                             CustomerName = session.CustomerDetails?.Name,
                             CustomerAddress = addressStr,
                             CustomerPhone = phone,
-                            PricePaidCents = Convert.ToInt32(item.AmountTotal)
+                            PricePaidCents = Convert.ToInt32(item.AmountTotal),
+                            ClipTitle = item.Price?.Product?.Name ?? "Unknown Clip",
+                            EventName = eventName,
+                            EventDate = eventDate,
+                            ClipRecordingStartedAt = clipStartedAt,
+                            ClipDurationSec = durationSec,
+                            ClipMasterFileName = masterFile,
+                            ClipThumbnailFileName = thumbFile
                         };
                         
                         if (!foundClipIds.Contains(clipId))

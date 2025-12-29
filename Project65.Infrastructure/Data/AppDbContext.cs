@@ -27,6 +27,13 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
             .HasForeignKey(p => p.UserId)
             .OnDelete(DeleteBehavior.SetNull);
 
+        // Purchase -> Clip Relationship
+        modelBuilder.Entity<Purchase>()
+            .HasOne(p => p.Clip)
+            .WithMany()
+            .HasForeignKey(p => p.ClipId)
+            .OnDelete(DeleteBehavior.SetNull);
+
         // Event configuration
         modelBuilder.Entity<Event>()
             .HasKey(e => e.Id);

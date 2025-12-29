@@ -29,7 +29,7 @@ else
     <div class="card-grid">
         @foreach (var evt in _events)
         {
-            var firstClip = evt.Clips?.OrderBy(c => c.PublishedAt).FirstOrDefault();
+            var firstClip = evt.Clips?.OrderBy(c => c.RecordingStartedAt ?? DateTime.MaxValue).FirstOrDefault();
             var thumbUrl = GetThumbnailUrl(firstClip);
 
             <a href="/events/@evt.Id" class="grid-card">
@@ -76,10 +76,10 @@ else
         {
             foreach (var evt in _events)
             {
-                var firstClip = evt.Clips?.OrderBy(c => c.PublishedAt).FirstOrDefault();
+                var firstClip = evt.Clips?.OrderBy(c => c.RecordingStartedAt ?? DateTime.MaxValue).FirstOrDefault();
                 if (firstClip != null)
                 {
-                    var playbackId = firstClip.PlaybackIdTeaser ?? firstClip.PlaybackIdSigned;
+                    var playbackId = !string.IsNullOrEmpty(firstClip.PlaybackIdSigned) ? firstClip.PlaybackIdSigned : firstClip.PlaybackIdTeaser;
                     if (!string.IsNullOrEmpty(playbackId) && !playbackId.StartsWith("mock"))
                     {
                         if (!_tokenCache.ContainsKey(playbackId))
@@ -97,7 +97,7 @@ else
     {
         if (firstRender && _events != null)
         {
-            var clipsToHeal = _events.Select(e => e.Clips?.OrderBy(c => c.PublishedAt).FirstOrDefault())
+            var clipsToHeal = _events.Select(e => e.Clips?.OrderBy(c => c.RecordingStartedAt ?? DateTime.MaxValue).FirstOrDefault())
                                      .Where(c => c != null)
                                      .Cast<Clip>();
             VideoHealingService.StartHealingForClips(clipsToHeal);
@@ -108,18 +108,30 @@ else
     {
         if (_events == null) return;
         
-        bool isRelevant = _events.Any(e => e.Clips?.Any(c => c.Id == clip.Id) == true);
-        if (isRelevant)
+        // Find the event and clip in our local list to ensure the UI updates
+        foreach (var evt in _events)
         {
-            InvokeAsync(async () => {
-                var playbackId = clip.PlaybackIdTeaser ?? clip.PlaybackIdSigned;
-                if (!string.IsNullOrEmpty(playbackId) && !playbackId.StartsWith("mock"))
-                {
-                    var token = await VideoService.GetPlaybackToken(playbackId, "t");
-                    _tokenCache[playbackId] = token;
-                }
-                StateHasChanged();
-            });
+            var targetClip = evt.Clips?.FirstOrDefault(c => c.Id == clip.Id);
+            if (targetClip != null)
+            {
+                // Sync properties that affect thumbnails/display
+                targetClip.PlaybackIdSigned = clip.PlaybackIdSigned;
+                targetClip.PlaybackIdTeaser = clip.PlaybackIdTeaser;
+                targetClip.DurationSec = clip.DurationSec;
+                targetClip.RecordingStartedAt = clip.RecordingStartedAt;
+                targetClip.ThumbnailFileName = clip.ThumbnailFileName;
+                
+                InvokeAsync(async () => {
+                    var playbackId = !string.IsNullOrEmpty(clip.PlaybackIdSigned) ? clip.PlaybackIdSigned : clip.PlaybackIdTeaser;
+                    if (!string.IsNullOrEmpty(playbackId) && !playbackId.StartsWith("mock"))
+                    {
+                        var token = await VideoService.GetPlaybackToken(playbackId, "t");
+                        _tokenCache[playbackId] = token;
+                    }
+                    StateHasChanged();
+                });
+                return;
+            }
         }
     }
 
@@ -142,11 +154,16 @@ else
             }
             
             // Otherwise, assume it's in R2 (New)
-            return StorageService.GetPresignedDownloadUrl($"thumbnails/{clip.ThumbnailFileName}");
+            // If filename contains a folder prefix (e.g. ai-thumbnails/), use it directly
+            var storageKey = clip.ThumbnailFileName.Contains("/") 
+                ? clip.ThumbnailFileName 
+                : $"thumbnails/{clip.ThumbnailFileName}";
+                
+            return StorageService.GetPresignedDownloadUrl(storageKey);
         }
         
-        // Priority 2: Mux Thumbnail
-        var playbackId = clip.PlaybackIdTeaser ?? clip.PlaybackIdSigned;
+        // Priority 2: Mux Thumbnail (Prefer Signed/Full clip for "regular" thumbnail)
+        var playbackId = !string.IsNullOrEmpty(clip.PlaybackIdSigned) ? clip.PlaybackIdSigned : clip.PlaybackIdTeaser;
         if (string.IsNullOrEmpty(playbackId) || playbackId.StartsWith("mock")) return null;
 
         if (_tokenCache.TryGetValue(playbackId, out var token))

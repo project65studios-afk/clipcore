@@ -92,15 +92,18 @@
                         {
                             <div class="purchase-item" style="display: flex; gap: 1rem; padding: 1.5rem; border-bottom: 1px solid rgba(255,255,255,0.05);">
                                 <div class="purchase-thumbnail" style="width: 140px; aspect-ratio: 16/9; background: #000; border-radius: 4px; overflow: hidden; flex-shrink: 0;">
-                                     @if (_thumbnailUrls.TryGetValue(purchase.Clip.Id, out var thumbUrl)) 
+                                     @{
+                                         var clipId = purchase.ClipId ?? purchase.Id.ToString();
+                                     }
+                                     @if (_thumbnailUrls.TryGetValue(clipId, out var thumbUrl)) 
                                      {
-                                         <img src="@thumbUrl" alt="@purchase.Clip.Title" style="width: 100%; height: 100%; object-fit: cover;" />
+                                         <img src="@thumbUrl" alt="@(purchase.Clip?.Title ?? purchase.ClipTitle)" style="width: 100%; height: 100%; object-fit: cover;" />
                                      }
                                 </div>
                                 
                                 <div class="purchase-info" style="flex-grow: 1;">
-                                    <h4 class="purchase-title" style="margin: 0 0 0.5rem 0; font-size: 1.1rem;">@purchase.Clip.Title</h4>
-                                    @if (purchase.Clip.Event != null)
+                                    <h4 class="purchase-title" style="margin: 0 0 0.5rem 0; font-size: 1.1rem;">@(purchase.Clip?.Title ?? purchase.ClipTitle ?? "Deleted Clip")</h4>
+                                    @if (purchase.Clip?.Event != null)
                                     {
                                         <div style="font-size: 0.9rem; margin-bottom: 0.5rem;">
                                             <a href="/events/@purchase.Clip.EventId" style="color: var(--accent-cyan); text-decoration: none;">
@@ -109,14 +112,43 @@
                                             <span style="color: var(--text-muted); margin-left: 0.5rem;">
                                                 • @purchase.Clip.Event.Date.ToString("MMM dd, yyyy")
                                             </span>
+                                            @{
+                                                var startTime = purchase.Clip?.RecordingStartedAt ?? purchase.ClipRecordingStartedAt;
+                                            }
+                                            @if (startTime.HasValue)
+                                            {
+                                                <span style="color: var(--text-muted); margin-left: 0.5rem;">
+                                                    • @startTime.Value.ToLocalTime().ToString("t")
+                                                </span>
+                                            }
+                                        </div>
+                                    }
+                                    else if (!string.IsNullOrEmpty(purchase.EventName))
+                                    {
+                                        <div style="font-size: 0.9rem; margin-bottom: 0.5rem; color: var(--text-muted);">
+                                            <span>@purchase.EventName</span>
+                                            @if (purchase.EventDate.HasValue)
+                                            {
+                                                <span style="margin-left: 0.5rem;">• @purchase.EventDate.Value.ToString("MMM dd, yyyy")</span>
+                                            }
+                                            @{
+                                                var startTime = purchase.Clip?.RecordingStartedAt ?? purchase.ClipRecordingStartedAt;
+                                            }
+                                            @if (startTime.HasValue)
+                                            {
+                                                <span style="margin-left: 0.5rem;">• @startTime.Value.ToLocalTime().ToString("t")</span>
+                                            }
                                         </div>
                                     }
                                 </div>
 
                                 <div class="purchase-actions" style="display: flex; flex-direction: column; gap: 0.5rem; min-width: 200px; justify-content: center;">
-                                    <a href="/clips/@purchase.ClipId" class="btn btn-outline-info w-100" style="font-size: 0.85rem; padding: 0.4rem;">
-                                        Preview / Details
-                                    </a>
+                                    @if (purchase.ClipId != null)
+                                    {
+                                        <a href="/clips/@purchase.ClipId" class="btn btn-outline-info w-100" style="font-size: 0.85rem; padding: 0.4rem;">
+                                            Preview / Details
+                                        </a>
+                                    }
                                     
                                     @if (purchase.FulfillmentStatus == FulfillmentStatus.Fulfilled)
                                     {
@@ -164,33 +196,37 @@
     {
         foreach (var purchase in _purchases)
         {
-            var clip = purchase.Clip;
+            var thumbFileName = purchase.Clip?.ThumbnailFileName ?? purchase.ClipThumbnailFileName;
+            var clipId = purchase.ClipId ?? purchase.Id.ToString();
             
             // 1. Try R2/Local Thumbnail
-            // Note: Thumbnails are stored in R2 (folder: thumbnails/) OR locally if legacy
-            if (!string.IsNullOrEmpty(clip.ThumbnailFileName))
+            if (!string.IsNullOrEmpty(thumbFileName))
             {
-                var localPath = Path.Combine(Environment.WebRootPath, "thumbnails", clip.ThumbnailFileName);
+                var localPath = Path.Combine(Environment.WebRootPath, "thumbnails", thumbFileName);
                 if (File.Exists(localPath))
                 {
-                    _thumbnailUrls[clip.Id] = $"/thumbnails/{clip.ThumbnailFileName}";
+                    _thumbnailUrls[clipId] = $"/thumbnails/{thumbFileName}";
                 }
                 else 
                 {
-                    _thumbnailUrls[clip.Id] = StorageService.GetPresignedDownloadUrl($"thumbnails/{clip.ThumbnailFileName}");
+                    // Fix: Correctly handle folder prefixes in ThumbnailFileName
+                    var storageKey = thumbFileName.Contains("/") 
+                        ? thumbFileName 
+                        : $"thumbnails/{thumbFileName}";
+                        
+                    _thumbnailUrls[clipId] = StorageService.GetPresignedDownloadUrl(storageKey);
                 }
                 continue;
             }
 
             // 2. Fallback to Mux
-            var id = clip.PlaybackIdTeaser;
-            if (string.IsNullOrEmpty(id) || id.StartsWith("mock")) 
-                id = clip.PlaybackIdSigned;
+            // Priority: Signed Playback ID for "regular" look
+            var id = !string.IsNullOrEmpty(purchase.Clip?.PlaybackIdSigned) ? purchase.Clip.PlaybackIdSigned : purchase.Clip?.PlaybackIdTeaser;
             
             if (!string.IsNullOrEmpty(id) && !id.StartsWith("mock"))
             {
                 var token = await VideoService.GetPlaybackToken(id, "t", "480p");
-                _thumbnailUrls[clip.Id] = $"https://image.mux.com/{id}/thumbnail.jpg?token={token}&width=400";
+                _thumbnailUrls[clipId] = $"https://image.mux.com/{id}/thumbnail.jpg?token={token}&width=400";
             }
         }
     }

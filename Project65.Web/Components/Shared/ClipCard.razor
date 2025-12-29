@@ -236,7 +236,12 @@
                 PriceCents = Clip.PriceCents,
                 DurationSec = Clip.DurationSec,
                 PlaybackId = Clip.PlaybackIdSigned,
-                EventId = Clip.EventId
+                EventId = Clip.EventId,
+                EventName = Clip.Event?.Name,
+                EventDate = Clip.Event?.Date,
+                ClipRecordingStartedAt = Clip.RecordingStartedAt,
+                MasterFileName = Clip.MasterFileName,
+                ThumbnailFileName = Clip.ThumbnailFileName
             };
             await CartService.AddAsync(item);
         }
