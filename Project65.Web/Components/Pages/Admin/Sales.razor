@@ -24,20 +24,34 @@
     }
     else
     {
-        <!-- Key Metrics -->
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem; margin-bottom: 2rem;">
-            <div style="background: var(--bg-dark-800); padding: 1.5rem; border-radius: var(--radius-lg); border: 1px solid var(--border-color);">
-                <div style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 0.5rem;">Total Revenue</div>
-                <div style="font-size: 2rem; font-weight: 700; color: #10b981;">$@(_totalRevenue / 100.00)</div>
+        <!-- Main Analytics Grid -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 2rem;">
+            <!-- Metrics Tiles -->
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                <div style="background: var(--bg-dark-800); padding: 1.5rem; border-radius: var(--radius-lg); border: 1px solid var(--border-color); display: flex; flex-direction: column; justify-content: center;">
+                    <div style="color: var(--text-secondary); font-size: 0.8rem; margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 1px;">Total Revenue</div>
+                    <div style="font-size: 1.75rem; font-weight: 700; color: #10b981;">$@(_totalRevenue / 100.00)</div>
+                </div>
+                <div style="background: var(--bg-dark-800); padding: 1.5rem; border-radius: var(--radius-lg); border: 1px solid var(--border-color); display: flex; flex-direction: column; justify-content: center;">
+                    <div style="color: var(--text-secondary); font-size: 0.8rem; margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 1px;">Total Orders</div>
+                    <div style="font-size: 1.75rem; font-weight: 700;">@_totalSalesCount</div>
+                </div>
+                <div style="background: var(--bg-dark-800); padding: 1.5rem; border-radius: var(--radius-lg); border: 1px solid var(--border-color); grid-column: span 2;">
+                    <div style="color: var(--text-secondary); font-size: 0.8rem; margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 1px;">Avg. Order Value</div>
+                    <div style="font-size: 1.75rem; font-weight: 700; color: var(--accent-cyan);">
+                        $@(_totalSalesCount > 0 ? (_totalRevenue / 100.00 / _totalSalesCount).ToString("F2") : "0.00")
+                    </div>
+                </div>
             </div>
-            <div style="background: var(--bg-dark-800); padding: 1.5rem; border-radius: var(--radius-lg); border: 1px solid var(--border-color);">
-                <div style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 0.5rem;">Total Orders</div>
-                <div style="font-size: 2rem; font-weight: 700;">@_totalSalesCount</div>
-            </div>
-             <div style="background: var(--bg-dark-800); padding: 1.5rem; border-radius: var(--radius-lg); border: 1px solid var(--border-color);">
-                <div style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 0.5rem;">Avg. Order Value</div>
-                <div style="font-size: 2rem; font-weight: 700; color: var(--accent-cyan);">
-                    $@(_totalSalesCount > 0 ? (_totalRevenue / 100.00 / _totalSalesCount).ToString("F2") : "0.00")
+
+            <!-- Revenue Chart -->
+            <div style="background: var(--bg-dark-800); padding: 1.5rem; border-radius: var(--radius-lg); border: 1px solid var(--border-color); min-height: 250px; position: relative;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                    <h3 style="margin: 0; font-size: 1rem; color: var(--text-secondary);">7-Day Revenue Trend</h3>
+                    <div style="font-size: 0.75rem; color: var(--text-muted);">Daily Totals ($)</div>
+                </div>
+                <div style="height: 180px; width: 100%;">
+                    <canvas id="salesChart"></canvas>
                 </div>
             </div>
         </div>
@@ -115,6 +129,23 @@
         {
             _isLoading = false;
         }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!_isLoading && _dailyRevenue.Any())
+        {
+            await UpdateChartAsync();
+        }
+    }
+
+    private async Task UpdateChartAsync()
+    {
+        var days = GetLast7Days().Reverse().ToList();
+        var labels = days.Select(d => d.ToString("MMM dd")).ToArray();
+        var data = days.Select(d => _dailyRevenue.ContainsKey(d) ? _dailyRevenue[d] / 100.0 : 0.0).ToArray();
+
+        await JS.InvokeVoidAsync("renderSalesChart", "salesChart", labels, data);
     }
 
     private async Task LoadDataAsync()
