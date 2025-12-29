@@ -11,6 +11,7 @@
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject IPromoCodeRepository PromoCodeRepository
 @inject IAuditService AuditService
+@inject Project65.Web.Services.EmailTemplateService EmailTemplateService
 @rendermode RenderMode.InteractiveServer
 
 <PageTitle>Order Confirmed - Project65</PageTitle>
@@ -178,9 +179,12 @@
                         $"Code: {promo?.Code ?? "Unknown"} used in order {SessionId}");
                 }
 
-                // 5. Send Email
+                // 5. Send Branded Email Receipt
                 var customerEmail = await PaymentService.GetCustomerEmailFromSessionAsync(SessionId!) ?? "customer@example.com";
-                await EmailService.SendEmailAsync(customerEmail, "Order Receipt", $"You purchased {purchases.Count} items.");
+                var customerName = _purchases.FirstOrDefault()?.CustomerName ?? "Customer";
+                
+                var htmlBody = EmailTemplateService.GenerateOrderReceiptHtml(SessionId!, _purchases, customerName);
+                await EmailService.SendEmailAsync(customerEmail, "Your Project65 Order Receipt", htmlBody);
             }
         }
         catch (Exception ex)

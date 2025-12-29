@@ -1,4 +1,5 @@
 using Project65.Web.Components;
+using Project65.Web.Services;
 using Microsoft.EntityFrameworkCore;
 using Project65.Infrastructure.Data;
 using Project65.Core.Interfaces;
@@ -47,6 +48,7 @@ builder.Services.AddAuthentication()
 
 builder.Services.AddScoped<IEventRepository, EventRepository>();
 builder.Services.AddScoped<IClipRepository, ClipRepository>();
+builder.Services.AddScoped<EmailTemplateService>();
 builder.Services.AddScoped<IVideoService, MuxVideoService>();
 builder.Services.AddScoped<IVisionService, OpenAIVisionService>();
 builder.Services.AddHttpClient<OpenAIVisionService>(); // Best practice for HttpClient injection
