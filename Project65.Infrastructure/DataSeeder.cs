@@ -51,6 +51,20 @@ public static class DataSeeder
             await userManager.CreateAsync(regularUser, "User123!");
         }
 
+        // Seed Test User (User Request)
+        var testEmail = "test@project65.com";
+        var testUser = await userManager.FindByEmailAsync(testEmail);
+        if (testUser == null)
+        {
+            testUser = new ApplicationUser
+            {
+                UserName = testEmail,
+                Email = testEmail,
+                EmailConfirmed = true
+            };
+            await userManager.CreateAsync(testUser, "Test123!");
+        }
+
         // Check for existing events to update their locations if needed
         var existingEvents = await context.Events.ToListAsync();
         
