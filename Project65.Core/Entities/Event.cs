@@ -13,4 +13,5 @@ public class Event
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
     public List<Clip> Clips { get; set; } = new();
+    public List<ExternalProduct> FeaturedProducts { get; set; } = new();
 }

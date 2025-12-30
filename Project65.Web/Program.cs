@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Project65.Infrastructure.Data;
 using Project65.Core.Interfaces;
 using Project65.Infrastructure.Data.Repositories;
+using Project65.Infrastructure.Repositories;
 using Project65.Infrastructure.Services;
 using Project65.Core.Entities;
 using Amazon.S3;
@@ -64,9 +65,9 @@ r2Options.DefaultClientConfig.ServiceURL = $"https://{builder.Configuration["R2:
 builder.Services.AddDefaultAWSOptions(r2Options);
 builder.Services.AddAWSService<IAmazonS3>();
 builder.Services.AddScoped<IStorageService, R2StorageService>();
-builder.Services.AddScoped<IPaymentService, StripePaymentService>();
 builder.Services.AddScoped<IPurchaseRepository, PurchaseRepository>();
 builder.Services.AddScoped<ISettingsRepository, SettingsRepository>();
+builder.Services.AddScoped<IExternalProductRepository, ExternalProductRepository>();
 builder.Services.AddScoped<IAuditRepository, AuditRepository>();
 builder.Services.AddScoped<IPromoCodeRepository, PromoCodeRepository>();
 builder.Services.AddScoped<IAuditService, AuditService>();

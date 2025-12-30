@@ -6,25 +6,22 @@
 }
 
 :root {
-    /* Neon / Dark Theme Palette */
+    /* Neon / Dark Theme Palette (Default) */
     --bg-dark-900: #0f1129;
-    /* Softer, slightly lighter deep navy */
     --bg-dark-800: #171936;
-    /* Card background */
     --bg-dark-700: #1e204a;
-    /* Hover/Input background */
 
+    /* Text Hierarchy - Dark Mode */
     --text-primary: #ffffff;
+    /* Pure White for headings */
     --text-secondary: #e2e8f0;
-    /* Very light slate */
-    --text-muted: #cbd5e1;
-    /* Light slate for contrast */
+    /* Slate 200 for subheadings/body */
+    --text-muted: #94a3b8;
+    /* Slate 400 for metadata/placeholders */
 
     --accent-cyan: #06b6d4;
-    /* Neon Cyan */
     --accent-cyan-dim: rgba(6, 182, 212, 0.1);
     --accent-pink: #ec4899;
-    /* Neon Pink */
 
     --border-color: #334155;
     --border-active: #06b6d4;
@@ -41,29 +38,41 @@
 
     /* Transition for theme switching */
     --theme-transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+
+    /* Bootstrap Variable Overrides for Dark Mode */
+    --bs-body-color: #ffffff;
+    --bs-body-color-rgb: 255, 255, 255;
+    --bs-secondary-color: #e2e8f0;
+    --bs-secondary-rgb: 226, 232, 240;
 }
 
 :root.light-theme {
     --bg-dark-900: #f8fafc;
-    /* Lightest background */
+    /* Slate 50 */
     --bg-dark-800: #ffffff;
-    /* Card background */
+    /* White */
     --bg-dark-700: #f1f5f9;
-    /* Hover/Input background */
+    /* Slate 100 */
 
+    /* Text Hierarchy - Light Mode */
     --text-primary: #0f172a;
-    /* Slate 900 */
-    --text-secondary: #1e293b;
-    /* Slate 800 */
-    --text-muted: #334155;
-    /* Slate 700 */
+    /* Slate 900 for headings */
+    --text-secondary: #475569;
+    /* Slate 600 for subheadings/body */
+    --text-muted: #64748b;
+    /* Slate 500 for metadata */
 
     --border-color: #e2e8f0;
-    /* Slate 200 */
     --border-active: #06b6d4;
 
     --glass-bg: rgba(255, 255, 255, 0.8);
     --glass-border: rgba(0, 0, 0, 0.05);
+
+    /* Bootstrap Variable Overrides for Light Mode */
+    --bs-body-color: #0f172a;
+    --bs-body-color-rgb: 15, 23, 42;
+    --bs-secondary-color: #475569;
+    --bs-secondary-rgb: 71, 85, 105;
 }
 
 body {
@@ -965,21 +974,23 @@ h3 {
     display: flex;
     flex-direction: column;
     justify-content: space-between;
-    width: 24px;
-    height: 18px;
+    width: 28px;
+    height: 20px;
     background: transparent;
     border: none;
     cursor: pointer;
     padding: 0;
     z-index: 901;
+    transition: opacity 0.2s ease;
 }
 
 .nav-toggle .bar {
     width: 100%;
-    height: 2px;
+    height: 3px;
     background-color: var(--text-primary);
-    border-radius: 2px;
+    border-radius: 4px;
     transition: 0.3s;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
 }
 
 /* Mobile Overlay */
@@ -987,7 +998,7 @@ h3 {
     position: fixed;
     inset: 0;
     background: rgba(0, 0, 0, 0.6);
-    z-index: 998;
+    z-index: 1999;
     display: none;
     backdrop-filter: blur(2px);
 }
@@ -1003,17 +1014,31 @@ h3 {
     left: 0;
     bottom: 0;
     width: 85%;
-    max-width: 320px;
-    background: var(--bg-dark-900);
-    z-index: 1000;
+    max-width: 300px;
+    background-color: var(--bg-dark-900) !important;
+    z-index: 2000;
     padding: 1.5rem;
     transform: translateX(-100%);
-    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
     display: flex;
     flex-direction: column;
     gap: 1.5rem;
     border-right: 1px solid var(--border-color);
-    box-shadow: 10px 0 30px rgba(0, 0, 0, 0.5);
+    box-shadow: 15px 0 50px rgba(0, 0, 0, 0.3);
+    backdrop-filter: none !important;
+    overflow: hidden;
+    height: 100dvh;
+    /* Force height to match viewport */
+}
+
+.nav-menu-content {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    overflow-y: auto;
+    flex-grow: 1;
+    padding-right: 5px;
+    /* Space for scrollbar */
 }
 
 .nav-menu.active {
@@ -1084,7 +1109,7 @@ h3 {
         width: auto;
         max-width: none;
         height: auto;
-        background: transparent;
+        background: transparent !important;
         box-shadow: none;
         border: none;
         padding: 0;
@@ -1094,7 +1119,14 @@ h3 {
         flex-grow: 1;
         margin-left: 2rem;
         gap: 0;
-        /* Let justify-between handle spacing or add small gap */
+        overflow: visible !important;
+        min-height: 0;
+        /* Clear mobile height */
+    }
+
+    .nav-menu-content {
+        display: contents;
+        /* Strip away the flex/overflow on desktop */
     }
 
     /* Reset Links Layout */

@@ -16,14 +16,18 @@ public class EventRepository : IEventRepository
     public async Task<Event?> GetByIdAsync(string id)
     {
         return await _context.Events
+            .AsNoTracking()
             .Include(e => e.Clips)
+            .Include(e => e.FeaturedProducts)
             .FirstOrDefaultAsync(e => e.Id == id);
     }
 
     public async Task<List<Event>> ListAsync()
     {
         return await _context.Events
+            .AsNoTracking()
             .Include(e => e.Clips)
+            .Include(e => e.FeaturedProducts)
             .OrderByDescending(e => e.Date)
             .ToListAsync();
     }
@@ -46,7 +50,10 @@ public class EventRepository : IEventRepository
 
     public async Task UpdateAsync(Event evt)
     {
-        var existing = await _context.Events.FirstOrDefaultAsync(e => e.Id == evt.Id);
+        // Eager load everything to ensure we're updating the graph correctly
+        var existing = await _context.Events
+            .Include(e => e.FeaturedProducts)
+            .FirstOrDefaultAsync(e => e.Id == evt.Id);
         
         if (existing != null)
         {
@@ -54,7 +61,21 @@ public class EventRepository : IEventRepository
             existing.Date = evt.Date;
             existing.Location = evt.Location;
             existing.Summary = evt.Summary;
-            // Note: We are not updating CreatedAt or Clips here to avoid complexity
+            
+            // Update Featured Products
+            // Clear existing and add new ones (EF Core will handle the join table)
+            existing.FeaturedProducts.Clear();
+            foreach (var prod in evt.FeaturedProducts)
+            {
+                // We must attach the product if it's not already tracked, or fetch it from context.
+                // Since this context instance is alive, we can fetch them by ID to ensure they are tracked.
+                // Optimization: Just get the IDs from the incoming evt object
+                var trackedProd = await _context.ExternalProducts.FindAsync(prod.Id);
+                if (trackedProd != null)
+                {
+                    existing.FeaturedProducts.Add(trackedProd);
+                }
+            }
             
             await _context.SaveChangesAsync();
         }

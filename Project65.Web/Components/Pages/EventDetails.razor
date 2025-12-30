@@ -6,15 +6,15 @@
 @inject ISettingsRepository SettingsRepository
 @inject IStorageService StorageService
 @inject NavigationManager Navigation
-@inject IJSRuntime JSRuntime
+@inject IJSRuntime JS
 @inject Project65.Web.Services.CartService CartService
-@inject IWebHostEnvironment Environment
 @inject IPurchaseRepository PurchaseRepository
 @using System.IO
 @inject Project65.Web.Services.VideoHealingService VideoHealingService
 @inject Project65.Web.Services.SummaryGenerationService SummaryGenerationService
 @using Microsoft.AspNetCore.SignalR.Client
 @implements IAsyncDisposable
+@rendermode @(new InteractiveServerRenderMode(prerender: false))
 
 <PageTitle>@_event?.Name - Project65</PageTitle>
 <HeadContent>
@@ -43,37 +43,91 @@
 else
 {
     <div class="mb-4">
-        <a href="/" style="color: var(--text-secondary); font-size: 0.9rem;">← Back to Events</a>
+        <a href="/" class="text-decoration-none text-secondary small">← Back to Events</a>
     </div>
 
     <div style="background: var(--bg-dark-800); border-radius: var(--radius-lg); padding: 2rem; margin-bottom: 2rem; border: 1px solid var(--border-color);">
-        <h1 style="font-size: 2.5rem; margin-bottom: 0.5rem;">@_event.Name</h1>
-        <div style="display: flex; gap: 1rem; color: var(--text-secondary); margin-bottom: 1.5rem;">
-            <span>@_event.Date.ToLongDateString()</span>
-            @if (!string.IsNullOrEmpty(_event.Location))
+        <div class="row g-4">
+            <!-- Left Column: Event Details -->
+            <div class="@(_event.FeaturedProducts.Any() ? "col-lg-7 col-xl-8" : "col-12")">
+                <h1 class="display-4 fw-bold mb-2">@_event.Name</h1>
+                <div class="d-flex align-items-center gap-2 text-secondary mb-4">
+                    <span>@_event.Date.ToLongDateString()</span>
+                    @if (!string.IsNullOrEmpty(_event.Location))
+                    {
+                        <span>•</span>
+                        <span>@_event.Location</span>
+                    }
+                    <span>•</span>
+                    <span>@_event.Clips.Count clips</span>
+                </div>
+                <p class="lead text-secondary" style="max-width: 600px;">@_event.Summary</p>
+                
+                <div class="event-header-actions" style="margin-top: 1.5rem; display: flex; gap: 0.5rem; align-items: center;">
+                    <div class="event-actions">
+                        <button class="btn-primary" @onclick="ShareEventAsync">Share Event</button>
+                        <button class="btn-secondary" @onclick="CopyLinkAsync">
+                            @(_showCopiedMessage ? "Link Copied!" : "Copy Link")
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Column: Featured Products -->
+            @if (_event.FeaturedProducts.Any())
             {
-                <span>•</span>
-                <span>@_event.Location</span>
+                <div class="col-lg-5 col-xl-4">
+                    <div class="h-100 p-3 p-xl-4 rounded bg-dark bg-opacity-25 border border-secondary border-opacity-25">
+                        <h5 class="text-secondary text-uppercase small fw-bold mb-3" style="letter-spacing: 1px;">Featured Collection</h5>
+                        <div class="row g-3">
+                            @foreach (var p in _event.FeaturedProducts)
+                            {
+                                <div class="col-12 col-sm-6">
+                                    <a href="@p.ProductUrl" target="_blank" class="card h-100 shadow-sm border-secondary text-decoration-none product-card" style="background: var(--bg-dark-800); transition: transform 0.2s;">
+                                        <div class="card-img-top bg-black d-flex justify-content-center align-items-center position-relative overflow-hidden" style="height: 160px;">
+                                            @if (!string.IsNullOrEmpty(p.ImageUrl))
+                                            {
+                                                <img src="@GetImageUrl(p.ImageUrl)" style="max-height: 100%; max-width: 100%; object-fit: contain;" />
+                                            }
+                                            
+                                            @if (p.IsSoldOut)
+                                            {
+                                                <div class="position-absolute d-flex justify-content-center align-items-center w-100" style="top:50%; transform:translateY(-50%); z-index: 2;">
+                                                    <div class="bg-danger text-white fs-6 fw-bold px-3 py-1 text-uppercase shadow" style="transform: rotate(-12deg); border: 2px solid white; letter-spacing: 1px;">Sold Out</div>
+                                                </div>
+                                                <div class="position-absolute w-100 h-100 bg-dark" style="opacity: 0.4; top:0; left:0;"></div>
+                                            }
+                                            
+                                            @if (!string.IsNullOrEmpty(p.BadgeText) && !p.IsSoldOut)
+                                            {
+                                                <span class="position-absolute top-0 start-0 m-2 badge text-white border border-light px-2 py-1 text-uppercase" style="font-size: 0.65rem; letter-spacing: 1px; background-color: #0f172a;">@p.BadgeText</span>
+                                            }
+                                        </div>
+                                        <div class="card-body p-2">
+                                            <h6 class="card-title fw-bold text-body mb-1 text-truncate" title="@p.Title">@p.Title</h6>
+                                            <div class="mt-1 text-primary fw-bold small">
+                                                @if (!string.IsNullOrEmpty(p.CompareAtPriceDisplay))
+                                                {
+                                                    <span class="text-decoration-line-through text-muted me-1 small fw-normal">@p.CompareAtPriceDisplay</span>
+                                                }
+                                                @p.PriceDisplay
+                                            </div>
+                                        </div>
+                                    </a>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                </div>
             }
-            <span>•</span>
-            <span>@_event.Clips.Count clips</span>
         </div>
-        <p style="max-width: 600px; color: var(--text-secondary);">@_event.Summary</p>
         
-        <div class="event-header-actions" style="margin-top: 1.5rem; display: flex; gap: 0.5rem; align-items: center;">
-             <button class="btn-primary" @onclick="ShareEventAsync">Share Event</button>
-             <button class="btn-secondary" @onclick="CopyLinkAsync">
-                 @(_showCopiedMessage ? "Link Copied!" : "Copy Link")
-             </button>
-             
-             @* Hiding for now per user request
-             <AuthorizeView Roles="Admin">
-                 <button class="btn-outline-info ms-2" @onclick="RegenerateSummaryAsync" disabled="@_isGeneratingSummary">
-                     @(_isGeneratingSummary ? "Generating..." : "AI Summary")
-                 </button>
-             </AuthorizeView>
-             *@
-        </div>
+        <style>
+            .product-card:hover {
+                transform: translateY(-5px);
+                border-color: var(--accent-cyan) !important;
+            }
+        </style>
     </div>
 
     @if (_event.Clips.Count >= 3)
@@ -81,8 +135,8 @@ else
         <div class="bundle-banner" style="background: linear-gradient(90deg, rgba(6, 182, 212, 0.1) 0%, rgba(2, 132, 199, 0.1) 100%); border: 1px solid var(--accent-cyan-dim); border-radius: var(--radius-md); padding: 1rem; margin-bottom: 3rem; display: flex; align-items: center; gap: 1rem;">
             <i class="bi bi-stars" style="font-size: 1.5rem; color: var(--accent-cyan);"></i>
             <div>
-                <div style="font-weight: 700; color: white;">Event Bundle Discount!</div>
-                <div style="font-size: 0.9rem; color: var(--text-secondary);">Add 3 or more clips from this event to your cart and get <span style="color: var(--accent-cyan); font-weight: 600;">25% OFF</span> your entire order.</div>
+                <div class="fw-bold text-body">Event Bundle Discount!</div>
+                <div style="font-size: 0.9rem;" class="text-secondary">Add 3 or more clips from this event to your cart and get <span style="color: var(--accent-cyan); font-weight: 600;">25% OFF</span> your entire order.</div>
             </div>
         </div>
     }
@@ -126,7 +180,6 @@ else
     private bool _isAuthenticated = false;
     private bool _showCopiedMessage = false;
     private HashSet<string> _purchasedClipIds = new();
-    // private bool _isGeneratingSummary = false; // Unused while AI button is hidden
 
     [CascadingParameter]
     private Task<AuthenticationState> AuthenticationStateTask { get; set; } = null!;
@@ -134,48 +187,20 @@ else
     private async Task CopyLinkAsync()
     {
         var uri = Navigation.Uri;
-        await JSRuntime.InvokeVoidAsync("navigator.clipboard.writeText", uri);
+        await JS.InvokeVoidAsync("navigator.clipboard.writeText", uri);
         _showCopiedMessage = true;
         StateHasChanged();
         await Task.Delay(2000);
         _showCopiedMessage = false;
         StateHasChanged();
     }
-
-    /* Unused while AI button is hidden
-    private async Task RegenerateSummaryAsync()
-    {
-        if (_event == null) return;
-        
-        _isGeneratingSummary = true;
-        StateHasChanged();
-        
-        try 
-        {
-            var summary = await SummaryGenerationService.GenerateEventSummaryAsync(_event.Id);
-            if (!string.IsNullOrEmpty(summary) && !summary.StartsWith("Error"))
-            {
-                _event.Summary = summary;
-            }
-            else 
-            {
-                await JSRuntime.InvokeVoidAsync("alert", summary);
-            }
-        }
-        finally
-        {
-            _isGeneratingSummary = false;
-            StateHasChanged();
-        }
-    }
-    */
-
+    
     private async Task ShareEventAsync()
     {
         var uri = Navigation.Uri;
         try 
         {
-            await JSRuntime.InvokeVoidAsync("navigator.share", new { title = _event?.Name ?? "Project65 Event", url = uri });
+            await JS.InvokeVoidAsync("navigator.share", new { title = _event?.Name ?? "Project65 Event", url = uri });
         }
         catch 
         {
@@ -293,6 +318,13 @@ else
     {
         _sortBy = e.Value?.ToString() ?? "TimeUsedAsc";
         SortClips();
+    }
+    
+    private string GetImageUrl(string urlOrKey)
+    {
+        if (string.IsNullOrEmpty(urlOrKey)) return "";
+        if (urlOrKey.StartsWith("http") || urlOrKey.StartsWith("/")) return urlOrKey;
+        return StorageService.GetPresignedDownloadUrl(urlOrKey);
     }
 
     private void SortClips()

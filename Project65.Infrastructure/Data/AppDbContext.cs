@@ -17,6 +17,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<DailyWatchUsage> DailyWatchUsages { get; set; } = null!;
     public DbSet<AuditLog> AuditLogs { get; set; } = null!;
     public DbSet<PromoCode> PromoCodes { get; set; } = null!;
+    public DbSet<ExternalProduct> ExternalProducts { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -39,6 +40,11 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
         // Event configuration
         modelBuilder.Entity<Event>()
             .HasKey(e => e.Id);
+            
+        modelBuilder.Entity<Event>()
+            .HasMany(e => e.FeaturedProducts)
+            .WithMany(p => p.Events)
+            .UsingEntity(j => j.ToTable("EventProducts"));
         
         modelBuilder.Entity<Event>()
             .HasIndex(e => e.Date);
