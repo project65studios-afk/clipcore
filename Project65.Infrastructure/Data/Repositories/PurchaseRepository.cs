@@ -88,13 +88,25 @@ public class PurchaseRepository : IPurchaseRepository
 
         if (existingPurchase != null)
         {
-            // Update only the fields that change during fulfillment
+            // Update all mutable fields
             existingPurchase.FulfillmentStatus = purchase.FulfillmentStatus;
             existingPurchase.FulfilledAt = purchase.FulfilledAt;
             existingPurchase.FulfillmentMuxAssetId = purchase.FulfillmentMuxAssetId;
             existingPurchase.HighResDownloadUrl = purchase.HighResDownloadUrl;
             
-            // Allow updating existing fields too if needed, but primarily fulfillment data
+            // Critical: Update fields modified during Auto-Copy or Revert
+            existingPurchase.ClipMasterFileName = purchase.ClipMasterFileName;
+            existingPurchase.ClipThumbnailFileName = purchase.ClipThumbnailFileName;
+            existingPurchase.OrderId = purchase.OrderId;
+            existingPurchase.StripeSessionId = purchase.StripeSessionId;
+            
+            // Update Snapshots if they were missing or corrected
+            existingPurchase.ClipTitle = purchase.ClipTitle;
+            existingPurchase.EventName = purchase.EventName;
+            existingPurchase.EventDate = purchase.EventDate;
+            existingPurchase.ClipRecordingStartedAt = purchase.ClipRecordingStartedAt;
+            existingPurchase.ClipDurationSec = purchase.ClipDurationSec;
+
             await _context.SaveChangesAsync();
             
             // Detach to allow future fresh reads if necessary (optional but helps in Blazor)
