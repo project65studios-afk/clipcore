@@ -98,7 +98,7 @@ public class VideoCompressionController : ControllerBase
                     {
                         // Upload thumbnail to R2
                         using var thumbStream = new FileStream(thumbPath, FileMode.Open, FileAccess.Read);
-                        var r2ThumbKey = $"ai-thumbnails/{thumbName}"; // e.g. ai-thumbnails/guid_thumb.jpg
+                        var r2ThumbKey = $"thumbnails/{thumbName}"; // Standardized path
                         await _storageService.UploadAsync(thumbStream, r2ThumbKey, "image/jpeg");
                         
                         _logger.LogInformation($"[Compression] Thumbnail uploaded to R2: {r2ThumbKey}");
@@ -208,7 +208,7 @@ public class VideoCompressionController : ControllerBase
                     PriceCents = priceCents,
                     MuxUploadId = uploadId,
                     MasterFileName = null, // No R2 master for standard event uploads
-                    ThumbnailFileName = $"ai-thumbnails/{thumbName}"
+                    ThumbnailFileName = $"thumbnails/{thumbName}"
                 };
 
                 // Apply AI Tags if found
