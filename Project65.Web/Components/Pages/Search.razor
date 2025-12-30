@@ -150,9 +150,9 @@
                 }
             }
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            Console.WriteLine($"Search error: {ex}");
+            _clips = new List<Clip>();
         }
         finally
         {

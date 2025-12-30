@@ -126,9 +126,9 @@ public class CartService
         {
             await _storage.SetAsync("cart_items", _cart);
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            Console.WriteLine($"[CART-ERROR] Failed to save cart: {ex.Message}");
+            // Failed to save cart
         }
     }
 

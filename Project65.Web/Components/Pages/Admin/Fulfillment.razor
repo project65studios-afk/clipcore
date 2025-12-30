@@ -18,26 +18,25 @@
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h2 class="fw-bold m-0"><i class="bi bi-magic me-2"></i>Order Fulfillment</h2>
         <div class="d-flex gap-2 align-items-center">
-            <span class="badge bg-dark border border-secondary text-secondary small">VER: DEBUG_F_1.5</span>
             <button class="btn btn-outline-secondary btn-sm" @onclick="LoadDataAsync">
                 <i class="bi bi-arrow-clockwise me-1"></i> Refresh
             </button>
         </div>
     </div>
 
-    <div class="card border-0 shadow-sm" style="background: #f8f9fa;">
-        <div class="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center">
-            <h5 class="mb-0 text-dark">Delivery Queue</h5>
+    <div class="card border-0 shadow-sm" style="background: var(--bg-dark-800);">
+        <div class="card-header bg-transparent border-bottom py-3 d-flex justify-content-between align-items-center">
+            <h5 class="mb-0 text-primary">Delivery Queue</h5>
             <div class="btn-group shadow-sm">
-                <button class="btn btn-sm @(_currentFilter == "Pending" ? "btn-warning text-white" : "btn-white text-secondary border")" 
+                <button class="btn btn-sm @(_currentFilter == "Pending" ? "btn-warning text-white" : "btn-outline-secondary border-secondary-subtle")" 
                         @onclick='() => SetFilter("Pending")'>Pending</button>
-                <button class="btn btn-sm @(_currentFilter == "Fulfilled" ? "btn-success" : "btn-white text-secondary border")" 
+                <button class="btn btn-sm @(_currentFilter == "Fulfilled" ? "btn-success" : "btn-outline-secondary border-secondary-subtle")" 
                         @onclick='() => SetFilter("Fulfilled")'>Fulfilled</button>
-                <button class="btn btn-sm @(_currentFilter == "All" ? "btn-dark" : "btn-white text-secondary border")" 
+                <button class="btn btn-sm @(_currentFilter == "All" ? "btn-dark" : "btn-outline-secondary border-secondary-subtle")" 
                         @onclick='() => SetFilter("All")'>All</button>
             </div>
         </div>
-        <div class="card-body p-0 bg-light">
+        <div class="card-body p-0 bg-transparent">
                 @if (_filteredPurchases == null)
                 {
                     <div class="text-center py-5">
@@ -64,15 +63,15 @@
                             ? "ORD-" + firstItem.StripeSessionId.Substring(firstItem.StripeSessionId.Length - 8).ToUpper() 
                             : "LEGACY-" + firstItem.Id;
 
-                        <div class="card border-0 shadow-sm mb-4 mx-3 mt-3 overflow-hidden rounded-3">
+                        <div class="card border-0 shadow-sm mb-4 mx-3 mt-3 overflow-hidden rounded-3" style="background: var(--bg-dark-700); border: 1px solid var(--border-color) !important;">
                              
                              <!-- Order Header -->
-                             <div class="card-header bg-white p-3 border-bottom">
+                             <div class="card-header bg-transparent p-3 border-bottom border-secondary-subtle">
                                 <div class="row align-items-center">
                                     <div class="col-md-4">
                                         <div class="d-flex align-items-center gap-2">
-                                            <div class="fw-bold fs-5 text-dark">@orderId</div>
-                                            <span class="badge bg-light text-dark border">@order.Count() Items</span>
+                                            <div class="fw-bold fs-5 text-primary">@orderId</div>
+                                            <span class="badge bg-dark text-secondary border border-secondary-subtle">@order.Count() Items</span>
                                         </div>
                                         <div class="text-muted small">
                                             @firstItem.CreatedAt.ToLocalTime().ToString("MMMM dd, yyyy") at @firstItem.CreatedAt.ToLocalTime().ToString("t")
@@ -90,13 +89,13 @@
                                             @if (isFullyFulfilled)
                                             {
                                                 <!-- Ready / Copy Link -->
-                                                <div class="d-flex align-items-center gap-2 bg-light border rounded px-2 py-1">
+                                                <div class="d-flex align-items-center gap-2 bg-dark border border-secondary-subtle rounded px-2 py-1">
                                                     <button class="btn btn-outline-primary btn-sm me-2" @onclick="() => CompleteOrder(order.ToList(), true)" title="Resend Email">
                                                         <i class="bi bi-envelope-at me-1"></i> Resend Email
                                                     </button>
                                                     <span class="badge bg-success small text-uppercase">Ready</span>
                                                     <div class="input-group input-group-sm" style="width: 260px;">
-                                                        <input type="text" class="form-control bg-white font-monospace text-muted border-secondary" 
+                                                        <input type="text" class="form-control bg-dark border-secondary text-primary font-monospace" 
                                                                style="font-size: 0.8rem;"
                                                                readonly value="@($"{Navigation.BaseUri}delivery/{firstItem.StripeSessionId}")" 
                                                                onclick="this.select()" />
@@ -127,18 +126,18 @@
 
                                             <div>
                                                 <div class="text-uppercase text-muted fw-bold" style="font-size: 0.7rem; letter-spacing: 0.5px;">Customer</div>
-                                                <div class="fw-bold text-dark">@(firstItem.CustomerName ?? "Anonymous")</div>
-                                                <div class="small text-primary text-decoration-underline">@(firstItem.CustomerEmail ?? "No Email")</div>
+                                                <div class="fw-bold text-primary">@(firstItem.CustomerName ?? "Anonymous")</div>
+                                                <div class="small text-info text-decoration-underline">@(firstItem.CustomerEmail ?? "No Email")</div>
                                                 @if (!string.IsNullOrEmpty(firstItem.CustomerPhone))
                                                 {
-                                                    <div class="small text-dark mt-1"><i class="bi bi-telephone me-1"></i>@firstItem.CustomerPhone</div>
+                                                    <div class="small text-secondary mt-1"><i class="bi bi-telephone me-1"></i>@firstItem.CustomerPhone</div>
                                                 }
                                             </div>
                                             @if (!string.IsNullOrEmpty(firstItem.CustomerAddress))
                                             {
                                                 <div>
                                                     <div class="text-uppercase text-muted fw-bold" style="font-size: 0.7rem; letter-spacing: 0.5px;">Billing Address</div>
-                                                    <div class="small text-dark" style="max-width: 250px; line-height: 1.2;">@firstItem.CustomerAddress</div>
+                                                    <div class="small text-secondary" style="max-width: 250px; line-height: 1.2;">@firstItem.CustomerAddress</div>
                                                 </div>
                                             }
                                         </div>
@@ -147,9 +146,9 @@
                              </div>
 
                              <!-- Items Table -->
-                             <div class="table-responsive bg-white">
+                             <div class="table-responsive bg-transparent">
                                 <table class="table table-hover mb-0 align-middle">
-                                    <thead class="bg-light">
+                                    <thead class="bg-black bg-opacity-25">
                                         <tr class="text-uppercase text-muted small border-bottom">
                                             <th class="ps-4 py-3" style="width: 35%;">Clip Info</th>
                                             <th style="width: 20%;">Event Details</th>
@@ -161,9 +160,9 @@
                                     <tbody>
                                         @foreach (var p in order)
                                         {
-                                            <tr>
+                                            <tr class="border-secondary-subtle">
                                                 <td class="ps-4">
-                                                    <div class="fw-bold text-dark">@(p.Clip?.Title ?? p.ClipTitle ?? "Deleted Clip")</div>
+                                                    <div class="fw-bold text-primary">@(p.Clip?.Title ?? p.ClipTitle ?? "Deleted Clip")</div>
                                                     <div class="small text-muted font-monospace mt-1">
                                                         <i class="bi bi-file-earmark-film me-1"></i>
                                                         @(p.Clip?.MasterFileName ?? p.ClipMasterFileName ?? "No Master File")
@@ -181,22 +180,22 @@
                                                 <td>
                                                     @if (!string.IsNullOrEmpty(p.EventName))
                                                     {
-                                                        <div class="text-dark">@p.EventName</div>
+                                                        <div class="text-primary">@p.EventName</div>
                                                         @if (p.EventDate.HasValue)
                                                         {
-                                                            <div class="small text-secondary">@p.EventDate.Value.ToString("d")</div>
+                                                            <div class="small text-muted">@p.EventDate.Value.ToString("d")</div>
                                                         }
                                                         
                                                         <div class="mt-1">
                                                             @if (p.ClipId == null || p.Clip?.Event == null)
                                                             {
-                                                                <span class="badge bg-light text-muted border small" style="font-size: 0.65rem;">
+                                                                <span class="badge bg-dark text-secondary border border-secondary-subtle small" style="font-size: 0.65rem;">
                                                                     <i class="bi bi-archive me-1"></i> Archived Snapshot
                                                                 </span>
                                                             }
                                                             else
                                                             {
-                                                                <span class="badge bg-light text-primary border small" style="font-size: 0.65rem;">
+                                                                <span class="badge bg-dark text-info border border-info-subtle small" style="font-size: 0.65rem;">
                                                                     <i class="bi bi-link-45deg me-1"></i> Live Record
                                                                 </span>
                                                             }
@@ -204,8 +203,8 @@
                                                     }
                                                     else if (p.Clip?.Event != null)
                                                     {
-                                                        <div class="text-dark">@p.Clip.Event.Name</div>
-                                                        <div class="small text-secondary">@p.Clip.Event.Date.ToString("d")</div>
+                                                        <div class="text-primary">@p.Clip.Event.Name</div>
+                                                        <div class="small text-muted">@p.Clip.Event.Date.ToString("d")</div>
                                                     }
                                                     else
                                                     {
@@ -214,7 +213,7 @@
                                                     }
                                                 </td>
                                                 <td>
-                                                    <div class="text-dark fw-bold">$@((p.PricePaidCents > 0 ? p.PricePaidCents : (p.Clip?.PriceCents ?? 0)) / 100.00)</div>
+                                                    <div class="text-primary fw-bold">$@((p.PricePaidCents > 0 ? p.PricePaidCents : (p.Clip?.PriceCents ?? 0)) / 100.00)</div>
                                                     @{
                                                         var duration = p.Clip?.DurationSec ?? p.ClipDurationSec ?? 0;
                                                     }
@@ -228,14 +227,14 @@
                                                         </span>
                                                         @if (p.FulfilledAt.HasValue)
                                                         {
-                                                            <div style="font-size: 0.7rem; color: #6c757d;" class="mt-1 ms-1">
+                                                            <div style="font-size: 0.7rem; color: var(--text-muted);" class="mt-1 ms-1">
                                                                 @p.FulfilledAt.Value.ToLocalTime().ToString("MM/dd h:mm tt")
                                                             </div>
                                                         }
                                                     }
                                                     else
                                                     {
-                                                        <span class="badge bg-warning text-dark rounded-pill px-3">
+                                                        <span class="badge bg-warning bg-opacity-25 text-warning border border-warning-subtle rounded-pill px-3">
                                                             <i class="bi bi-clock me-1"></i> Pending
                                                         </span>
                                                     }
@@ -295,7 +294,7 @@
                     
                     @if (_currentOrderPurchases != null)
                     {
-                        <div class="alert alert-info border-0 rounded-0 m-0 small py-2">
+                        <div class="alert alert-info bg-info bg-opacity-10 border-0 text-info rounded-0 m-0 small py-2">
                             <i class="bi bi-info-circle me-2"></i>
                             <strong>System will automatically match files to items:</strong> 
                             @(string.Join(", ", _currentOrderPurchases.Select(p => p.ClipMasterFileName ?? p.Clip?.MasterFileName ?? p.ClipTitle ?? p.Clip?.Title ?? "Unknown")))
@@ -303,12 +302,12 @@
                     }
                     else
                     {
-                        <div class="p-3 border-bottom border-secondary bg-black bg-opacity-50">
-                            <label class="form-label text-secondary small text-uppercase fw-bold m-0">Expected Filename</label>
+                        <div class="p-3 border-bottom border-secondary bg-black bg-opacity-25">
+                            <label class="form-label text-muted small text-uppercase fw-bold m-0">Expected Filename</label>
                             <div class="p-2 bg-black rounded border border-secondary mt-1">
                                 <code class="text-info">@(_selectedPurchase?.Clip?.MasterFileName ?? _selectedPurchase?.ClipMasterFileName ?? "No filename tracked")</code>
                             </div>
-                            <label class="form-label text-secondary small text-uppercase fw-bold m-0 mt-3">Expected Clip Title</label>
+                            <label class="form-label text-muted small text-uppercase fw-bold m-0 mt-3">Expected Clip Title</label>
                             <div class="p-2 bg-black rounded border border-secondary mt-1">
                                 <code class="text-info">@(_selectedPurchase?.Clip?.Title ?? _selectedPurchase?.ClipTitle ?? "No title tracked")</code>
                             </div>
@@ -321,7 +320,7 @@
                         
                         @if (!string.IsNullOrEmpty(_uploadError))
                         {
-                            <div class="alert alert-danger m-3">@_uploadError</div>
+                            <div class="alert alert-danger bg-danger bg-opacity-10 border-0 text-danger m-3">@_uploadError</div>
                         }
                     </div>
                     <div class="modal-footer border-secondary">
@@ -443,19 +442,11 @@
         else 
         {
             // Bulk Match Mode
-            Console.WriteLine($"[BULK-UPLOAD] Attempting to match: {fileName}. Available items: {_currentOrderPurchases.Count}");
-            foreach (var item in _currentOrderPurchases)
-            {
-                var isMapped = _uploadToPurchaseMap.Values.Contains(item.Id);
-                var itemFile = item.ClipMasterFileName ?? item.Clip?.MasterFileName ?? "NULL";
-                Console.WriteLine($"  - Purchase {item.Id}: Status={item.FulfillmentStatus}, Mapped={isMapped}, File={itemFile}, Title={item.ClipTitle}");
-            }
 
             // 1. Check if this exact file is already mapped (Idempotency)
             if (_uploadToPurchaseMap.TryGetValue(fileName, out var pId))
             {
                 target = _currentOrderPurchases.FirstOrDefault(p => p.Id == pId);
-                if (target != null) Console.WriteLine($"[BULK-UPLOAD] Idempotent match found for {fileName} -> {target.Id}");
             }
 
             if (target == null)
@@ -467,14 +458,11 @@
                     (string.Equals(p.ClipMasterFileName, fileName, StringComparison.OrdinalIgnoreCase) ||
                      string.Equals(p.Clip?.MasterFileName, fileName, StringComparison.OrdinalIgnoreCase) ||
                      (p.ClipMasterFileName != null && string.Equals(System.IO.Path.GetFileName(p.ClipMasterFileName.Replace("\\", "/")), fileName, StringComparison.OrdinalIgnoreCase))));
-
-                if (target != null) Console.WriteLine($"[BULK-UPLOAD] Exact filename match: {fileName} -> purchase {target.Id}");
             }
 
             if (target == null)
             {
                 // 3. Fallback: Super-Fuzzy match by Clip Title
-                // We normalize both and see if one contains the other (to handle extension-in-title or vice versa)
                 var normFileBase = SuperNormalize(System.IO.Path.GetFileNameWithoutExtension(fileName));
                 
                 target = _currentOrderPurchases.FirstOrDefault(p => 
@@ -485,14 +473,11 @@
                      SuperNormalize(p.ClipTitle).Contains(normFileBase) ||
                      normFileBase.Contains(SuperNormalize(p.Clip?.Title)) ||
                      normFileBase.Contains(SuperNormalize(p.ClipTitle))));
-
-                if (target != null) Console.WriteLine($"[BULK-UPLOAD] Aggressive fuzzy match: {fileName} -> purchase {target.Id}");
             }
         }
 
         if (target == null) 
         {
-            Console.WriteLine($"[BULK-UPLOAD] ERROR: No matching item found for file: {fileName}");
             return Task.FromResult("");
         }
         
@@ -564,10 +549,8 @@
                  purchase.StripeSessionId, 
                  $"Item fulfilled via bulk upload: {fileName}");
 
-             // Check if entire order is now done to send email
              if (_currentOrderPurchases != null && _currentOrderPurchases.All(p => p.FulfillmentStatus == FulfillmentStatus.Fulfilled))
              {
-                 Console.WriteLine($"[BULK-UPLOAD] Order complete! Sending fulfillment email for {purchase.StripeSessionId}");
                  await CompleteOrder(_currentOrderPurchases);
              }
              else 
@@ -626,26 +609,17 @@
                 var orderIdDisplay = !string.IsNullOrEmpty(firstItem.StripeSessionId) 
                     ? (firstItem.StripeSessionId.Length > 8 ? firstItem.StripeSessionId.Substring(firstItem.StripeSessionId.Length - 8).ToUpper() : firstItem.StripeSessionId.ToUpper())
                     : "N/A";
-                
                 var customerName = firstItem.CustomerName ?? "Customer";
-                Console.WriteLine($"[EMAIL] Generating html for {customerEmail} (Order {orderIdDisplay})");
                 var htmlBody = await EmailTemplateService.GenerateFulfillmentEmailHtmlAsync(orderIdDisplay, order, customerName);
 
-                Console.WriteLine($"[EMAIL] Sending fulfillment email to {customerEmail} via EmailService");
                 await EmailService.SendEmailAsync(customerEmail, $"Your Video Order is Ready! (#{orderIdDisplay})", htmlBody);
-                Console.WriteLine("[EMAIL] Email sent successfully.");
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                Console.WriteLine($"[Email Error] CRITICAL: Failed to send fulfillment email: {ex.Message}");
-                Console.WriteLine(ex.StackTrace);
+                // Silent catch or use proper logging if available
             }
         }
-        else
-        {
-            Console.WriteLine("[EMAIL] WARNING: No customer email found for order. Skipping email notification.");
-        }
-
+        
         // Switch to "Fulfilled" tab to show the result
         if (!isManualResend)
         {
@@ -670,4 +644,3 @@
         }
     }
 }
-<!-- Remove old script -->

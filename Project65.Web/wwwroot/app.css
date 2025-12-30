@@ -26,8 +26,9 @@
     --accent-pink: #ec4899;
     /* Neon Pink */
 
-    --border-color: #1e293b;
+    --border-color: #334155;
     --border-active: #06b6d4;
+    --border-subtle: #1e293b;
 
     --glass-bg: rgba(15, 17, 41, 0.7);
     --glass-border: rgba(255, 255, 255, 0.08);
@@ -68,16 +69,222 @@
 body {
     background-color: var(--bg-dark-900);
     color: var(--text-primary);
-    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    font-family: 'Outfit', sans-serif;
     margin: 0;
-    line-height: 1.5;
-    transition: var(--theme-transition);
+    padding: 0;
+    line-height: 1.6;
+    transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+    color: var(--text-primary);
 }
 
 a {
     color: var(--text-primary);
     text-decoration: none;
     transition: all 0.2s ease;
+}
+
+/* Theme-Safe Utility Overrides */
+.text-primary {
+    color: var(--text-primary) !important;
+}
+
+.text-secondary {
+    color: var(--text-secondary) !important;
+}
+
+.text-muted {
+    color: var(--text-muted) !important;
+}
+
+.text-white {
+    color: #ffffff !important;
+}
+
+.text-dark {
+    color: var(--text-primary) !important;
+}
+
+/* Force primary in dark mode */
+
+::placeholder {
+    color: var(--text-muted) !important;
+    opacity: 0.7 !important;
+}
+
+:-ms-input-placeholder {
+    color: var(--text-muted) !important;
+}
+
+::-ms-input-placeholder {
+    color: var(--text-muted) !important;
+}
+
+:root.light-theme .text-dark {
+    color: #0f172a !important;
+}
+
+:root.light-theme ::placeholder {
+    color: #64748b !important;
+}
+
+.bg-white {
+    background-color: var(--bg-dark-800) !important;
+}
+
+.bg-light {
+    background-color: var(--bg-dark-700) !important;
+}
+
+.bg-dark {
+    background-color: var(--bg-dark-900) !important;
+}
+
+.list-group-item {
+    background-color: transparent !important;
+    color: var(--text-primary) !important;
+    border-color: var(--border-color) !important;
+}
+
+/* Table & List Overrides */
+.table {
+    color: var(--text-primary) !important;
+    --bs-table-bg: transparent !important;
+    --bs-table-accent-bg: transparent !important;
+    --bs-table-striped-bg: rgba(255, 255, 255, 0.05) !important;
+    --bs-table-hover-bg: rgba(255, 255, 255, 0.05) !important;
+    background-color: transparent !important;
+}
+
+.table thead th {
+    background-color: var(--bg-dark-700) !important;
+    color: var(--text-secondary) !important;
+    border-bottom: 2px solid var(--border-color) !important;
+}
+
+.table tbody,
+.table td,
+.table th,
+.table tr {
+    background-color: transparent !important;
+    color: var(--text-primary) !important;
+    border-color: var(--border-color) !important;
+}
+
+.table td {
+    border-bottom: 1px solid var(--border-color) !important;
+    color: var(--text-primary) !important;
+}
+
+/* Global Border Visibility for Dark Mode */
+.border,
+.border-bottom,
+.border-top,
+.border-start,
+.border-end {
+    border-color: #334155 !important;
+}
+
+.border-secondary-subtle {
+    border-color: #475569 !important;
+}
+
+.border-secondary {
+    border-color: #64748b !important;
+}
+
+hr {
+    border-color: #475569 !important;
+    opacity: 0.3;
+}
+
+.table-hover tbody tr:hover {
+    background-color: rgba(255, 255, 255, 0.02) !important;
+}
+
+/* Card & Modal Overrides */
+.card {
+    background-color: var(--bg-dark-800) !important;
+    border-color: var(--border-color) !important;
+    color: var(--text-primary) !important;
+}
+
+.card-header,
+.card-footer {
+    background-color: var(--bg-dark-700) !important;
+    border-color: var(--border-color) !important;
+}
+
+.modal-content {
+    background-color: var(--bg-dark-800) !important;
+    border-color: var(--border-color) !important;
+    color: var(--text-primary) !important;
+}
+
+.modal-header,
+.modal-footer {
+    border-color: var(--border-color) !important;
+}
+
+/* Form Overrides */
+.form-control,
+.form-select {
+    background-color: var(--bg-dark-700) !important;
+    border-color: var(--border-color) !important;
+    color: var(--text-primary) !important;
+}
+
+.form-control:focus,
+.form-select:focus {
+    border-color: var(--accent-cyan) !important;
+    box-shadow: 0 0 0 0.25rem var(--accent-cyan-dim) !important;
+}
+
+.form-label {
+    color: var(--text-secondary) !important;
+}
+
+:root.light-theme .bg-white {
+    background-color: #ffffff !important;
+}
+
+:root.light-theme .bg-light {
+    background-color: #f8fafc !important;
+}
+
+:root.light-theme .table thead th {
+    background-color: #f1f5f9 !important;
+    color: #475569 !important;
+}
+
+:root.light-theme .card {
+    background-color: #ffffff !important;
+    border-color: #e2e8f0 !important;
+    color: #0f172a !important;
+}
+
+:root.light-theme .form-control,
+:root.light-theme .form-select {
+    background-color: #ffffff !important;
+    border-color: #e2e8f0 !important;
+    color: #0f172a !important;
+}
+
+:root.light-theme .form-label {
+    color: #1e293b !important;
+}
+
+:root.light-theme .modal-content {
+    background-color: #ffffff !important;
+    border-color: #e2e8f0 !important;
+    color: #0f172a !important;
 }
 
 /* Layout */

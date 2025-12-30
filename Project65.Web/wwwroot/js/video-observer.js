@@ -57,7 +57,7 @@ window.VideoObserver = (function () {
             // Muted required for autoplay usually
             player.muted = true;
             player.play().catch(e => {
-                // console.log('Autoplay blocked', e)
+                // Autoplay blocked
             });
         }
     }

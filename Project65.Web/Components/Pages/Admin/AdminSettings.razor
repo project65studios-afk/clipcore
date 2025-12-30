@@ -209,9 +209,9 @@
 
                 _brandLogoUrl = r2Key;
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                Console.WriteLine($"Error uploading brand logo: {ex.Message}");
+                // Logo upload failed
             }
             finally
             {
@@ -236,9 +236,9 @@
 
                 _watermarkUrl = r2Key;
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                Console.WriteLine($"Error uploading file: {ex.Message}");
+                // Background video upload failed
             }
             finally
             {

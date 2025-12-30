@@ -112,17 +112,6 @@
         border: 1px solid rgba(255,255,255,0.1);
     }
 
-    /* Accessibility Overrides for Dark Mode Readability */
-    .text-secondary {
-        color: var(--text-secondary) !important;
-        opacity: 0.9;
-    }
-
-    .text-muted {
-        color: var(--text-muted) !important;
-        opacity: 0.8;
-    }
-
     .small {
         font-size: 0.85rem;
     }
@@ -334,12 +323,11 @@
                             if (!p.ClipDurationSec.HasValue) p.ClipDurationSec = dbClip.DurationSec;
                             if (string.IsNullOrEmpty(p.ClipMasterFileName)) p.ClipMasterFileName = dbClip.MasterFileName;
                             if (string.IsNullOrEmpty(p.ClipThumbnailFileName)) p.ClipThumbnailFileName = dbClip.ThumbnailFileName;
-                            
-                            Console.WriteLine($"[ORDER-HEAL] Healed {p.ClipId}. Event: {p.EventName}, Dur: {p.ClipDurationSec}");
+                            if (string.IsNullOrEmpty(p.ClipThumbnailFileName)) p.ClipThumbnailFileName = dbClip.ThumbnailFileName;
                         }
                         else 
                         {
-                            Console.WriteLine($"[ORDER-HEAL] WARNING: Clip {p.ClipId} not found in DB during healing!");
+                            // Clip not found in DB
                         }
 
                         await PurchaseRepository.AddAsync(p);
@@ -377,23 +365,21 @@
                     var htmlBody = await EmailTemplateService.GenerateOrderReceiptHtmlAsync(shortOrderId, _purchases, customerName);
                     await EmailService.SendEmailAsync(customerEmail, "Your Project65 Order Receipt", htmlBody);
                 }
-                catch (Exception emailEx)
+                catch (Exception)
                 {
                     // Log the error but don't fail the whole page - the user already paid!
-                    Console.WriteLine($"Failed to send receipt email: {emailEx.Message}");
                     await AuditService.LogActionAsync(
                         userId,
                         null,
                         "Email Receipt Failed",
                         "Email",
                         SessionId,
-                        $"Error: {emailEx.Message}");
+                        $"Error: Receipt email failed");
                 }
             }
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            Console.WriteLine($"Order processing error: {ex}");
             _success = false;
         }
         finally

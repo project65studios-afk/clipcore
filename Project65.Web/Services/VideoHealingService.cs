@@ -104,7 +104,7 @@ public class VideoHealingService
 
                 if (clipFixed)
                 {
-                    Console.WriteLine($"[VideoHealingService] Successfully healed clip: {clip.Id}");
+                    // Successfully healed
                     OnClipHealed?.Invoke(clip);
                     await _hubContext.Clients.All.SendAsync("ClipStatusUpdated", clip.Id, "Healed");
                     break;
@@ -115,9 +115,9 @@ public class VideoHealingService
                 await Task.Delay(delay);
             }
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            Console.WriteLine($"[VideoHealingService] Error healing clip {clipId}: {ex.Message}");
+            // Error healing clip
         }
         finally
         {

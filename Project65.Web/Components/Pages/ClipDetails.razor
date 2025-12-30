@@ -428,9 +428,9 @@ else
                                         await EmailService.SendEmailAsync(email, "Your Project65 Receipt", receiptBody);
                                     }
                                 }
-                                catch (Exception ex) 
+                                catch (Exception) 
                                 { 
-                                    Console.WriteLine($"Failed to send receipt: {ex.Message}");
+                                    // Failed to send receipt
                                 }
                             }
                             catch { _hasPurchased = true; }
@@ -461,9 +461,8 @@ else
             }
             _loading = false;
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            Console.WriteLine($"[CLIP-DETAILS-CRITICAL] OnInitializedAsync Crashed: {ex}");
             _errorMessage = "Failed to load clip details.";
             _loading = false;
         }
