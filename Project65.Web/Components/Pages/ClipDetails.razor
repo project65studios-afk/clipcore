@@ -360,8 +360,20 @@ else
         }
     }
 
-    protected override async Task OnInitializedAsync()
+    protected override async Task OnParametersSetAsync()
     {
+        // Prevent unnecessary reloads if Id hasn't changed (though unlikely to trigger unless parent causes render)
+        if (_clip != null && _clip.Id == Id && !_processingPurchase) return;
+
+        // Reset state for new clip navigation
+        _clip = null;
+        _relatedClips = new();
+        _loading = true;
+        _hasPurchased = false;
+        _tokenCache.Clear();
+        _errorMessage = "";
+        StateHasChanged(); // Show loading spinner immediately
+
         try 
         {
             _watermarkUrl = await SettingsRepository.GetValueAsync("WatermarkUrl");
@@ -384,7 +396,8 @@ else
             {
                 _hasPurchased = await PurchaseRepository.HasPurchasedAsync(_userId, Id);
                 
-                VideoHealingService.OnClipHealed += HandleClipHealed;
+                VideoHealingService.OnClipHealed -= HandleClipHealed; // Unsubscribe old
+                VideoHealingService.OnClipHealed += HandleClipHealed; // Subscribe new
 
                 // Load Related Clips
                 string[] tags = Array.Empty<string>();
