@@ -147,7 +147,7 @@
 
                              <!-- Items Table -->
                              <div class="table-responsive bg-transparent">
-                                <table class="table table-hover mb-0 align-middle">
+                                <table class="table table-hover mb-0 align-middle mobile-card-view">
                                     <thead class="bg-black bg-opacity-25">
                                         <tr class="text-uppercase text-muted small border-bottom">
                                             <th class="ps-4 py-3" style="width: 35%;">Clip Info</th>
@@ -161,7 +161,7 @@
                                         @foreach (var p in order)
                                         {
                                             <tr class="border-secondary-subtle">
-                                                <td class="ps-4">
+                                                <td class="ps-4" data-label="Clip Info">
                                                     <div class="fw-bold text-primary">@(p.Clip?.Title ?? p.ClipTitle ?? "Deleted Clip")</div>
                                                     <div class="small text-muted font-monospace mt-1">
                                                         <i class="bi bi-file-earmark-film me-1"></i>
@@ -177,7 +177,7 @@
                                                         </div>
                                                     }
                                                 </td>
-                                                <td>
+                                                <td data-label="Event Details">
                                                     @if (!string.IsNullOrEmpty(p.EventName))
                                                     {
                                                         <div class="text-primary">@p.EventName</div>
@@ -212,14 +212,14 @@
                                                         <div class="text-muted extra-small" style="font-size: 0.6rem;">Missing Snapshot</div>
                                                     }
                                                 </td>
-                                                <td>
+                                                <td data-label="Price / Duration">
                                                     <div class="text-primary fw-bold">$@((p.PricePaidCents > 0 ? p.PricePaidCents : (p.Clip?.PriceCents ?? 0)) / 100.00)</div>
                                                     @{
                                                         var duration = p.Clip?.DurationSec ?? p.ClipDurationSec ?? 0;
                                                     }
                                                     <div class="small text-muted">@((int)duration) seconds</div>
                                                 </td>
-                                                <td>
+                                                <td data-label="Status">
                                                     @if (p.FulfillmentStatus == FulfillmentStatus.Fulfilled)
                                                     {
                                                         <span class="badge bg-success text-white rounded-pill px-3">
@@ -239,7 +239,7 @@
                                                         </span>
                                                     }
                                                 </td>
-                                                <td class="text-end pe-4">
+                                                <td class="text-end pe-4" data-label="Action">
                                                     @if (p.FulfillmentStatus == FulfillmentStatus.Pending) 
                                                     {
                                                         <button class="btn btn-sm btn-primary shadow-sm" @onclick="() => OpenFulfillModal(p)">
@@ -252,9 +252,14 @@
                                                     }
                                                     else
                                                     {
-                                                        <button class="btn btn-sm btn-outline-secondary" @onclick="() => OpenFulfillModal(p)">
-                                                            <i class="bi bi-pencil me-1"></i> Update
-                                                        </button>
+                                                        <div class="d-flex flex-column align-items-end gap-2">
+                                                            <button class="btn btn-sm btn-outline-secondary" @onclick="() => OpenFulfillModal(p)">
+                                                                <i class="bi bi-pencil me-1"></i> Update
+                                                            </button>
+                                                            <button class="btn btn-sm btn-outline-danger" @onclick="() => RevertToPending(p)" title="Reset to Pending" style="font-size: 0.75rem;">
+                                                                <i class="bi bi-arrow-counterclockwise me-1"></i> Undo
+                                                            </button>
+                                                        </div>
                                                         @if (p.ClipId == null)
                                                         {
                                                             <div class="text-muted extra-small mt-1" style="font-size: 0.7rem;">Clip Deleted</div>
@@ -578,10 +583,29 @@
         var customerEmail = firstItem.CustomerEmail;
         var deliveryLink = $"{Navigation.BaseUri}delivery/{firstItem.StripeSessionId}";
         
+        var orderIdDisplay = !string.IsNullOrEmpty(firstItem.StripeSessionId) 
+            ? (firstItem.StripeSessionId.Length > 8 ? firstItem.StripeSessionId.Substring(firstItem.StripeSessionId.Length - 8).ToUpper() : firstItem.StripeSessionId.ToUpper())
+            : "N/A";
+
         foreach (var p in order)
         {
             if (p.FulfillmentStatus == FulfillmentStatus.Pending || string.IsNullOrEmpty(p.HighResDownloadUrl) || isManualResend)
             {
+                // Auto-copy logic
+                if (p.Clip != null && !string.IsNullOrEmpty(p.Clip.MasterFileName) && string.IsNullOrEmpty(p.ClipMasterFileName))
+                {
+                    var originalFileName = System.IO.Path.GetFileName(p.Clip.MasterFileName.Replace("\\", "/"));
+                    // Use Order ID folder structure
+                    var folderName = orderIdDisplay;
+                    var newKey = $"{folderName}/{originalFileName}";
+
+                    if (!await StorageService.FileExistsAsync(newKey))
+                    {
+                        await StorageService.CopyFileAsync(p.Clip.MasterFileName, newKey);
+                    }
+                    p.ClipMasterFileName = newKey; // Update to the order-specific path
+                }
+
                 p.FulfillmentStatus = FulfillmentStatus.Fulfilled;
                 p.FulfilledAt ??= DateTime.UtcNow;
                 // Save the dynamic link as the fallback
@@ -609,9 +633,6 @@
         {
             try 
             {
-                var orderIdDisplay = !string.IsNullOrEmpty(firstItem.StripeSessionId) 
-                    ? (firstItem.StripeSessionId.Length > 8 ? firstItem.StripeSessionId.Substring(firstItem.StripeSessionId.Length - 8).ToUpper() : firstItem.StripeSessionId.ToUpper())
-                    : "N/A";
                 var customerName = firstItem.CustomerName ?? "Customer";
                 var htmlBody = await EmailTemplateService.GenerateFulfillmentEmailHtmlAsync(orderIdDisplay, order, customerName);
 
@@ -628,6 +649,37 @@
         {
             _currentFilter = "Fulfilled";
         }
+        await LoadDataAsync();
+    }
+
+    private async Task RevertToPending(Purchase p)
+    {
+        if (p.FulfillmentStatus != FulfillmentStatus.Fulfilled) return;
+
+        // Reset status
+        p.FulfillmentStatus = FulfillmentStatus.Pending;
+        p.FulfilledAt = null;
+        p.HighResDownloadUrl = null;
+        
+        // Clear the order-specific file link (we don't delete the file, just the reference to allow re-copy if needed)
+        p.ClipMasterFileName = null;
+        
+        await PurchaseRepository.UpdateAsync(p);
+        
+        // Log
+        var authState = await AuthenticationStateTask;
+        var user = authState.User;
+        var userId = user.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        var userEmail = user.Identity?.Name;
+
+        await AuditService.LogActionAsync(
+            userId, 
+            userEmail, 
+            "Revert Fulfillment", 
+            "Purchase", 
+            p.StripeSessionId, 
+            $"Item reverted to pending: {p.Clip?.Title}");
+
         await LoadDataAsync();
     }
 

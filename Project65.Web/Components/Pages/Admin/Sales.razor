@@ -25,7 +25,7 @@
     else
     {
         <!-- Main Analytics Grid -->
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 2rem;">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem; margin-bottom: 2rem;">
             <!-- Metrics Tiles -->
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
                 <div style="background: var(--bg-dark-800); padding: 1.5rem; border-radius: var(--radius-lg); border: 1px solid var(--border-color); display: flex; flex-direction: column; justify-content: center;">
@@ -56,13 +56,13 @@
             </div>
         </div>
 
-        <div style="display: grid; grid-template-columns: 1fr 300px; gap: 2rem;">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 2rem;">
             <!-- Recent Transactions Table -->
             <div style="background: var(--bg-dark-800); border-radius: var(--radius-lg); border: 1px solid var(--border-color); overflow: hidden;">
                 <div style="padding: 1.5rem; border-bottom: 1px solid var(--border-color);">
                     <h3 style="margin: 0;">Recent Transactions</h3>
                 </div>
-                <table class="responsive-table" style="width: 100%; border-collapse: collapse;">
+                <table class="responsive-table mobile-card-view" style="width: 100%; border-collapse: collapse;">
                     <thead>
                         <tr style="background: rgba(255,255,255,0.05); border-bottom: 1px solid var(--border-color);">
                             <th style="padding: 1rem; text-align: left; color: var(--text-secondary); font-weight: 500;">Date</th>
@@ -75,13 +75,13 @@
                         @foreach (var purchase in _recentPurchases)
                         {
                             <tr style="border-bottom: 1px solid var(--border-color);">
-                                <td style="padding: 1rem; color: var(--text-secondary);">@purchase.CreatedAt.ToString("MM/dd/yy hh:mm tt")</td>
-                                <td style="padding: 1rem;">
+                                <td data-label="Date" style="padding: 1rem; color: var(--text-secondary);">@purchase.CreatedAt.ToString("MM/dd/yy hh:mm tt")</td>
+                                <td data-label="Customer" style="padding: 1rem;">
                                     <div>@(purchase.CustomerName ?? "Guest")</div>
                                     <div style="font-size: 0.8rem; color: var(--text-muted);">@purchase.CustomerEmail</div>
                                 </td>
-                                <td style="padding: 1rem;">@(purchase.Clip?.Title ?? purchase.ClipTitle ?? "Deleted Clip")</td>
-                                <td style="padding: 1rem; text-align: right; font-weight: 600;">$@(purchase.PricePaidCents / 100.00)</td>
+                                <td data-label="Clip" style="padding: 1rem;">@(purchase.Clip?.Title ?? purchase.ClipTitle ?? "Deleted Clip")</td>
+                                <td data-label="Amount" style="padding: 1rem; text-align: right; font-weight: 600;">$@(purchase.PricePaidCents / 100.00)</td>
                             </tr>
                         }
                     </tbody>

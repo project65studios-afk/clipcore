@@ -128,6 +128,29 @@ namespace Project65.Infrastructure.Services
             }
         }
 
+        public async Task CopyFileAsync(string sourceKey, string destinationKey)
+        {
+            try
+            {
+                var request = new CopyObjectRequest
+                {
+                    SourceBucket = _bucketName,
+                    SourceKey = sourceKey,
+                    DestinationBucket = _bucketName,
+                    DestinationKey = destinationKey
+                };
+
+                _logger.LogInformation($"[R2] Copying from {sourceKey} to {destinationKey}");
+                await _s3Client.CopyObjectAsync(request);
+                _logger.LogInformation($"[R2] Copy complete.");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"[R2] Copy failed from {sourceKey} to {destinationKey}");
+                throw;
+            }
+        }
+
         public async Task ConfigureCorsAsync()
         {
             try

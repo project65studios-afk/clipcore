@@ -24,15 +24,15 @@
     <div class="card shadow-sm">
         <div class="card-body p-0">
             <div class="table-responsive">
-                <table class="table table-hover mb-0">
+                <table class="table table-hover mb-0 mobile-card-view">
                     <thead class="table-dark">
                         <tr>
                             <th style="width: 180px;">Timestamp</th>
                             <th style="width: 200px;">User</th>
                             <th style="width: 150px;">Action</th>
                             <th style="width: 150px;">Entity</th>
-                            <th>Details</th>
-                            <th style="width: 120px;">IP Address</th>
+                            <th class="d-none d-md-table-cell">Details</th>
+                            <th class="d-none d-md-table-cell" style="width: 120px;">IP Address</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -55,22 +55,22 @@
                             @foreach (var log in _logs)
                             {
                                 <tr>
-                                    <td class="small text-muted">@log.Timestamp.ToLocalTime().ToString("MMM dd, yyyy HH:mm:ss")</td>
-                                    <td>
+                                    <td class="small text-muted" data-label="Timestamp">@log.Timestamp.ToLocalTime().ToString("MMM dd, yyyy HH:mm:ss")</td>
+                                    <td data-label="User">
                                         <div class="fw-bold small">@log.UserEmail</div>
                                         <div class="extra-small text-muted" style="font-size: 0.65rem;">@log.UserId</div>
                                     </td>
-                                    <td>
+                                    <td data-label="Action">
                                         <span class="badge @GetActionBadgeClass(log.Action)">@log.Action</span>
                                     </td>
-                                    <td class="small">
+                                    <td class="small" data-label="Entity">
                                         <div class="text-uppercase fw-bold" style="font-size: 0.7rem; color: var(--accent-cyan);">@log.EntityType</div>
                                         <div class="text-muted" style="font-size: 0.7rem;">ID: @log.EntityId</div>
                                     </td>
-                                    <td class="small" style="max-width: 300px; white-space: normal;">
+                                    <td class="small d-none d-md-table-cell" style="max-width: 300px; white-space: normal;">
                                         @log.Details
                                     </td>
-                                    <td class="small text-muted font-monospace">@log.IpAddress</td>
+                                    <td class="small text-muted font-monospace d-none d-md-table-cell">@log.IpAddress</td>
                                 </tr>
                             }
                         }

@@ -10,138 +10,212 @@
 @inject IAuditService AuditService
 @inject IStorageService StorageService
 
-<div class="mb-4">
-    <div class="admin-header d-flex justify-content-between align-items-center">
+<div class="admin-container" style="max-width: 1200px; margin: 2rem auto; padding: 0 1rem;">
+    <!-- Header -->
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-5 gap-3">
         <div>
-            <h1 style="font-size: 2rem; margin-bottom: 0.5rem;">Settings</h1>
-            <p class="text-secondary">Configure global storefront options.</p>
+            <h1 class="fw-bold m-0" style="color: var(--text-primary);">Store Settings</h1>
+            <p class="m-0 mt-1" style="color: var(--text-secondary);">Configure your storefront appearance and global options.</p>
         </div>
-        <a href="/admin" class="btn-secondary">Back to Dashboard</a>
+        <a href="/admin" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left me-2"></i>Back to Dashboard
+        </a>
+    </div>
+
+    <!-- Settings Grid -->
+    <div class="row g-4">
+        
+        <!-- Left Column: Branding -->
+        <div class="col-12 col-lg-6">
+            <div class="d-flex flex-column gap-4">
+                
+                <!-- Brand Logo Card -->
+                <div class="card shadow-sm" style="background: var(--bg-dark-800); border: 1px solid var(--border-color);">
+                    <div class="card-header bg-transparent py-3" style="border-bottom: 1px solid var(--border-color);">
+                        <h5 class="mb-0" style="color: var(--text-primary);"><i class="bi bi-card-image me-2 text-primary"></i>Brand Logo</h5>
+                    </div>
+                    <div class="card-body">
+                         <div class="mb-4">
+                            <label class="form-label small text-uppercase fw-bold" style="color: var(--text-secondary);">Current Preview</label>
+                            <div class="p-4 rounded d-flex justify-content-center align-items-center" style="background: #000; min-height: 120px; border: 1px solid var(--border-color);">
+                                @if (!string.IsNullOrEmpty(_brandLogoUrl))
+                                {
+                                    <img src="@ResolveStorageUrl(_brandLogoUrl)" style="max-height: 60px; max-width: 100%; object-fit: contain;" />
+                                }
+                                else
+                                {
+                                    <span class="text-muted fst-italic">No logo set</span>
+                                }
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label" style="color: var(--text-primary);">Logo Source</label>
+                            <div class="btn-group w-100 mb-3" role="group">
+                                <button type="button" class="btn @(_useLogoUpload ? "btn-primary" : "btn-outline-secondary")" @onclick="() => _useLogoUpload = true">
+                                    <i class="bi bi-upload me-2"></i>Upload
+                                </button>
+                                <button type="button" class="btn @(!_useLogoUpload ? "btn-primary" : "btn-outline-secondary")" @onclick="() => _useLogoUpload = false">
+                                    <i class="bi bi-link me-2"></i>URL
+                                </button>
+                            </div>
+
+                            @if (_useLogoUpload)
+                            {
+                                <div class="input-group">
+                                    <InputFile OnChange="HandleLogoSelected" class="form-control" style="background: var(--bg-dark-700); border-color: var(--border-color); color: var(--text-primary);" />
+                                </div>
+                                <div class="form-text text-muted">Recommended: Transparent PNG, max height 80px.</div>
+                            }
+                            else
+                            {
+                                <div class="input-group">
+                                    <span class="input-group-text" style="background: var(--bg-dark-700); border-color: var(--border-color); color: var(--text-secondary);"><i class="bi bi-link-45deg"></i></span>
+                                    <input type="text" class="form-control" @bind="_brandLogoUrl" placeholder="https://example.com/logo.png" style="background: var(--bg-dark-700); border-color: var(--border-color); color: var(--text-primary);" />
+                                </div>
+                            }
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Watermark Card -->
+                <div class="card shadow-sm" style="background: var(--bg-dark-800); border: 1px solid var(--border-color);">
+                    <div class="card-header bg-transparent py-3" style="border-bottom: 1px solid var(--border-color);">
+                        <h5 class="mb-0" style="color: var(--text-primary);"><i class="bi bi-badge-ad me-2 text-info"></i>Video Watermark</h5>
+                    </div>
+                    <div class="card-body">
+                         <div class="mb-4">
+                            <label class="form-label small text-uppercase fw-bold" style="color: var(--text-secondary);">Overlay Preview</label>
+                            <div class="p-4 rounded d-flex justify-content-center align-items-center position-relative overflow-hidden" style="background: #000; min-height: 120px; border: 1px solid var(--border-color);">
+                                <!-- Simulated video background -->
+                                <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: linear-gradient(45deg, #1a1a2e 25%, #16213e 25%, #16213e 50%, #1a1a2e 50%, #1a1a2e 75%, #16213e 75%, #16213e 100%); background-size: 20px 20px; opacity: 0.5;"></div>
+                                
+                                @if (!string.IsNullOrEmpty(_watermarkUrl))
+                                {
+                                    <img src="@ResolveStorageUrl(_watermarkUrl)" style="max-height: 40px; max-width: 100%; object-fit: contain; z-index: 2;" />
+                                }
+                                else
+                                {
+                                    <span class="text-muted fst-italic z-2">No watermark set</span>
+                                }
+                            </div>
+                        </div>
+
+                         <div class="mb-3">
+                            <label class="form-label" style="color: var(--text-primary);">Watermark Source</label>
+                            <div class="btn-group w-100 mb-3" role="group">
+                                <button type="button" class="btn @(_useUpload ? "btn-primary" : "btn-outline-secondary")" @onclick="() => _useUpload = true">
+                                    <i class="bi bi-upload me-2"></i>Upload
+                                </button>
+                                <button type="button" class="btn @(!_useUpload ? "btn-primary" : "btn-outline-secondary")" @onclick="() => _useUpload = false">
+                                    <i class="bi bi-link me-2"></i>URL
+                                </button>
+                            </div>
+
+                            @if (_useUpload)
+                            {
+                                <div class="input-group">
+                                    <InputFile OnChange="HandleFileSelected" class="form-control" style="background: var(--bg-dark-700); border-color: var(--border-color); color: var(--text-primary);" />
+                                </div>
+                                <div class="form-text text-muted">Recommended: White transparent PNG, applied to all videos.</div>
+                            }
+                            else
+                            {
+                                <div class="input-group">
+                                    <span class="input-group-text" style="background: var(--bg-dark-700); border-color: var(--border-color); color: var(--text-secondary);"><i class="bi bi-link-45deg"></i></span>
+                                    <input type="text" class="form-control" @bind="_watermarkUrl" placeholder="https://example.com/watermark.png" style="background: var(--bg-dark-700); border-color: var(--border-color); color: var(--text-primary);" />
+                                </div>
+                            }
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- Right Column: Configuration -->
+        <div class="col-12 col-lg-6">
+            <div class="card shadow-sm h-100" style="background: var(--bg-dark-800); border: 1px solid var(--border-color);">
+                <div class="card-header bg-transparent py-3" style="border-bottom: 1px solid var(--border-color);">
+                    <h5 class="mb-0" style="color: var(--text-primary);"><i class="bi bi-gear me-2 text-warning"></i>Store Configuration</h5>
+                </div>
+                <div class="card-body d-flex flex-column gap-3">
+                    
+                    <div>
+                        <label class="form-label" style="color: var(--text-primary);">Store Name</label>
+                        <input type="text" class="form-control p-3" @bind="_storeName" placeholder="Project65 Studios" style="background: var(--bg-dark-700); border-color: var(--border-color); color: var(--text-primary);" />
+                        <div class="form-text text-muted">Displayed in browser title and emails.</div>
+                    </div>
+
+                    <div>
+                        <label class="form-label" style="color: var(--text-primary);">Default Clip Price ($)</label>
+                        <div class="input-group">
+                            <span class="input-group-text" style="background: var(--bg-dark-700); border-color: var(--border-color); color: var(--text-secondary);">$</span>
+                            <input type="number" step="0.01" class="form-control p-3" @bind="_defaultPrice" style="background: var(--bg-dark-700); border-color: var(--border-color); color: var(--text-primary);" />
+                        </div>
+                        <div class="form-text text-muted">Applied to new clips automatically.</div>
+                    </div>
+
+                    <div class="row g-3">
+                        <div class="col-12">
+                            <label class="form-label" style="color: var(--text-primary);">Base Site URL</label>
+                            <input type="text" class="form-control p-3" @bind="_baseSiteUrl" placeholder="https://project65.com" style="background: var(--bg-dark-700); border-color: var(--border-color); color: var(--text-primary);" />
+                            <div class="form-text text-muted">Required for correct links in customer emails.</div>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label" style="color: var(--text-primary);">Support Email</label>
+                            <input type="email" class="form-control p-3" @bind="_supportEmail" placeholder="support@project65.com" style="background: var(--bg-dark-700); border-color: var(--border-color); color: var(--text-primary);" />
+                            <div class="form-text text-muted">Where customers can reply to receipts.</div>
+                        </div>
+                    </div>
+
+                    <hr class="my-4" style="border-color: var(--border-color);" />
+
+                    <div class="p-3 rounded" style="background: var(--bg-dark-700); border: 1px solid var(--border-color);">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="maintenanceToggle" @bind="_maintenanceMode" style="cursor: pointer; width: 3em; height: 1.5em;" />
+                            <label class="form-check-label ms-3 fw-bold pt-1" for="maintenanceToggle" style="color: var(--text-primary);">Maintenance Mode</label>
+                        </div>
+                        <p class="small text-muted m-0 mt-2">
+                            When enabled, the storefront will be hidden from customers. Admins can still access everything.
+                        </p>
+                    </div>
+
+                </div>
+                <div class="card-footer bg-transparent p-4" style="border-top: 1px solid var(--border-color);">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div class="small">
+                            @if (_showSuccess)
+                            {
+                                <span class="text-success animate-fade-in"><i class="bi bi-check-circle-fill me-2"></i>Settings saved!</span>
+                            }
+                        </div>
+                        <button class="btn btn-primary px-4 py-2" @onclick="SaveSettings" disabled="@_isSaving">
+                            @if (_isSaving)
+                            {
+                                <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                                <span>Saving...</span>
+                            }
+                            else
+                            {
+                                <span>Save Changes</span>
+                            }
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 
-<div class="grid-card" style="max-width: 600px; padding: 2rem; margin-bottom: 2rem;">
-    <h3 class="mb-4">Brand Logo</h3>
-    
-    <div class="mb-4">
-        <label class="form-label" style="color: var(--text-secondary);">Logo Source</label>
-        <div class="d-flex gap-3 mb-3">
-            <button class="btn @(_useLogoUpload ? "btn-primary" : "btn-secondary")" @onclick="() => _useLogoUpload = true">Upload File</button>
-            <button class="btn @(!_useLogoUpload ? "btn-primary" : "btn-secondary")" @onclick="() => _useLogoUpload = false">Image URL</button>
-        </div>
-
-        @if (_useLogoUpload)
-        {
-            <div class="input-group">
-                <InputFile OnChange="HandleLogoSelected" class="form-control" style="background: var(--bg-dark-800); border-color: var(--border-color); color: var(--text-primary);" />
-            </div>
-            <p class="text-muted mt-2" style="font-size: 0.85rem;">
-                This logo appears in the nav menu and email receipts.
-            </p>
-        }
-        else
-        {
-            <div class="input-group">
-                <input type="text" class="form-control" @bind="_brandLogoUrl" placeholder="https://example.com/logo.png" style="background: var(--bg-dark-800); border-color: var(--border-color); color: var(--text-primary);" />
-            </div>
-        }
-    </div>
-
-    @if (!string.IsNullOrEmpty(_brandLogoUrl))
-    {
-        <div class="mb-4">
-            <label class="form-label" style="color: var(--text-secondary);">Preview</label>
-            <div style="background: #000; padding: 2rem; border-radius: var(--radius-md); text-align: center; border: 1px solid var(--border-color);">
-                <img src="@ResolveStorageUrl(_brandLogoUrl)" style="max-height: 80px; object-fit: contain;" />
-            </div>
-        </div>
+<style>
+    .form-control:focus {
+        background-color: var(--bg-dark-900);
+        color: var(--text-primary);
+        border-color: var(--accent-cyan);
+        box-shadow: 0 0 0 0.25rem rgba(6, 182, 212, 0.25);
     }
-</div>
-
-<div class="grid-card" style="max-width: 600px; padding: 2rem;">
-    <h3 class="mb-4">Video Watermark</h3>
-    
-    <div class="mb-4">
-        <label class="form-label" style="color: var(--text-secondary);">Watermark Source</label>
-        <div class="d-flex gap-3 mb-3">
-            <button class="btn @(_useUpload ? "btn-primary" : "btn-secondary")" @onclick="() => _useUpload = true">Upload File</button>
-            <button class="btn @(!_useUpload ? "btn-primary" : "btn-secondary")" @onclick="() => _useUpload = false">Image URL</button>
-        </div>
-
-        @if (_useUpload)
-        {
-            <div class="input-group">
-                <InputFile OnChange="HandleFileSelected" class="form-control" style="background: var(--bg-dark-800); border-color: var(--border-color); color: var(--text-primary);" />
-            </div>
-            <p class="text-muted mt-2" style="font-size: 0.85rem;">
-                Select a transparent PNG or JPG from your computer.
-            </p>
-        }
-        else
-        {
-            <div class="input-group">
-                <input type="text" class="form-control" @bind="_watermarkUrl" placeholder="https://example.com/logo.png" style="background: var(--bg-dark-800); border-color: var(--border-color); color: var(--text-primary);" />
-            </div>
-            <p class="text-muted mt-2" style="font-size: 0.85rem;">
-                Provide a URL to a transparent PNG or JPG image.
-            </p>
-        }
-    </div>
-
-    @if (!string.IsNullOrEmpty(_watermarkUrl))
-    {
-        <div class="mb-4">
-            <label class="form-label" style="color: var(--text-secondary);">Preview</label>
-            <div style="background: #000; padding: 1rem; border-radius: var(--radius-md); text-align: center; border: 1px solid var(--border-color);">
-                <img src="@ResolveStorageUrl(_watermarkUrl)" style="max-height: 50px; opacity: 0.7;" />
-            </div>
-        </div>
-    }
-
-    <hr style="border-color: var(--border-color); margin: 2rem 0;" />
-
-    <h3 class="mb-4">Store Configuration</h3>
-    
-    <div class="mb-3">
-        <label class="form-label">Store Name</label>
-        <input type="text" class="form-control" @bind="_storeName" placeholder="Project65 Studios" />
-    </div>
-
-    <div class="mb-3">
-        <label class="form-label">Base Site URL (for Emails)</label>
-        <input type="text" class="form-control" @bind="_baseSiteUrl" placeholder="https://project65.com" />
-        <p class="text-muted mt-1" style="font-size: 0.8rem;">
-            Ensure this is the public URL where your site is reachable.
-        </p>
-    </div>
-
-    <div class="mb-3">
-        <label class="form-label">Support Email</label>
-        <input type="email" class="form-control" @bind="_supportEmail" placeholder="support@project65.com" />
-    </div>
-
-    <div class="mb-3">
-        <label class="form-label">Default Clip Price ($)</label>
-        <input type="number" step="0.01" class="form-control" @bind="_defaultPrice" />
-    </div>
-
-    <div class="mb-3">
-        <div class="form-check form-switch">
-             <input class="form-check-input" type="checkbox" id="maintenanceToggle" @bind="_maintenanceMode" />
-             <label class="form-check-label" for="maintenanceToggle">Enable Maintenance Mode (Disable Store)</label>
-        </div>
-    </div>
-
-    <div class="mt-4">
-        <button class="btn-primary" @onclick="SaveSettings" disabled="@_isSaving">
-            @(_isSaving ? "Saving..." : "Save Settings")
-        </button>
-        @if (_showSuccess)
-        {
-            <span class="text-success ms-3 animate-fade-in">Settings saved successfully!</span>
-        }
-    </div>
-</div>
+</style>
 
 @code {
     private string? _brandLogoUrl;

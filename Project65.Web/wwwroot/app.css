@@ -1358,4 +1358,74 @@ h3 {
     .purchase-actions .btn-secondary {
         width: 100%;
     }
+
+    /* --- Mobile Responsive Table / Card Views --- */
+    @media (max-width: 768px) {
+        .mobile-card-view {
+            display: block;
+        }
+
+        .mobile-card-view thead {
+            display: none;
+        }
+
+        .mobile-card-view tbody,
+        .mobile-card-view tr,
+        .mobile-card-view td {
+            display: block;
+            width: 100%;
+        }
+
+        .mobile-card-view tr {
+            margin-bottom: 1rem;
+            background: var(--bg-dark-800);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            padding: 1rem;
+            position: relative;
+        }
+
+        .mobile-card-view td {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            padding: 0.5rem 0;
+            border: none;
+            text-align: right;
+            min-height: 2.5rem;
+        }
+
+        .mobile-card-view td::before {
+            content: attr(data-label);
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            font-size: 0.75rem;
+            margin-right: 1rem;
+            text-align: left;
+            flex-shrink: 0;
+            max-width: 40%;
+        }
+
+        .mobile-card-view td:last-child {
+            justify-content: flex-end;
+            border-top: 1px solid var(--border-subtle);
+            margin-top: 0.5rem;
+            padding-top: 1rem;
+            padding-bottom: 0;
+        }
+
+        /* Adjust text alignment for content in mobile view */
+        .mobile-card-view td>div,
+        .mobile-card-view td>span {
+            text-align: right;
+            width: 100%;
+            margin-left: auto;
+        }
+
+        /* Container Spacing for Admin Pages */
+        .admin-container {
+            padding: 1rem;
+        }
+    }
 }

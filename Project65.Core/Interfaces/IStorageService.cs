@@ -10,6 +10,7 @@ namespace Project65.Core.Interfaces
         string GetPresignedUploadUrl(string fileName, string contentType);
         Task<bool> FileExistsAsync(string fileName);
         Task DeleteAsync(string fileName);
+        Task CopyFileAsync(string sourceKey, string destinationKey);
         Task ConfigureCorsAsync();
     }
 }
