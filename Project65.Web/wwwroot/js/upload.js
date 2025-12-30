@@ -195,7 +195,7 @@ window.fulfillmentUpload = {
             id: 'fulfillment-uploader',
             autoProceed: false, // Wait for user to click button
             restrictions: {
-                maxNumberOfFiles: 1,
+                maxNumberOfFiles: 50,
                 allowedFileTypes: ['video/*']
             }
         });
@@ -203,10 +203,11 @@ window.fulfillmentUpload = {
         uppy.use(Uppy.Dashboard, {
             target: '#' + containerId,
             inline: true,
-            height: 300,
+            height: 350,
             width: '100%',
             theme: 'dark',
-            note: 'Upload the Master File for this order.',
+            showProgressDetails: true,
+            note: 'Bulk Upload: Add all clips for this order. System will match by filename.',
             hideUploadButton: false // Show the button
         });
 
@@ -228,7 +229,20 @@ window.fulfillmentUpload = {
                         // 1. Get R2 Presigned PUT URL from Blazor
                         const uploadUrl = await dotNetHelper.invokeMethodAsync('GetR2UploadUrl', file.name, file.type);
 
-                        if (!uploadUrl) throw new Error("Could not generate R2 upload URL.");
+                        if (!uploadUrl) {
+                            const errorMsg = `No matching item found for "${file.name}"`;
+                            uppy.info(errorMsg, 'error', 5000);
+                            uppy.setFileState(id, {
+                                error: errorMsg,
+                                progress: { uploadComplete: false, percentage: 0 }
+                            });
+                            uppy.emit('upload-error', file, new Error(errorMsg));
+                            continue;
+                        }
+
+                        // Emit start event for UI
+                        uppy.emit('upload-started', file);
+                        const startTime = performance.now();
 
                         // 2. Upload via Standard XHR (PUT)
                         await new Promise((resolve, reject) => {
@@ -239,7 +253,7 @@ window.fulfillmentUpload = {
 
                                     uppy.setFileState(id, {
                                         progress: {
-                                            uploadStarted: Date.now(),
+                                            uploadStarted: startTime,
                                             uploadComplete: false,
                                             percentage: percentage,
                                             bytesUploaded: e.loaded,
@@ -258,7 +272,7 @@ window.fulfillmentUpload = {
                             xhr.addEventListener('load', () => {
                                 if (xhr.status >= 200 && xhr.status < 300) {
                                     uppy.setFileState(id, {
-                                        progress: { uploadComplete: true, uploadStarted: Date.now() }
+                                        progress: { uploadComplete: true, uploadStarted: Date.now(), percentage: 100 }
                                     });
                                     uppy.emit('upload-success', file, { uploadUrl });
                                     resolve();
@@ -274,8 +288,8 @@ window.fulfillmentUpload = {
                             xhr.send(file.data);
                         });
 
-                        // Notify Blazor of completion
-                        await dotNetHelper.invokeMethodAsync('OnUploadSuccess');
+                        // Notify Blazor of completion for this specific file
+                        await dotNetHelper.invokeMethodAsync('OnUploadSuccess', file.name);
 
                     } catch (err) {
                         uppy.emit('upload-error', file, err);

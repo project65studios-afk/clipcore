@@ -94,6 +94,24 @@ namespace Project65.Infrastructure.Services
             }
         }
 
+        public async Task<bool> FileExistsAsync(string fileName)
+        {
+            try
+            {
+                await _s3Client.GetObjectMetadataAsync(_bucketName, fileName);
+                return true;
+            }
+            catch (AmazonS3Exception ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
+            {
+                return false;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"[R2] Error checking existence for {fileName}");
+                return false;
+            }
+        }
+
         public async Task DeleteAsync(string fileName)
         {
             try

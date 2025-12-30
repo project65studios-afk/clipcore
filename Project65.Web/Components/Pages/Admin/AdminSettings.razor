@@ -8,6 +8,7 @@
 @inject ISettingsRepository SettingsRepository
 @inject IWebHostEnvironment Environment
 @inject IAuditService AuditService
+@inject IStorageService StorageService
 
 <div class="mb-4">
     <div class="admin-header d-flex justify-content-between align-items-center">
@@ -51,7 +52,7 @@
         <div class="mb-4">
             <label class="form-label" style="color: var(--text-secondary);">Preview</label>
             <div style="background: #000; padding: 2rem; border-radius: var(--radius-md); text-align: center; border: 1px solid var(--border-color);">
-                <img src="@_brandLogoUrl" style="max-height: 80px; object-fit: contain;" />
+                <img src="@ResolveStorageUrl(_brandLogoUrl)" style="max-height: 80px; object-fit: contain;" />
             </div>
         </div>
     }
@@ -92,7 +93,7 @@
         <div class="mb-4">
             <label class="form-label" style="color: var(--text-secondary);">Preview</label>
             <div style="background: #000; padding: 1rem; border-radius: var(--radius-md); text-align: center; border: 1px solid var(--border-color);">
-                <img src="@_watermarkUrl" style="max-height: 50px; opacity: 0.7;" />
+                <img src="@ResolveStorageUrl(_watermarkUrl)" style="max-height: 50px; opacity: 0.7;" />
             </div>
         </div>
     }
@@ -104,6 +105,14 @@
     <div class="mb-3">
         <label class="form-label">Store Name</label>
         <input type="text" class="form-control" @bind="_storeName" placeholder="Project65 Studios" />
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label">Base Site URL (for Emails)</label>
+        <input type="text" class="form-control" @bind="_baseSiteUrl" placeholder="https://project65.com" />
+        <p class="text-muted mt-1" style="font-size: 0.8rem;">
+            Ensure this is the public URL where your site is reachable.
+        </p>
     </div>
 
     <div class="mb-3">
@@ -139,6 +148,7 @@
     private string? _watermarkUrl;
     private string? _storeName;
     private string? _supportEmail;
+    private string? _baseSiteUrl;
     private double _defaultPrice = 10.00;
     private bool _maintenanceMode;
     
@@ -174,6 +184,7 @@
 
         _storeName = await SettingsRepository.GetValueAsync("StoreName") ?? "Project65 Studios";
         _supportEmail = await SettingsRepository.GetValueAsync("SupportEmail") ?? "";
+        _baseSiteUrl = await SettingsRepository.GetValueAsync("BaseSiteUrl") ?? "";
         
         var priceStr = await SettingsRepository.GetValueAsync("DefaultPrice");
         if (double.TryParse(priceStr, out var p)) _defaultPrice = p;
@@ -190,20 +201,13 @@
             _isSaving = true;
             try
             {
-                var folderPath = Path.Combine(Environment.WebRootPath, "uploads", "brand");
-                if (!Directory.Exists(folderPath))
-                {
-                    Directory.CreateDirectory(folderPath);
-                }
-
                 var fileName = $"logo_{DateTime.UtcNow.Ticks}{Path.GetExtension(file.Name)}";
-                var filePath = Path.Combine(folderPath, fileName);
+                var r2Key = $"brand/{fileName}";
 
                 using var stream = file.OpenReadStream(maxAllowedSize: 1024 * 1024 * 5); // 5MB limit
-                using var fileStream = new FileStream(filePath, FileMode.Create);
-                await stream.CopyToAsync(fileStream);
+                await StorageService.UploadAsync(stream, r2Key, file.ContentType);
 
-                _brandLogoUrl = $"/uploads/brand/{fileName}";
+                _brandLogoUrl = r2Key;
             }
             catch (Exception ex)
             {
@@ -224,20 +228,13 @@
             _isSaving = true;
             try
             {
-                var folderPath = Path.Combine(Environment.WebRootPath, "uploads", "watermark");
-                if (!Directory.Exists(folderPath))
-                {
-                    Directory.CreateDirectory(folderPath);
-                }
-
                 var fileName = $"watermark_{DateTime.UtcNow.Ticks}{Path.GetExtension(file.Name)}";
-                var filePath = Path.Combine(folderPath, fileName);
+                var r2Key = $"watermarks/{fileName}";
 
                 using var stream = file.OpenReadStream(maxAllowedSize: 1024 * 1024 * 5); // 5MB limit
-                using var fileStream = new FileStream(filePath, FileMode.Create);
-                await stream.CopyToAsync(fileStream);
+                await StorageService.UploadAsync(stream, r2Key, file.ContentType);
 
-                _watermarkUrl = $"/uploads/watermark/{fileName}";
+                _watermarkUrl = r2Key;
             }
             catch (Exception ex)
             {
@@ -248,6 +245,15 @@
                 _isSaving = false;
             }
         }
+    }
+
+    private string ResolveStorageUrl(string? url)
+    {
+        if (string.IsNullOrEmpty(url)) return "";
+        if (url.StartsWith("http") || url.StartsWith("/")) return url;
+        
+        // It's an R2 key (e.g. brand/logo.png)
+        return StorageService.GetPresignedDownloadUrl(url);
     }
 
     private async Task SaveSettings()
@@ -261,6 +267,7 @@
             await SettingsRepository.SetValueAsync("WatermarkUrl", _watermarkUrl ?? "");
             await SettingsRepository.SetValueAsync("StoreName", _storeName ?? "Project65 Studios");
             await SettingsRepository.SetValueAsync("SupportEmail", _supportEmail ?? "");
+            await SettingsRepository.SetValueAsync("BaseSiteUrl", _baseSiteUrl ?? "");
             await SettingsRepository.SetValueAsync("DefaultPrice", _defaultPrice.ToString());
             await SettingsRepository.SetValueAsync("MaintenanceMode", _maintenanceMode ? "true" : "false");
             

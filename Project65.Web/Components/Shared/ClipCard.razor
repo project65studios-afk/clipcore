@@ -189,12 +189,9 @@
 
     private string GetThumbnailUrl()
     {
-        // 1. High Res Thumbnail (R2 / Local)
+        // 1. High Res Thumbnail (R2)
         if (!string.IsNullOrEmpty(Clip.ThumbnailFileName))
         {
-            var localPath = Path.Combine(Environment.WebRootPath, "thumbnails", Clip.ThumbnailFileName);
-            if (File.Exists(localPath)) return $"/thumbnails/{Clip.ThumbnailFileName}";
-            
             // If filename contains a folder prefix (e.g. ai-thumbnails/), use it directly
             var storageKey = Clip.ThumbnailFileName.Contains("/") 
                 ? Clip.ThumbnailFileName 

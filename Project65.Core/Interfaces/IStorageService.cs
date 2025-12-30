@@ -8,6 +8,7 @@ namespace Project65.Core.Interfaces
         Task<string> UploadAsync(Stream stream, string fileName, string contentType);
         string GetPresignedDownloadUrl(string fileName, double durationMinutes = 60);
         string GetPresignedUploadUrl(string fileName, string contentType);
+        Task<bool> FileExistsAsync(string fileName);
         Task DeleteAsync(string fileName);
         Task ConfigureCorsAsync();
     }

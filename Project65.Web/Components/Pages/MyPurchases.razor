@@ -199,23 +199,15 @@
             var thumbFileName = purchase.Clip?.ThumbnailFileName ?? purchase.ClipThumbnailFileName;
             var clipId = purchase.ClipId ?? purchase.Id.ToString();
             
-            // 1. Try R2/Local Thumbnail
+            // 1. High Res Thumbnail (R2)
             if (!string.IsNullOrEmpty(thumbFileName))
             {
-                var localPath = Path.Combine(Environment.WebRootPath, "thumbnails", thumbFileName);
-                if (File.Exists(localPath))
-                {
-                    _thumbnailUrls[clipId] = $"/thumbnails/{thumbFileName}";
-                }
-                else 
-                {
-                    // Fix: Correctly handle folder prefixes in ThumbnailFileName
-                    var storageKey = thumbFileName.Contains("/") 
-                        ? thumbFileName 
-                        : $"thumbnails/{thumbFileName}";
-                        
-                    _thumbnailUrls[clipId] = StorageService.GetPresignedDownloadUrl(storageKey);
-                }
+                // Fix: Correctly handle folder prefixes in ThumbnailFileName
+                var storageKey = thumbFileName.Contains("/") 
+                    ? thumbFileName 
+                    : $"thumbnails/{thumbFileName}";
+                    
+                _thumbnailUrls[clipId] = StorageService.GetPresignedDownloadUrl(storageKey);
                 continue;
             }
 

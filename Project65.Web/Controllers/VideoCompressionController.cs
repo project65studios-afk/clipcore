@@ -66,10 +66,8 @@ public class VideoCompressionController : ControllerBase
                 var clipId = Guid.NewGuid().ToString();
 
                 // 1. Extract High-Res Thumbnail (from original input)
-                var thumbDir = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "thumbnails");
-                Directory.CreateDirectory(thumbDir);
                 var thumbName = $"{clipId}.jpg";
-                var thumbPath = Path.Combine(thumbDir, thumbName);
+                var thumbPath = Path.Combine(tempDir, thumbName);
 
                 try 
                 {

@@ -61,6 +61,16 @@ public class PurchaseRepository : IPurchaseRepository
             .ToListAsync();
     }
 
+    public async Task<List<Purchase>> GetBySessionIdAsync(string sessionId)
+    {
+        return await _context.Purchases
+            .AsNoTracking()
+            .Include(p => p.Clip)
+            .ThenInclude(c => c!.Event)
+            .Where(p => p.StripeSessionId == sessionId)
+            .ToListAsync();
+    }
+
     public async Task<List<Purchase>> ListAsync()
     {
         return await _context.Purchases
