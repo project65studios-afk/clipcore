@@ -154,35 +154,37 @@ else
                     </span>
                 </div>
                 
-                @if (string.IsNullOrEmpty(_clip?.TagsJson) || _clip.TagsJson == "[]")
-                {
-                    <span class="text-secondary" style="font-size: 0.9rem; font-style: italic;">No tags detected</span>
-                }
-                else
-                {
-                    var tags = System.Text.Json.JsonSerializer.Deserialize<string[]>(_clip.TagsJson) ?? Array.Empty<string>();
-                    var filteredTags = tags.Where(t => !string.Equals(t, "Unknown", StringComparison.OrdinalIgnoreCase) 
-                                                    && !t.StartsWith("Error:") 
-                                                    && t != "AI_Analysis_Pending" 
-                                                    && t != "No_API_Key")
-                                           .ToList();
-                    
-                    @if (filteredTags.Count == 0)
-                    {
-                        <span class="text-secondary" style="font-size: 0.9rem; font-style: italic;">No relevant tags detected</span>
-                    }
-                    else
-                    {
-                        <div style="display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 1rem;">
-                            @foreach (var tag in filteredTags)
+                <AuthorizeView Roles="Admin" Context="authContext">
+                    <Authorized>
+                        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.5rem;">
+                            <h4 class="h6 mb-0 text-secondary">Tags</h4>
+                            @if (!_isEditingTags)
                             {
-                                <a href="/search?q=@tag" class="badge text-decoration-none me-1" style="background: var(--bg-dark-900); color: var(--text-secondary); border: 1px solid var(--border-color); font-weight: 500;">
-                                    @tag
-                                </a>
+                                <button class="btn btn-sm btn-link text-decoration-none p-0" style="color: var(--accent-cyan); font-size: 0.85rem;" @onclick="ToggleEditTags">
+                                    Edit Tags
+                                </button>
                             }
                         </div>
-                    }
-                }
+
+                        @if (_isEditingTags)
+                        {
+                            <div class="mb-3">
+                                <textarea class="form-control mb-2" rows="3" style="background: var(--bg-dark-900); border: 1px solid var(--border-color); color: var(--text-primary); font-size: 0.9rem;" @bind="_editingTagsInput" placeholder="Enter tags separated by commas..."></textarea>
+                                <div class="d-flex gap-2 justify-content-end">
+                                    <button class="btn btn-sm btn-secondary" @onclick="CancelEditTags">Cancel</button>
+                                    <button class="btn btn-sm btn-primary" @onclick="SaveTagsAsync">Save Tags</button>
+                                </div>
+                            </div>
+                        }
+                        else
+                        {
+                            @RenderTags()
+                        }
+                    </Authorized>
+                    <NotAuthorized>
+                        @RenderTags()
+                    </NotAuthorized>
+                </AuthorizeView>
             </div>
             
             <!-- Purchase / Details Column -->
@@ -333,6 +335,96 @@ else
     }
 
     private void CancelEditPrice() => _isEditingPrice = false;
+
+    private bool _isEditingTags = false;
+    private string _editingTagsInput = "";
+
+    private void ToggleEditTags()
+    {
+        if (_clip != null)
+        {
+            var tags = System.Text.Json.JsonSerializer.Deserialize<string[]>(_clip.TagsJson ?? "[]") ?? Array.Empty<string>();
+            _editingTagsInput = string.Join(", ", tags);
+            _isEditingTags = true;
+        }
+    }
+
+    private void CancelEditTags() => _isEditingTags = false;
+
+    private async Task SaveTagsAsync()
+    {
+        if (_clip != null)
+        {
+            var oldTags = _clip.TagsJson;
+            
+            // Clean and split tags
+            var newTagsList = _editingTagsInput
+                .Split(',', StringSplitOptions.RemoveEmptyEntries)
+                .Select(t => t.Trim())
+                .Where(t => !string.IsNullOrWhiteSpace(t))
+                .Distinct()
+                .ToArray();
+                
+            _clip.TagsJson = System.Text.Json.JsonSerializer.Serialize(newTagsList);
+            
+            await ClipRepository.UpdateAsync(_clip);
+
+            // Log the action
+            var authState = await AuthenticationStateTask;
+            var user = authState.User;
+            var userId = user.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            var userEmail = user.Identity?.Name;
+            
+            await AuditService.LogActionAsync(
+                userId, 
+                userEmail, 
+                "Update Tags", 
+                "Clip", 
+                _clip.Id, 
+                $"Tags updated. Count: {newTagsList.Length}");
+
+            _isEditingTags = false;
+        }
+    }
+
+    private RenderFragment RenderTags() => builder =>
+    {
+        if (string.IsNullOrEmpty(_clip?.TagsJson) || _clip.TagsJson == "[]")
+        {
+            builder.AddMarkupContent(0, "<span class=\"text-secondary\" style=\"font-size: 0.9rem; font-style: italic;\">No tags detected</span>");
+        }
+        else
+        {
+            var tags = System.Text.Json.JsonSerializer.Deserialize<string[]>(_clip.TagsJson) ?? Array.Empty<string>();
+            var filteredTags = tags.Where(t => !string.Equals(t, "Unknown", StringComparison.OrdinalIgnoreCase) 
+                                            && !t.StartsWith("Error:") 
+                                            && t != "AI_Analysis_Pending" 
+                                            && t != "No_API_Key")
+                                   .ToList();
+            
+            if (filteredTags.Count == 0)
+            {
+                 builder.AddMarkupContent(1, "<span class=\"text-secondary\" style=\"font-size: 0.9rem; font-style: italic;\">No relevant tags detected</span>");
+            }
+            else
+            {
+                builder.OpenElement(2, "div");
+                builder.AddAttribute(3, "style", "display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 1rem;");
+                
+                foreach (var tag in filteredTags)
+                {
+                    builder.OpenElement(4, "a");
+                    builder.AddAttribute(5, "href", $"/search?q={tag}");
+                    builder.AddAttribute(6, "class", "badge text-decoration-none me-1");
+                    builder.AddAttribute(7, "style", "background: var(--bg-dark-900); color: var(--text-secondary); border: 1px solid var(--border-color); font-weight: 500;");
+                    builder.AddContent(8, tag);
+                    builder.CloseElement();
+                }
+                
+                builder.CloseElement();
+            }
+        }
+    };
 
     private async Task SavePriceAsync()
     {
