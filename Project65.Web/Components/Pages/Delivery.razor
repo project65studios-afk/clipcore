@@ -17,7 +17,7 @@
                     <br><span class="small"><i class="bi bi-shield-lock me-1"></i> For security, these download links are temporary. If a link expires, simply **reload this page** to generate new ones.</span>
                 </p>
                 <div class="badge bg-dark text-secondary border border-secondary px-3 py-2 rounded-pill">
-                    Order #@OrderId.Substring(OrderId.Length - 8).ToUpper()
+                    Order #@((OrderId.Length >= 8 ? OrderId.Substring(OrderId.Length - 8) : OrderId).ToUpper())
                 </div>
             </div>
 

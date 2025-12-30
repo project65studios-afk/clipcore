@@ -288,8 +288,10 @@
                     userId = user.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
                 }
 
-                // Generate a unique 6-character short hash for this order
-                var shortOrderId = Guid.NewGuid().ToString("N").Substring(0, 6).ToUpper();
+                // Use standard 8-char suffix of Stripe Session ID for Order ID
+                var shortOrderId = !string.IsNullOrEmpty(SessionId) && SessionId.Length >= 8
+                    ? SessionId.Substring(SessionId.Length - 8).ToUpper()
+                    : Guid.NewGuid().ToString("N").Substring(0, 8).ToUpper(); // Fallback
                 
                 foreach (var p in purchases)
                 {

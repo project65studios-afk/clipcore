@@ -59,7 +59,7 @@
                     foreach (var order in groupedOrders)
                     {
                         var firstItem = order.First();
-                        var orderId = !string.IsNullOrEmpty(firstItem.StripeSessionId) 
+                        var orderId = !string.IsNullOrEmpty(firstItem.StripeSessionId) && firstItem.StripeSessionId.Length >= 8
                             ? "ORD-" + firstItem.StripeSessionId.Substring(firstItem.StripeSessionId.Length - 8).ToUpper() 
                             : "LEGACY-" + firstItem.Id;
 
@@ -482,9 +482,10 @@
         }
         
         // Use OrderId for folder name instead of internal database Id
-        var folderName = !string.IsNullOrEmpty(target.OrderId) 
-            ? target.OrderId 
-            : target.Id.ToString();
+        // Use 8-char Order ID for folder name to match Email/UI
+        var folderName = !string.IsNullOrEmpty(target.StripeSessionId) && target.StripeSessionId.Length >= 8
+            ? target.StripeSessionId.Substring(target.StripeSessionId.Length - 8).ToUpper()
+            : (!string.IsNullOrEmpty(target.OrderId) ? target.OrderId : target.Id.ToString());
             
         var key = $"{folderName}/{fileName}";
         _uploadToPurchaseMap[fileName] = target.Id;
@@ -509,7 +510,9 @@
              if (purchase == null) return;
 
              var key = "";
-             var folderName = !string.IsNullOrEmpty(purchase.OrderId) ? purchase.OrderId : purchase.Id.ToString();
+             var folderName = !string.IsNullOrEmpty(purchase.StripeSessionId) && purchase.StripeSessionId.Length >= 8
+                 ? purchase.StripeSessionId.Substring(purchase.StripeSessionId.Length - 8).ToUpper()
+                 : (!string.IsNullOrEmpty(purchase.OrderId) ? purchase.OrderId : purchase.Id.ToString());
              key = $"{folderName}/{fileName}";
 
              // 1. Update CLIP
