@@ -7,14 +7,7 @@
 <header class="top-nav">
     <div style="display: flex; align-items: center; justify-content: space-between; width: 100%; @(NavOpenClass == "active" ? "margin-bottom: 1rem;" : "")">
             <a href="/" class="brand">
-                @if (!string.IsNullOrEmpty(_brandLogoUrl))
-                {
-                    <img src="@_brandLogoUrl" alt="Project65 Studios" style="max-height: 45px; width: auto; object-fit: contain;" />
-                }
-                else
-                {
-                    @:PROJECT<span>65</span> STUDIOS
-                }
+                PROJECT<span>65</span> STUDIOS
             </a>
             <button class="nav-toggle" @onclick="ToggleNav">
                 <span class="bar"></span>
