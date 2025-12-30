@@ -1,12 +1,20 @@
 @inject NavigationManager Navigation
 @inject Project65.Web.Services.CartService CartService
+@inject ISettingsRepository SettingsRepository
 @implements IDisposable
 @rendermode RenderMode.InteractiveServer
 
 <header class="top-nav">
     <div style="display: flex; align-items: center; justify-content: space-between; width: 100%; @(NavOpenClass == "active" ? "margin-bottom: 1rem;" : "")">
             <a href="/" class="brand">
-                PROJECT<span>65</span> STUDIOS
+                @if (!string.IsNullOrEmpty(_brandLogoUrl))
+                {
+                    <img src="@_brandLogoUrl" alt="Project65 Studios" style="max-height: 45px; width: auto; object-fit: contain;" />
+                }
+                else
+                {
+                    @:PROJECT<span>65</span> STUDIOS
+                }
             </a>
             <button class="nav-toggle" @onclick="ToggleNav">
                 <span class="bar"></span>
@@ -81,6 +89,7 @@
     private bool _isNavOpen = false;
     private string NavOpenClass => _isNavOpen ? "active" : "";
     private string _searchQuery = "";
+    private string? _brandLogoUrl;
 
     private void HandleSearchKeyUp(KeyboardEventArgs e)
     {
@@ -102,6 +111,7 @@
 
     protected override async Task OnInitializedAsync()
     {
+        _brandLogoUrl = await SettingsRepository.GetValueAsync("BrandLogoUrl");
         CartService.OnChange += StateHasChanged;
         // Initialize logic moved to AfterRender to avoid prerendering storage issues if needed, 
         // but ProtectedStorage works in OnAfterRender mostly.

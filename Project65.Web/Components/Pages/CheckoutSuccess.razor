@@ -188,7 +188,7 @@
                     var customerEmail = await PaymentService.GetCustomerEmailFromSessionAsync(SessionId!) ?? "customer@example.com";
                     var customerName = _purchases.FirstOrDefault()?.CustomerName ?? "Customer";
                     
-                    var htmlBody = EmailTemplateService.GenerateOrderReceiptHtml(shortOrderId, _purchases, customerName);
+                    var htmlBody = await EmailTemplateService.GenerateOrderReceiptHtmlAsync(shortOrderId, _purchases, customerName);
                     await EmailService.SendEmailAsync(customerEmail, "Your Project65 Order Receipt", htmlBody);
                 }
                 catch (Exception emailEx)

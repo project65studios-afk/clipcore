@@ -19,6 +19,44 @@
     </div>
 </div>
 
+<div class="grid-card" style="max-width: 600px; padding: 2rem; margin-bottom: 2rem;">
+    <h3 class="mb-4">Brand Logo</h3>
+    
+    <div class="mb-4">
+        <label class="form-label" style="color: var(--text-secondary);">Logo Source</label>
+        <div class="d-flex gap-3 mb-3">
+            <button class="btn @(_useLogoUpload ? "btn-primary" : "btn-secondary")" @onclick="() => _useLogoUpload = true">Upload File</button>
+            <button class="btn @(!_useLogoUpload ? "btn-primary" : "btn-secondary")" @onclick="() => _useLogoUpload = false">Image URL</button>
+        </div>
+
+        @if (_useLogoUpload)
+        {
+            <div class="input-group">
+                <InputFile OnChange="HandleLogoSelected" class="form-control" style="background: var(--bg-dark-800); border-color: var(--border-color); color: var(--text-primary);" />
+            </div>
+            <p class="text-muted mt-2" style="font-size: 0.85rem;">
+                This logo appears in the nav menu and email receipts.
+            </p>
+        }
+        else
+        {
+            <div class="input-group">
+                <input type="text" class="form-control" @bind="_brandLogoUrl" placeholder="https://example.com/logo.png" style="background: var(--bg-dark-800); border-color: var(--border-color); color: var(--text-primary);" />
+            </div>
+        }
+    </div>
+
+    @if (!string.IsNullOrEmpty(_brandLogoUrl))
+    {
+        <div class="mb-4">
+            <label class="form-label" style="color: var(--text-secondary);">Preview</label>
+            <div style="background: #000; padding: 2rem; border-radius: var(--radius-md); text-align: center; border: 1px solid var(--border-color);">
+                <img src="@_brandLogoUrl" style="max-height: 80px; object-fit: contain;" />
+            </div>
+        </div>
+    }
+</div>
+
 <div class="grid-card" style="max-width: 600px; padding: 2rem;">
     <h3 class="mb-4">Video Watermark</h3>
     
@@ -97,6 +135,7 @@
 </div>
 
 @code {
+    private string? _brandLogoUrl;
     private string? _watermarkUrl;
     private string? _storeName;
     private string? _supportEmail;
@@ -105,6 +144,7 @@
     
     private bool _isSaving;
     private bool _showSuccess;
+    private bool _useLogoUpload = true;
     private bool _useUpload = true;
 
     [CascadingParameter]
@@ -112,6 +152,16 @@
 
     protected override async Task OnInitializedAsync()
     {
+        _brandLogoUrl = await SettingsRepository.GetValueAsync("BrandLogoUrl");
+        if (!string.IsNullOrEmpty(_brandLogoUrl) && _brandLogoUrl.StartsWith("/uploads/brand/"))
+        {
+            _useLogoUpload = true;
+        }
+        else if (!string.IsNullOrEmpty(_brandLogoUrl))
+        {
+            _useLogoUpload = false;
+        }
+
         _watermarkUrl = await SettingsRepository.GetValueAsync("WatermarkUrl");
         if (!string.IsNullOrEmpty(_watermarkUrl) && _watermarkUrl.StartsWith("/uploads/"))
         {
@@ -130,6 +180,40 @@
 
         var maintenanceStr = await SettingsRepository.GetValueAsync("MaintenanceMode");
         _maintenanceMode = maintenanceStr == "true";
+    }
+
+    private async Task HandleLogoSelected(InputFileChangeEventArgs e)
+    {
+        var file = e.File;
+        if (file != null)
+        {
+            _isSaving = true;
+            try
+            {
+                var folderPath = Path.Combine(Environment.WebRootPath, "uploads", "brand");
+                if (!Directory.Exists(folderPath))
+                {
+                    Directory.CreateDirectory(folderPath);
+                }
+
+                var fileName = $"logo_{DateTime.UtcNow.Ticks}{Path.GetExtension(file.Name)}";
+                var filePath = Path.Combine(folderPath, fileName);
+
+                using var stream = file.OpenReadStream(maxAllowedSize: 1024 * 1024 * 5); // 5MB limit
+                using var fileStream = new FileStream(filePath, FileMode.Create);
+                await stream.CopyToAsync(fileStream);
+
+                _brandLogoUrl = $"/uploads/brand/{fileName}";
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error uploading brand logo: {ex.Message}");
+            }
+            finally
+            {
+                _isSaving = false;
+            }
+        }
     }
 
     private async Task HandleFileSelected(InputFileChangeEventArgs e)
@@ -173,6 +257,7 @@
         
         try 
         {
+            await SettingsRepository.SetValueAsync("BrandLogoUrl", _brandLogoUrl ?? "");
             await SettingsRepository.SetValueAsync("WatermarkUrl", _watermarkUrl ?? "");
             await SettingsRepository.SetValueAsync("StoreName", _storeName ?? "Project65 Studios");
             await SettingsRepository.SetValueAsync("SupportEmail", _supportEmail ?? "");
