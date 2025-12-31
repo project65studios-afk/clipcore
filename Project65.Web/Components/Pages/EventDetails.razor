@@ -51,15 +51,24 @@ else
             <!-- Left Column: Event Details -->
             <div class="@(_event.FeaturedProducts.Any() ? "col-lg-7 col-xl-8" : "col-12")">
                 <h1 class="display-4 fw-bold mb-2">@_event.Name</h1>
-                <div class="d-flex align-items-center gap-2 text-secondary mb-4">
-                    <span>@_event.Date.ToLongDateString()</span>
+                <div class="event-meta">
+                    <div class="meta-item">
+                        <i class="bi bi-calendar3"></i>
+                        @_event.Date.ToString("MMMM dd, yyyy")
+                    </div>
                     @if (!string.IsNullOrEmpty(_event.Location))
                     {
-                        <span>•</span>
-                        <span>@_event.Location</span>
+                        <span class="meta-dot">•</span>
+                        <div class="meta-item">
+                            <i class="bi bi-geo-alt"></i>
+                            @_event.Location
+                        </div>
                     }
-                    <span>•</span>
-                    <span>@_event.Clips.Count clips</span>
+                    <span class="meta-dot">•</span>
+                    <div class="meta-item">
+                        <i class="bi bi-film"></i>
+                        @_event.Clips.Count clips
+                    </div>
                 </div>
                 <p class="lead text-secondary" style="max-width: 600px;">@_event.Summary</p>
                 

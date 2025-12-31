@@ -440,6 +440,50 @@ hr {
     color: var(--text-primary);
 }
 
+/* Event Meta Info */
+.event-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 1rem;
+    align-items: center;
+    margin-bottom: 2rem;
+    color: var(--text-secondary);
+}
+
+.meta-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 1rem;
+}
+
+.meta-item i {
+    color: var(--accent-cyan);
+    font-size: 0.9rem;
+}
+
+.meta-dot {
+    color: var(--text-muted);
+    opacity: 0.5;
+    font-size: 0.8rem;
+}
+
+@media (max-width: 768px) {
+    .event-meta {
+        gap: 0.5rem 0.75rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .meta-item {
+        font-size: 0.9rem;
+    }
+
+    .meta-dot {
+        display: none;
+        /* Hide dots on mobile to allow items to stack/wrap cleanly */
+    }
+}
+
 .content-wrapper {
     padding: 0 2rem 2rem 2rem;
     max-width: 1600px;
