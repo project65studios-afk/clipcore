@@ -176,7 +176,7 @@
                     <button type="button" class="btn-close" @onclick="CancelEdit"></button>
                 </div>
                 <div class="modal-body p-0">
-                    <div class="row g-0 h-100">
+                    <div class="row g-0">
                         <!-- Left Column: Event Details -->
                         <div class="col-lg-7 p-4 border-end">
                             <h6 class="text-uppercase text-secondary fw-bold small mb-4">Event Details</h6>
@@ -219,7 +219,7 @@
                             }
                             else
                             {
-                                <div class="product-selection-list pe-2" style="max-height: 400px; overflow-y: auto;">
+                                <div class="product-selection-list pe-2" style="max-height: 250px; overflow-y: auto;">
                                     @foreach (var prod in _allProducts)
                                     {
                                         var isSelected = IsProductSelected(prod.Id);
@@ -256,6 +256,59 @@
                                 </div>
                             }
                         </div>
+                    </div>
+                    
+                    <!-- Bottom Section: Clip Prices -->
+                    <div class="p-4 border-top">
+                        <h6 class="text-uppercase text-secondary fw-bold small mb-3">Clip Prices</h6>
+                        <p class="text-muted small mb-4">Update the individual prices for each clip in this event.</p>
+                        
+                        @if (_eventToEdit.Clips == null || !_eventToEdit.Clips.Any())
+                        {
+                            <div class="text-center py-4 border border-dashed rounded">
+                                <p class="text-muted mb-0">No clips found for this event.</p>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="table-responsive rounded border" style="max-height: 400px; overflow-y: auto;">
+                                <table class="table table-sm align-middle mb-0">
+                                    <thead class="bg-light sticky-top">
+                                        <tr>
+                                            <th class="ps-3 py-2" style="width: 40%;">Clip Title</th>
+                                            <th class="py-2" style="width: 30%;">Personal Price ($)</th>
+                                            <th class="py-2" style="width: 30%;">Commercial Price ($)</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach (var clip in _eventToEdit.Clips)
+                                        {
+                                            <tr>
+                                                <td class="ps-3 fw-bold small">@clip.Title</td>
+                                                <td>
+                                                    <div class="input-group input-group-sm">
+                                                        <span class="input-group-text">$</span>
+                                                        <input type="number" class="form-control" 
+                                                               value="@(clip.PriceCents / 100.0)" 
+                                                               @onchange="@(e => { if (double.TryParse(e.Value?.ToString(), out var val)) clip.PriceCents = (int)(val * 100); })" 
+                                                               step="0.01" />
+                                                    </div>
+                                                </td>
+                                                <td>
+                                                    <div class="input-group input-group-sm">
+                                                        <span class="input-group-text">$</span>
+                                                        <input type="number" class="form-control" 
+                                                               value="@(clip.PriceCommercialCents / 100.0)" 
+                                                               @onchange="@(e => { if (double.TryParse(e.Value?.ToString(), out var val)) clip.PriceCommercialCents = (int)(val * 100); })" 
+                                                               step="0.01" />
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                        }
                     </div>
                 </div>
                 <div class="modal-footer justify-content-between">
@@ -353,7 +406,27 @@
             Location = evt.Location,
             Summary = evt.Summary,
             CreatedAt = evt.CreatedAt,
-            Clips = evt.Clips, // Reference is fine here 
+            // Deep clone clips so we can cancel changes
+            Clips = evt.Clips.Select(c => new Clip
+            {
+                Id = c.Id,
+                Title = c.Title,
+                PriceCents = c.PriceCents,
+                PriceCommercialCents = c.PriceCommercialCents,
+                EventId = c.EventId,
+                MuxAssetId = c.MuxAssetId,
+                MuxUploadId = c.MuxUploadId,
+                PlaybackIdTeaser = c.PlaybackIdTeaser,
+                PlaybackIdSigned = c.PlaybackIdSigned,
+                ThumbnailFileName = c.ThumbnailFileName,
+                MasterFileName = c.MasterFileName,
+                DurationSec = c.DurationSec,
+                Width = c.Width,
+                Height = c.Height,
+                TagsJson = c.TagsJson,
+                PublishedAt = c.PublishedAt,
+                RecordingStartedAt = c.RecordingStartedAt
+            }).ToList(), 
             FeaturedProducts = new List<ExternalProduct>(evt.FeaturedProducts) // Shallow copy list
         };
         

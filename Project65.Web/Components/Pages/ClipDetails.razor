@@ -178,32 +178,59 @@ else
                 </div>
                 
                 <AuthorizeView Roles="Admin">
-                    <div style="margin-top: 1.5rem; padding: 1rem; background: rgba(255,255,255,0.03); border: 1px solid var(--border-color); border-radius: var(--radius-md);">
-                        <h6 style="font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.5px; opacity: 0.7; margin-bottom: 1rem;">Admin: Manage Prices</h6>
+                    <div style="margin: 2rem 0; padding: 1.25rem; background: rgba(99, 102, 241, 0.05); border: 1px solid rgba(99, 102, 241, 0.2); border-radius: var(--radius-lg); position: relative; overflow: hidden;">
+                        <div style="position: absolute; top: 0; right: 0; padding: 0.5rem 0.75rem; background: rgba(99, 102, 241, 0.1); border-bottom-left-radius: var(--radius-md); font-size: 0.65rem; font-weight: 800; text-transform: uppercase; color: #818cf8; letter-spacing: 1px;">
+                            Admin
+                        </div>
+                        
+                        <h6 style="font-size: 0.8rem; font-weight: 700; color: var(--text-primary); margin-bottom: 1.25rem; display: flex; align-items: center; gap: 0.5rem;">
+                            <i class="bi bi-sliders2-vertical" style="color: #818cf8;"></i> Manage Clip Rates
+                        </h6>
+
                         @if (_isEditingPrice)
                         {
-                            <div class="d-flex flex-column gap-3">
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.25rem;">
                                 <div>
-                                    <label style="font-size: 0.7rem; color: var(--text-muted); display: block; margin-bottom: 0.25rem;">Personal Price ($)</label>
-                                    <input type="number" step="0.01" class="form-control form-control-sm" @bind="_editingPrice" />
+                                    <label style="font-size: 0.75rem; color: var(--text-secondary); display: block; margin-bottom: 0.5rem;">Personal ($)</label>
+                                    <div class="input-group input-group-sm">
+                                        <span class="input-group-text bg-dark border-secondary text-muted">$</span>
+                                        <input type="number" step="0.01" class="form-control bg-dark border-secondary text-white" @bind="_editingPrice" />
+                                    </div>
                                 </div>
                                 <div>
-                                    <label style="font-size: 0.7rem; color: var(--text-muted); display: block; margin-bottom: 0.25rem;">Commercial Price ($)</label>
-                                    <input type="number" step="0.01" class="form-control form-control-sm" @bind="_editingCommercialPrice" />
+                                    <label style="font-size: 0.75rem; color: var(--text-secondary); display: block; margin-bottom: 0.5rem;">Commercial ($)</label>
+                                    <div class="input-group input-group-sm">
+                                        <span class="input-group-text bg-dark border-secondary text-muted">$</span>
+                                        <input type="number" step="0.01" class="form-control bg-dark border-secondary text-white" @bind="_editingCommercialPrice" />
+                                    </div>
                                 </div>
-                                <div class="d-flex gap-2">
-                                    <button class="btn-primary" style="flex: 1; padding: 0.4rem;" @onclick="SavePriceAsync">Save Prices</button>
-                                    <button class="btn-secondary" style="flex: 1; padding: 0.4rem;" @onclick="CancelEditPrice">Cancel</button>
-                                </div>
+                            </div>
+                            <div class="d-flex gap-2">
+                                <button class="btn-primary" style="flex: 1.5; padding: 0.6rem; font-size: 0.85rem; background: #6366f1; border-color: #6366f1;" @onclick="SavePriceAsync">
+                                    <i class="bi bi-check-lg me-1"></i> Update Prices
+                                </button>
+                                <button class="btn-secondary" style="flex: 1; padding: 0.6rem; font-size: 0.85rem;" @onclick="CancelEditPrice">
+                                    Cancel
+                                </button>
                             </div>
                         }
                         else
                         {
                             <div class="d-flex justify-content-between align-items-center">
-                                <div style="font-size: 0.85rem; color: var(--text-secondary);">
-                                    P: $@(_clip?.PriceCents / 100.0) | C: $@(_clip?.PriceCommercialCents / 100.0)
+                                <div style="display: flex; gap: 1.5rem;">
+                                    <div style="display: flex; flex-direction: column;">
+                                        <span style="font-size: 0.65rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">Personal</span>
+                                        <span style="font-size: 1.1rem; font-weight: 700; color: var(--text-primary);">$@(_clip?.PriceCents / 100.0)</span>
+                                    </div>
+                                    <div style="width: 1px; background: rgba(255,255,255,0.1);"></div>
+                                    <div style="display: flex; flex-direction: column;">
+                                        <span style="font-size: 0.65rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">Commercial</span>
+                                        <span style="font-size: 1.1rem; font-weight: 700; color: var(--text-primary);">$@(_clip?.PriceCommercialCents / 100.0)</span>
+                                    </div>
                                 </div>
-                                <button class="btn-secondary" style="padding: 0.25rem 0.50rem; font-size: 0.7rem;" @onclick="ToggleEditPrice">Edit</button>
+                                <button class="btn btn-sm btn-outline-secondary" style="border-radius: var(--radius-md); padding: 0.4rem 0.75rem; border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.02);" @onclick="ToggleEditPrice">
+                                    <i class="bi bi-pencil-square me-1"></i> Edit
+                                </button>
                             </div>
                         }
                     </div>

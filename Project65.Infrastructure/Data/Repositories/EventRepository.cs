@@ -63,17 +63,25 @@ public class EventRepository : IEventRepository
             existing.Summary = evt.Summary;
             
             // Update Featured Products
-            // Clear existing and add new ones (EF Core will handle the join table)
             existing.FeaturedProducts.Clear();
             foreach (var prod in evt.FeaturedProducts)
             {
-                // We must attach the product if it's not already tracked, or fetch it from context.
-                // Since this context instance is alive, we can fetch them by ID to ensure they are tracked.
-                // Optimization: Just get the IDs from the incoming evt object
                 var trackedProd = await _context.ExternalProducts.FindAsync(prod.Id);
                 if (trackedProd != null)
                 {
                     existing.FeaturedProducts.Add(trackedProd);
+                }
+            }
+
+            // Update Clip Prices
+            foreach (var clip in evt.Clips)
+            {
+                var existingClip = await _context.Clips.FindAsync(clip.Id);
+                if (existingClip != null)
+                {
+                    existingClip.PriceCents = clip.PriceCents;
+                    existingClip.PriceCommercialCents = clip.PriceCommercialCents;
+                    // Other fields are generally not editable here yet per user request
                 }
             }
             
