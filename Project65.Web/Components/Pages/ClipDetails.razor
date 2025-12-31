@@ -239,7 +239,7 @@ else
                 @if (!_hasPurchased)
                 {
                     <div class="d-flex gap-2 mb-3">
-                        <button class="btn-primary" style="width: 100%;" @onclick="BuyAsync">
+                        <button class="btn-primary" style="width: 100%;" @onclick='() => PrepareAction("Buy")'>
                             Buy Now
                         </button>
                         @if (_isInCart)
@@ -250,7 +250,7 @@ else
                         }
                         else
                         {
-                            <button class="btn-secondary" style="width: 100%;" @onclick="AddToCart" disabled="@_isAddingToCart">
+                            <button class="btn-secondary" style="width: 100%;" @onclick='() => PrepareAction("Add")' disabled="@(_isAddingToCart)">
                                 @if (_isAddingToCart)
                                 {
                                     <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true" style="margin-right: 0.5rem;"></span>
@@ -263,6 +263,45 @@ else
                             </button>
                         }
                     </div>
+
+                    @if (_showLicenseModal)
+                    {
+                        <div class="license-modal-overlay">
+                            <div class="license-modal-content">
+                                <div class="modal-header-glass">
+                                    <h4 class="mb-0">Licensing Agreement</h4>
+                                    <button class="modal-close-btn" @onclick="() => _showLicenseModal = false">✕</button>
+                                </div>
+                                
+                                <div class="modal-body-glass">
+                                    <h5 class="text-accent-cyan mb-3">Personal Use License</h5>
+                                    <div class="license-terms-scroll">
+                                        <p>By purchasing this video clip, you agree to the following terms:</p>
+                                        <ul>
+                                            <li><strong>Allowed:</strong> Personal use, social media posts, personal portfolios, and submission to sponsors/recruiting.</li>
+                                            <li><strong>Prohibited:</strong> Resale of the footage, use in stock libraries, or inclusion in paid advertisements without an extended license.</li>
+                                            <li><strong>Quality:</strong> You are purchasing the full 4K master file. The preview player is for demonstration only.</li>
+                                        </ul>
+                                    </div>
+
+                                    <div class="form-check mt-4 p-3 rounded" style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);">
+                                        <input class="form-check-input" type="checkbox" id="licenseAgreementModal" @bind="_hasAgreedToLicense" style="cursor: pointer; border-color: var(--accent-cyan);">
+                                        <label class="form-check-label ms-2" for="licenseAgreementModal" style="font-size: 0.95rem; color: var(--text-primary); cursor: pointer; user-select: none;">
+                                            I agree to the <strong>Personal Use License</strong>
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <div class="modal-footer-glass">
+                                    <button class="btn-secondary" style="flex: 1;" @onclick="() => _showLicenseModal = false">Cancel</button>
+                                    <button class="btn-primary" style="flex: 2;" @onclick="HandleLicenseConfirmed" disabled="@(!_hasAgreedToLicense)">
+                                        Confirm & Continue
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    }
+
                     @if (_processingPurchase)
                     {
                         <div class="text-center text-info">Verifying purchase...</div>
@@ -315,6 +354,33 @@ else
     private bool _processingPurchase = false;
     private string? _userId;
     private bool _isAuthenticated = false;
+    private bool _hasAgreedToLicense = false;
+    private bool _showLicenseModal = false;
+    private string? _pendingAction;
+
+    private void PrepareAction(string action)
+    {
+        _pendingAction = action;
+        _showLicenseModal = true;
+    }
+
+    private async Task HandleLicenseConfirmed()
+    {
+        if (!_hasAgreedToLicense) return;
+        
+        _showLicenseModal = false;
+        
+        if (_pendingAction == "Buy")
+        {
+            await BuyAsync();
+        }
+        else if (_pendingAction == "Add")
+        {
+            await AddToCart();
+        }
+        
+        _pendingAction = null;
+    }
 
     private bool _isEditingPrice = false;
     private double _editingPrice;

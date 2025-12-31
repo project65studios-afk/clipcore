@@ -159,7 +159,7 @@ namespace Project65.Infrastructure.Services
                 {
                     new CORSRule
                     {
-                        AllowedOrigins = new System.Collections.Generic.List<string> { "http://localhost:5094", "https://localhost:7192", "*" },
+                        AllowedOrigins = new System.Collections.Generic.List<string> { "http://localhost:5094", "http://127.0.0.1:5094", "https://localhost:7192", "*" },
                         AllowedMethods = new System.Collections.Generic.List<string> { "GET", "PUT", "POST", "HEAD" },
                         AllowedHeaders = new System.Collections.Generic.List<string> { "*" },
                         ExposeHeaders = new System.Collections.Generic.List<string> { "ETag", "Content-Length", "Access-Control-Allow-Origin" },

@@ -71,6 +71,7 @@ builder.Services.AddScoped<IExternalProductRepository, ExternalProductRepository
 builder.Services.AddScoped<IAuditRepository, AuditRepository>();
 builder.Services.AddScoped<IPromoCodeRepository, PromoCodeRepository>();
 builder.Services.AddScoped<IAuditService, AuditService>();
+builder.Services.AddScoped<IPaymentService, StripePaymentService>();
 
 if (!string.IsNullOrEmpty(builder.Configuration["AWS:AccessKeyId"]))
 {
