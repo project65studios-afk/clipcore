@@ -1,0 +1,102 @@
+@using Project65.Core.Interfaces
+@inject ISettingsRepository SettingsRepository
+
+<HeadContent>
+    <style>
+        :root {
+            /* Dark Mode Overrides (Default) */
+            @if (!string.IsNullOrEmpty(_darkPrimary)) { <text>--accent-cyan: @_darkPrimary;</text> }
+            @if (!string.IsNullOrEmpty(_darkSecondary)) { <text>--accent-pink: @_darkSecondary;</text> }
+            @if (!string.IsNullOrEmpty(_darkBackground)) { <text>--bg-dark-900: @_darkBackground;</text> }
+            @if (!string.IsNullOrEmpty(_darkSurface)) { <text>--bg-dark-800: @_darkSurface;</text> }
+            @if (!string.IsNullOrEmpty(_darkText)) { <text>--text-primary: @_darkText;</text> }
+            
+            /* Derived colors for dark mode */
+            @if (!string.IsNullOrEmpty(_darkSurface)) { <text>--bg-dark-700: color-mix(in srgb, @_darkSurface, @_darkText 5%);</text> }
+            @if (!string.IsNullOrEmpty(_darkPrimary)) { <text>--accent-cyan-dim: color-mix(in srgb, @_darkPrimary, transparent 90%);</text> }
+            
+            /* Button & Brand Dark */
+            @if (!string.IsNullOrEmpty(_darkBtnStart) && !string.IsNullOrEmpty(_darkBtnEnd)) { 
+                <text>--accent-primary-gradient: linear-gradient(90deg, @_darkBtnStart 0%, @_darkBtnEnd 100%);</text> 
+            }
+
+            /* Syncing with existing variables for consistency */
+            --border-active: var(--accent-cyan);
+            --bs-body-color: var(--text-primary);
+        }
+
+        /* Nav Brand Override */
+        .brand {
+            @if (!string.IsNullOrEmpty(_darkBrandText)) { <text>color: @_darkBrandText !important;</text> }
+        }
+
+        :root.light-theme {
+            /* Light Mode Overrides */
+            @if (!string.IsNullOrEmpty(_lightPrimary)) { <text>--accent-cyan: @_lightPrimary !important;</text> }
+            @if (!string.IsNullOrEmpty(_lightSecondary)) { <text>--accent-pink: @_lightSecondary !important;</text> }
+            @if (!string.IsNullOrEmpty(_lightBackground)) { <text>--bg-dark-900: @_lightBackground !important;</text> }
+            @if (!string.IsNullOrEmpty(_lightSurface)) { <text>--bg-dark-800: @_lightSurface !important;</text> }
+            @if (!string.IsNullOrEmpty(_lightText)) { <text>--text-primary: @_lightText !important;</text> }
+
+            /* Derived colors for light mode */
+            @if (!string.IsNullOrEmpty(_lightSurface)) { <text>--bg-dark-700: color-mix(in srgb, @_lightSurface, @_lightText 5%) !important;</text> }
+            @if (!string.IsNullOrEmpty(_lightPrimary)) { <text>--accent-cyan-dim: color-mix(in srgb, @_lightPrimary, transparent 90%) !important;</text> }
+
+            /* Button & Brand Light */
+            @if (!string.IsNullOrEmpty(_lightBtnStart) && !string.IsNullOrEmpty(_lightBtnEnd)) { 
+                <text>--accent-primary-gradient: linear-gradient(90deg, @_lightBtnStart 0%, @_lightBtnEnd 100%) !important;</text> 
+            }
+
+            /* Syncing with existing variables for consistency */
+            --border-active: var(--accent-cyan) !important;
+            --bs-body-color: var(--text-primary) !important;
+        }
+
+        :root.light-theme .brand {
+             @if (!string.IsNullOrEmpty(_lightBrandText)) { <text>color: @_lightBrandText !important;</text> }
+        }
+    </style>
+</HeadContent>
+
+@code {
+    private string? _darkPrimary;
+    private string? _darkSecondary;
+    private string? _darkBackground;
+    private string? _darkSurface;
+    private string? _darkText;
+    private string? _darkBtnStart;
+    private string? _darkBtnEnd;
+    private string? _darkBrandText;
+
+    private string? _lightPrimary;
+    private string? _lightSecondary;
+    private string? _lightBackground;
+    private string? _lightSurface;
+    private string? _lightText;
+    private string? _lightBtnStart;
+    private string? _lightBtnEnd;
+    private string? _lightBrandText;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Dark Mode
+        _darkPrimary = await SettingsRepository.GetValueAsync("ThemeDarkPrimary");
+        _darkSecondary = await SettingsRepository.GetValueAsync("ThemeDarkSecondary");
+        _darkBackground = await SettingsRepository.GetValueAsync("ThemeDarkBackground");
+        _darkSurface = await SettingsRepository.GetValueAsync("ThemeDarkSurface");
+        _darkText = await SettingsRepository.GetValueAsync("ThemeDarkText");
+        _darkBtnStart = await SettingsRepository.GetValueAsync("ThemeDarkBtnStart");
+        _darkBtnEnd = await SettingsRepository.GetValueAsync("ThemeDarkBtnEnd");
+        _darkBrandText = await SettingsRepository.GetValueAsync("ThemeDarkBrandText");
+
+        // Light Mode
+        _lightPrimary = await SettingsRepository.GetValueAsync("ThemeLightPrimary");
+        _lightSecondary = await SettingsRepository.GetValueAsync("ThemeLightSecondary");
+        _lightBackground = await SettingsRepository.GetValueAsync("ThemeLightBackground");
+        _lightSurface = await SettingsRepository.GetValueAsync("ThemeLightSurface");
+        _lightText = await SettingsRepository.GetValueAsync("ThemeLightText");
+        _lightBtnStart = await SettingsRepository.GetValueAsync("ThemeLightBtnStart");
+        _lightBtnEnd = await SettingsRepository.GetValueAsync("ThemeLightBtnEnd");
+        _lightBrandText = await SettingsRepository.GetValueAsync("ThemeLightBrandText");
+    }
+}
