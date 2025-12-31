@@ -50,7 +50,7 @@ else
         <div class="clip-layout" style="display: grid; gap: 2rem;">
              <div>
                  <div id="player-container" class="video-player-container mobile-full-width" style="border: 1px solid var(--border-color); box-shadow: 0 0 40px rgba(0,0,0,0.5); position: relative;">
-                     @if (_hasPurchasedPersonal || _hasPurchasedCommercial)
+                    @if (_hasPurchasedPersonal || _hasPurchasedCommercial)
                     {
                          @if (HasTokens(_clip.PlaybackIdSigned!))
                          {
@@ -61,6 +61,44 @@ else
                                  thumbnail-token="@GetTokenFromCache(_clip.PlaybackIdSigned!, "t")"
                                  storyboard-token="@GetTokenFromCache(_clip.PlaybackIdSigned!, "s")"
                                  metadata-video-title="@_clip.Title"
+                                 primary-color="#06b6d4"
+                                 accent-color="#ec4899"
+                                 fullscreen-element="player-container"
+                                 disable-tracking
+                                 style="width: 100%; height: 100%;"
+                              >
+                                 @if (!string.IsNullOrEmpty(_watermarkUrl))
+                                 {
+                                     <div class="watermark-grid" style="--wm-url: url('@_watermarkUrl');">
+                                         @for (int i = 0; i < 36; i++)
+                                         {
+                                             int row = i / 6;
+                                             int col = i % 6;
+                                             bool isActive = (row + col) % 2 == 0;
+                                             <div class="watermark-cell @(isActive ? "active" : "")"></div>
+                                         }
+                                     </div>
+                                 }
+                              </mux-player>
+                         }
+                         else
+                         {
+                              <div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background: #000; min-height: 400px;">
+                                  <div class="spinner-border text-info" role="status"></div>
+                              </div>
+                         }
+                    }
+                    else if (GetPreviewId() is string pid)
+                    {
+                         @if (HasTokens(pid))
+                         {
+                              <mux-player
+                                 id="preview-player"
+                                 playback-id="@pid"
+                                 playback-token="@GetTokenFromCache(pid, "v")"
+                                 thumbnail-token="@GetTokenFromCache(pid, "t")"
+                                 storyboard-token="@GetTokenFromCache(pid, "s")"
+                                 metadata-video-title="@_clip.Title (Preview)"
                                  primary-color="#06b6d4"
                                  accent-color="#ec4899"
                                  fullscreen-element="player-container"
@@ -703,9 +741,9 @@ else
 
     private bool HasTokens(string playbackId)
     {
-        return _tokenCache.TryGetValue($"{playbackId}-v", out var v) && !string.IsNullOrEmpty(v) && 
-               _tokenCache.TryGetValue($"{playbackId}-t", out var t) && !string.IsNullOrEmpty(t) && 
-               _tokenCache.TryGetValue($"{playbackId}-s", out var s) && !string.IsNullOrEmpty(s);
+        // Only enforce Video token presence for playback.
+        // Thumbnail and Storyboard are optional enhancements.
+        return _tokenCache.TryGetValue($"{playbackId}-v", out var v) && !string.IsNullOrEmpty(v);
     }
 
     private string? GetPreviewId()
