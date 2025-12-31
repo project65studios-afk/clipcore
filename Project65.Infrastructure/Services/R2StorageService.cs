@@ -14,11 +14,13 @@ namespace Project65.Infrastructure.Services
     {
         private readonly IAmazonS3 _s3Client;
         private readonly string _bucketName;
+        private readonly IConfiguration _configuration;
         private readonly ILogger<R2StorageService> _logger;
 
         public R2StorageService(IAmazonS3 s3Client, IConfiguration configuration, ILogger<R2StorageService> logger)
         {
             _s3Client = s3Client;
+            _configuration = configuration;
             _logger = logger;
             _bucketName = configuration["R2:BucketName"] ?? throw new ArgumentNullException("R2:BucketName configuration is missing");
         }
@@ -155,11 +157,14 @@ namespace Project65.Infrastructure.Services
         {
             try
             {
+                var allowedOrigins = _configuration.GetSection("AllowedOrigins").Get<string[]>() 
+                                     ?? new[] { "http://localhost:5094", "http://127.0.0.1:5094", "https://localhost:7192" };
+
                 var corsRules = new System.Collections.Generic.List<CORSRule>
                 {
                     new CORSRule
                     {
-                        AllowedOrigins = new System.Collections.Generic.List<string> { "http://localhost:5094", "http://127.0.0.1:5094", "https://localhost:7192", "*" },
+                        AllowedOrigins = new System.Collections.Generic.List<string>(allowedOrigins),
                         AllowedMethods = new System.Collections.Generic.List<string> { "GET", "PUT", "POST", "HEAD" },
                         AllowedHeaders = new System.Collections.Generic.List<string> { "*" },
                         ExposeHeaders = new System.Collections.Generic.List<string> { "ETag", "Content-Length", "Access-Control-Allow-Origin" },

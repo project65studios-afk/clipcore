@@ -12,6 +12,7 @@ namespace Project65.Infrastructure.Services;
 
 public class MuxVideoService : IVideoService
 {
+    private readonly IConfiguration _configuration;
     private readonly string _tokenId;
     private readonly string _tokenSecret;
     private readonly DirectUploadsApi _directUploadsApi;
@@ -26,6 +27,7 @@ public class MuxVideoService : IVideoService
 
     public MuxVideoService(IConfiguration configuration, IHttpContextAccessor httpContextAccessor, IUsageRepository usageRepository, IMemoryCache cache, ILogger<MuxVideoService> logger)
     {
+        _configuration = configuration;
         _tokenId = configuration["Mux:TokenId"] ?? throw new ArgumentNullException("Mux:TokenId");
         _tokenSecret = configuration["Mux:TokenSecret"] ?? throw new ArgumentNullException("Mux:TokenSecret");
         _signingKeyId = configuration["Mux:SigningKeyId"] ?? ""; 
@@ -42,6 +44,12 @@ public class MuxVideoService : IVideoService
 
         _directUploadsApi = new DirectUploadsApi(config);
         _assetsApi = new AssetsApi(config);
+    }
+
+    private string GetAppOrigin()
+    {
+        var origins = _configuration.GetSection("AllowedOrigins").Get<string[]>();
+        return origins?.FirstOrDefault() ?? "http://localhost:5094";
     }
 
     public async Task<(string url, string uploadId)> CreateUploadUrlAsync(string clipId, string title, string? creatorId = null)
@@ -61,7 +69,7 @@ public class MuxVideoService : IVideoService
         );
         
         var request = new CreateUploadRequest(newAssetSettings: assetSettings);
-        request.CorsOrigin = "*";
+        request.CorsOrigin = GetAppOrigin();
         
         var result = await _directUploadsApi.CreateDirectUploadAsync(request);
         return (result.Data.Url, result.Data.Id);
@@ -110,7 +118,7 @@ public class MuxVideoService : IVideoService
         // Mux often puts everything in 'test' map if not standard.
         
         var request = new CreateUploadRequest(newAssetSettings: assetSettings);
-        request.CorsOrigin = "*";
+        request.CorsOrigin = GetAppOrigin();
         
         var result = await _directUploadsApi.CreateDirectUploadAsync(request);
         return (result.Data.Url, result.Data.Id);

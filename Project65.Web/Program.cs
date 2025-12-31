@@ -9,6 +9,8 @@ using Project65.Infrastructure.Services;
 using Project65.Core.Entities;
 using Amazon.S3;
 using Amazon.Extensions.NETCore.Setup;
+using Microsoft.AspNetCore.RateLimiting;
+using System.Threading.RateLimiting;
 // Ensure Repositories namespace is included, which it is.
 
 var builder = WebApplication.CreateBuilder(args);
@@ -17,7 +19,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents(options =>
     {
-        options.DetailedErrors = true; // Enable detailed exceptions
+        options.DetailedErrors = builder.Environment.IsDevelopment(); // Only enable detailed exceptions in Dev
     });
 builder.Services.AddCascadingAuthenticationState();
 builder.Services.AddSignalR();
@@ -33,6 +35,11 @@ builder.Services.ConfigureApplicationCookie(options =>
 {
     options.LoginPath = "/Account/Login";
     options.AccessDeniedPath = "/Account/AccessDenied";
+    options.Cookie.HttpOnly = true;
+    options.Cookie.SecurePolicy = CookieSecurePolicy.Always; // Recommended for production
+    options.Cookie.SameSite = SameSiteMode.Strict;
+    options.ExpireTimeSpan = TimeSpan.FromHours(2); // Shorter expiration for security
+    options.SlidingExpiration = true;
 });
 
 builder.Services.AddAuthentication()
@@ -92,10 +99,60 @@ builder.Services.AddSingleton<Project65.Web.Services.VideoHealingService>();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<IUsageRepository, UsageRepository>();
 builder.Services.AddMemoryCache();
-builder.Services.AddControllers(options =>
+// Configure Antiforgery to use a custom header for API calls
+builder.Services.AddAntiforgery(options => 
 {
-    // API controllers shouldn't validate antiforgery tokens by default
-    options.Filters.Add(new Microsoft.AspNetCore.Mvc.IgnoreAntiforgeryTokenAttribute());
+    options.HeaderName = "X-XSRF-TOKEN";
+});
+
+// Implementation of Rate Limiting
+builder.Services.AddRateLimiter(options => 
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    
+    // Global rate limit
+    options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: httpContext.User.Identity?.Name ?? httpContext.Connection.RemoteIpAddress?.ToString() ?? "global",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                AutoReplenishment = true,
+                PermitLimit = 100,
+                QueueLimit = 0,
+                Window = TimeSpan.FromMinutes(1)
+            }));
+
+    // Specific limit for Login
+    options.AddFixedWindowLimiter("login", opt => 
+    {
+        opt.PermitLimit = 5;
+        opt.Window = TimeSpan.FromMinutes(1);
+        opt.QueueLimit = 0;
+    });
+
+    // Specific limit for Admin/Upload actions
+    options.AddFixedWindowLimiter("admin", opt => 
+    {
+        opt.PermitLimit = 10;
+        opt.Window = TimeSpan.FromMinutes(1);
+        opt.QueueLimit = 0;
+    });
+});
+
+builder.Services.AddControllers();
+
+// Configure CORS for Mux/R2/Stripe interactions
+var allowedOrigins = builder.Configuration.GetSection("AllowedOrigins").Get<string[]>() 
+                     ?? new[] { "http://localhost:5094", "http://127.0.0.1:5094", "https://localhost:7192" };
+
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("ProductionOrigins", policy =>
+    {
+        policy.WithOrigins(allowedOrigins) 
+              .AllowAnyMethod()
+              .AllowAnyHeader();
+    });
 });
 
 // Configure Kestrel to accept large file uploads (up to 2GB)
@@ -118,12 +175,35 @@ app.Use(async (context, next) =>
     context.Response.Headers["X-Content-Type-Options"] = "nosniff";
     context.Response.Headers["X-Frame-Options"] = "SAMEORIGIN";
     context.Response.Headers["Referrer-Policy"] = "strict-origin-when-cross-origin";
-    // Permissive CSP to allow external services (Google/Facebook/Stripe/Mux) while providing baseline protection
-    // Mux player uses blob: for HLS chunks and workers.
-    context.Response.Headers["Content-Security-Policy"] = 
-        "default-src 'self' http: https: data: blob: 'unsafe-inline' 'unsafe-eval'; " +
-        "worker-src 'self' blob:; " + 
-        "frame-ancestors 'self';";
+    
+    // Hardened CSP: specific allowed origins for Mux, Stripe, and Cloudflare R2
+    // mux.com: player/streaming | cloudflarestorage.com: R2 | stripe.com: payments | transloadit.com: uppy
+    // We add our own allowed origins to the CSP connect-src
+    string appOrigins = string.Join(" ", allowedOrigins);
+    
+    string csp = "default-src 'self'; " +
+                 "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://unpkg.com https://releases.transloadit.com https://js.stripe.com https://www.gstatic.com; " +
+                 "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://releases.transloadit.com https://fonts.googleapis.com; " +
+                 "img-src 'self' data: blob: https://*.mux.com https://*.r2.cloudflarestorage.com https://*.stripe.com https://www.gstatic.com; " +
+                 $"connect-src 'self' {appOrigins} https://*.mux.com https://*.r2.cloudflarestorage.com https://api.stripe.com https://www.gstatic.com https://cdn.jsdelivr.net https://unpkg.com https://releases.transloadit.com wss://localhost:* ws://localhost:*; " +
+                 "frame-src 'self' https://js.stripe.com; " +
+                 "media-src 'self' blob: https://*.mux.com; " +
+                 "worker-src 'self' blob:; " +
+                 "font-src 'self' https://cdn.jsdelivr.net https://fonts.gstatic.com; " +
+                 "frame-ancestors 'self';";
+
+    context.Response.Headers["Content-Security-Policy"] = csp;
+    
+    // Antiforgery Token Cookie for JS (XHR/Fetch)
+    var antiforgery = context.RequestServices.GetRequiredService<Microsoft.AspNetCore.Antiforgery.IAntiforgery>();
+    var tokens = antiforgery.GetAndStoreTokens(context);
+    context.Response.Cookies.Append("XSRF-TOKEN", tokens.RequestToken!, 
+        new CookieOptions { 
+            HttpOnly = false, // Must be accessible by JS
+            Secure = !builder.Environment.IsDevelopment(), 
+            SameSite = SameSiteMode.Strict 
+        });
+
     await next();
 });
 
@@ -136,6 +216,8 @@ if (!app.Environment.IsDevelopment())
 }
 app.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages: true);
 app.UseHttpsRedirection();
+app.UseCors("ProductionOrigins");
+app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
 app.UseAntiforgery();
@@ -145,7 +227,7 @@ app.MapStaticAssets();
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 
-app.MapRazorPages(); // Required for Identity UI endpoints
+app.MapRazorPages().RequireRateLimiting("login"); // Required for Identity UI endpoints
 app.MapControllers(); // Required for API endpoints
 app.MapHub<Project65.Web.Hubs.ProcessingHub>("/processingHub");
 

@@ -9,6 +9,7 @@ namespace Project65.Web.Controllers;
 [ApiController]
 [Route("api/admin/[controller]")]
 [Authorize(Roles = "Admin")]
+[Microsoft.AspNetCore.RateLimiting.EnableRateLimiting("admin")]
 public class VideoCompressionController : ControllerBase
 {
     private readonly IVideoService _videoService;
@@ -32,7 +33,6 @@ public class VideoCompressionController : ControllerBase
     }
 
     [HttpPost("compress-and-upload")]
-    [IgnoreAntiforgeryToken]
     public async Task<IActionResult> CompressAndUpload(
         [FromForm] IFormFile file,
         [FromForm] string? eventId,
