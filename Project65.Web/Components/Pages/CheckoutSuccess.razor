@@ -301,7 +301,7 @@
                     bool shouldAdd = true;
                     if (!string.IsNullOrEmpty(p.UserId) && !string.IsNullOrEmpty(p.ClipId))
                     {
-                         if (await PurchaseRepository.HasPurchasedAsync(p.UserId, p.ClipId))
+                         if (await PurchaseRepository.HasPurchasedAsync(p.UserId, p.ClipId, p.LicenseType))
                          {
                              shouldAdd = false;
                          }

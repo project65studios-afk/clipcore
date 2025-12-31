@@ -52,8 +52,11 @@
                                 @evt.Name
                             </div>
                         }
-                        <div style="font-size: 0.85rem; color: var(--text-muted);">
+                        <div style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 0.25rem;">
                              Duration: @(item.DurationSec.HasValue ? TimeSpan.FromSeconds(item.DurationSec.Value).ToString(@"mm\:ss") : "--:--")
+                        </div>
+                        <div class="badge" style="background: @(item.LicenseType == LicenseType.Commercial ? "var(--accent-purple-dim)" : "var(--accent-cyan-dim)"); color: @(item.LicenseType == LicenseType.Commercial ? "var(--accent-purple)" : "var(--accent-cyan)"); border: 1px solid currentColor; font-size: 0.7rem; text-transform: uppercase; font-weight: 600; padding: 0.2rem 0.5rem;">
+                            @item.LicenseType License
                         </div>
                     </div>
 
@@ -177,7 +180,7 @@
 
     private async Task RemoveItem(Project65.Web.Models.CartItem item)
     {
-        await CartService.RemoveAsync(item.Id);
+        await CartService.RemoveAsync(item.Id, item.LicenseType);
     }
 
     private string _promoInput = "";
@@ -262,7 +265,14 @@
         {
             Id = i.Id,
             Title = i.Title + discountLabel,
-            PriceCents = (int)Math.Round(i.PriceCents * discountFactor)
+            PriceCents = (int)Math.Round(i.PriceCents * discountFactor),
+            LicenseType = i.LicenseType,
+            EventName = i.EventName,
+            EventDate = i.EventDate,
+            ClipRecordingStartedAt = i.ClipRecordingStartedAt,
+            DurationSec = i.DurationSec,
+            MasterFileName = i.MasterFileName,
+            ThumbnailFileName = i.ThumbnailFileName
         });
 
         var url = await PaymentService.CreateCheckoutSessionAsync(checkoutItems, successUrl, cancelUrl, userEmail, null, CartService.AppliedPromoCode?.Id);

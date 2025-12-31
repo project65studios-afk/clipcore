@@ -11,6 +11,7 @@ public class Clip
 
     public string Title { get; set; } = string.Empty;
     public int PriceCents { get; set; }
+    public int PriceCommercialCents { get; set; }
     
     public string PlaybackIdSigned { get; set; } = string.Empty;
     public string? PlaybackIdTeaser { get; set; }

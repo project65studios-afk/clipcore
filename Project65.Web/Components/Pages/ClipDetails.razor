@@ -50,7 +50,7 @@ else
         <div class="clip-layout" style="display: grid; gap: 2rem;">
              <div>
                  <div id="player-container" class="video-player-container mobile-full-width" style="border: 1px solid var(--border-color); box-shadow: 0 0 40px rgba(0,0,0,0.5); position: relative;">
-                    @if (_hasPurchased)
+                     @if (_hasPurchasedPersonal || _hasPurchasedCommercial)
                     {
                          @if (HasTokens(_clip.PlaybackIdSigned!))
                          {
@@ -86,47 +86,6 @@ else
                               <div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background: #000; min-height: 400px;">
                                   <div class="spinner-border text-info" role="status"></div>
                               </div>
-                         }
-                    }
-                    else if (GetPreviewId() is string previewId)
-                    {
-                         @if (HasTokens(previewId))
-                         {
-                            <mux-player
-                                id="preview-player"
-                                playback-id="@previewId"
-                                playback-token="@GetTokenFromCache(previewId, "v")"
-                                thumbnail-token="@GetTokenFromCache(previewId, "t")"
-                                storyboard-token="@GetTokenFromCache(previewId, "s")"
-                                metadata-video-title="@_clip.Title (Preview)"
-                                muted
-                                autoplay
-                                fullscreen-element="player-container"
-                                disable-tracking
-                                style="width: 100%; height: 100%;"
-                            >
-                                @if (!string.IsNullOrEmpty(_watermarkUrl))
-                                {
-                                    <div class="watermark-grid" style="--wm-url: url('@_watermarkUrl');">
-                                        @for (int i = 0; i < 36; i++)
-                                        {
-                                            int row = i / 6;
-                                            int col = i % 6;
-                                            bool isActive = (row + col) % 2 == 0;
-                                            <div class="watermark-cell @(isActive ? "active" : "")"></div>
-                                        }
-                                    </div>
-                                }
-                                <div class="badge-low-res">
-                                    Low-Res Preview (540p)
-                                </div>
-                            </mux-player>
-                         }
-                         else
-                         {
-                             <div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background: #000; min-height: 400px;">
-                                 <div class="spinner-border text-info" role="status"></div>
-                             </div>
                          }
                     }
                     else
@@ -189,80 +148,111 @@ else
             
             <!-- Purchase / Details Column -->
             <div class="premium-card" style="height: fit-content;">
-                <h3 class="mb-2">Purchase Clip</h3>
-                <div style="font-size: 0.85rem; color: var(--accent-cyan); margin-bottom: 1.5rem; display: flex; align-items: center; gap: 0.5rem;">
+                <div style="font-size: 0.85rem; color: var(--accent-cyan); margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem;">
                     <i class="bi bi-stars"></i> Includes 4K Master File
                 </div>
-                
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; padding-bottom: 1rem; border-bottom: 1px solid var(--border-color);">
-                    <span style="color: var(--text-secondary);">Price</span>
-                    <div style="text-align: right;">
-                        <AuthorizeView Roles="Admin">
-                            <Authorized>
-                                @if (_isEditingPrice)
-                                {
-                                    <div style="display: flex; gap: 0.5rem; align-items: center;">
-                                        <div style="position: relative; display: flex; align-items: center;">
-                                            <span style="position: absolute; left: 0.75rem; color: var(--text-muted);">$</span>
-                                            <input type="number" step="0.01" class="form-control" style="width: 100px; padding: 0.4rem 0.5rem 0.4rem 1.6rem; height: auto; font-size: 0.9rem;" @bind="_editingPrice" />
-                                        </div>
-                                        <button class="btn-primary" style="padding: 0.4rem 0.75rem; font-size: 0.8rem;" @onclick="SavePriceAsync">Save</button>
-                                        <button class="btn-secondary" style="padding: 0.4rem 0.75rem; font-size: 0.8rem;" @onclick="CancelEditPrice">Cancel</button>
-                                    </div>
-                                }
-                                else
-                                {
-                                    <div style="display: flex; gap: 0.75rem; align-items: center;">
-                                        <span style="font-weight: 700; font-size: 1.25rem;">$@(_clip?.PriceCents / 100.00)</span>
-                                        <button class="btn-secondary" style="padding: 0.25rem 0.5rem; font-size: 0.7rem; color: var(--accent-cyan); border-color: var(--accent-cyan-dim);" @onclick="ToggleEditPrice">Edit Price</button>
-                                    </div>
-                                }
-                            </Authorized>
-                            <NotAuthorized>
-                                <div style="display: flex; flex-direction: column; align-items: flex-end;">
-                                    <span style="font-weight: 700; font-size: 1.25rem;">$@(_clip?.PriceCents / 100.00)</span>
-                                    @if (_isAuthenticated)
-                                    {
-                                        
-                                    }
+
+                <!-- License Selection -->
+                <div class="mb-3">
+                    <label class="form-label" style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 0.75rem; display: block;">Select License Type</label>
+                    <div class="d-flex flex-column gap-2">
+                        <div class="license-choice @(_selectedLicense == LicenseType.Personal ? "active" : "")" @onclick="() => _selectedLicense = LicenseType.Personal">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <div class="license-name">Personal Use</div>
+                                    <div class="license-desc">Social media, personal portfolio</div>
                                 </div>
-                            </NotAuthorized>
-                        </AuthorizeView>
+                                <div class="license-price">$@(_clip?.PriceCents / 100.00)</div>
+                            </div>
+                        </div>
+                        <div class="license-choice @(_selectedLicense == LicenseType.Commercial ? "active" : "")" @onclick="() => _selectedLicense = LicenseType.Commercial">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <div class="license-name">Commercial Use</div>
+                                    <div class="license-desc">Ads, brand deals, commercial projects</div>
+                                </div>
+                                <div class="license-price">$@(_clip?.PriceCommercialCents / 100.00)</div>
+                            </div>
+                        </div>
                     </div>
                 </div>
+                
+                <AuthorizeView Roles="Admin">
+                    <div style="margin-top: 1.5rem; padding: 1rem; background: rgba(255,255,255,0.03); border: 1px solid var(--border-color); border-radius: var(--radius-md);">
+                        <h6 style="font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.5px; opacity: 0.7; margin-bottom: 1rem;">Admin: Manage Prices</h6>
+                        @if (_isEditingPrice)
+                        {
+                            <div class="d-flex flex-column gap-3">
+                                <div>
+                                    <label style="font-size: 0.7rem; color: var(--text-muted); display: block; margin-bottom: 0.25rem;">Personal Price ($)</label>
+                                    <input type="number" step="0.01" class="form-control form-control-sm" @bind="_editingPrice" />
+                                </div>
+                                <div>
+                                    <label style="font-size: 0.7rem; color: var(--text-muted); display: block; margin-bottom: 0.25rem;">Commercial Price ($)</label>
+                                    <input type="number" step="0.01" class="form-control form-control-sm" @bind="_editingCommercialPrice" />
+                                </div>
+                                <div class="d-flex gap-2">
+                                    <button class="btn-primary" style="flex: 1; padding: 0.4rem;" @onclick="SavePriceAsync">Save Prices</button>
+                                    <button class="btn-secondary" style="flex: 1; padding: 0.4rem;" @onclick="CancelEditPrice">Cancel</button>
+                                </div>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div style="font-size: 0.85rem; color: var(--text-secondary);">
+                                    P: $@(_clip?.PriceCents / 100.0) | C: $@(_clip?.PriceCommercialCents / 100.0)
+                                </div>
+                                <button class="btn-secondary" style="padding: 0.25rem 0.50rem; font-size: 0.7rem;" @onclick="ToggleEditPrice">Edit</button>
+                            </div>
+                        }
+                    </div>
+                </AuthorizeView>
                 
                 <div style="margin-bottom: 2rem;">
                     <span style="color: var(--text-secondary);">Duration</span>
                     <span style="float: right;">@(_clip?.DurationSec.HasValue == true ? TimeSpan.FromSeconds(_clip.DurationSec.Value).ToString(@"mm\:ss") : "--:--")</span>
                 </div>
                 
-                @if (!_hasPurchased)
+                @{
+                    var status = _selectedLicense == LicenseType.Personal ? _hasPurchasedPersonal : _hasPurchasedCommercial;
+                }
+
+                @if (status)
                 {
-                    <div class="d-flex gap-2 mb-3">
-                        <button class="btn-primary" style="width: 100%;" @onclick='() => PrepareAction("Buy")'>
-                            Buy Now
-                        </button>
-                        @if (_isInCart)
-                        {
-                            <a href="/cart" class="btn-secondary" style="width: 100%; text-align: center; text-decoration: none; display: flex; align-items: center; justify-content: center;">
-                                In Cart →
-                            </a>
-                        }
-                        else
-                        {
-                            <button class="btn-secondary" style="width: 100%;" @onclick='() => PrepareAction("Add")' disabled="@(_isAddingToCart)">
-                                @if (_isAddingToCart)
-                                {
-                                    <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true" style="margin-right: 0.5rem;"></span>
-                                    <span>Adding...</span>
-                                }
-                                else
-                                {
-                                    <span>Add to Cart</span>
-                                }
-                            </button>
-                        }
+                    <div style="background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.2); color: #34d399; padding: 1.25rem; border-radius: var(--radius-md); text-align: center; margin-bottom: 2rem;">
+                        <i class="bi bi-check2-circle fs-3 mb-2 d-block"></i>
+                        <div class="fw-bold">Owned License: @(_selectedLicense)</div>
+                        <div class="small mt-1 opacity-75">Available in your dashboard.</div>
                     </div>
+                }
+                else
+                {
+                    <button type="button" class="btn-primary w-100 mb-3" style="padding: 1rem; font-size: 1.1rem;" @onclick="@(() => PrepareAction("Buy"))">
+                        <i class="bi bi-lightning-fill me-2"></i> Buy Now
+                    </button>
+                    
+                    @if (_isInCart)
+                    {
+                        <a href="/cart" class="btn-secondary w-100" style="padding: 1rem; width: 100%; text-decoration: none; display: flex; align-items: center; justify-content: center; font-size: 1.1rem;">
+                            <i class="bi bi-cart-check-fill me-2"></i> <span>View in Cart</span>
+                        </a>
+                    }
+                    else
+                    {
+                        <button type="button" class="btn-secondary w-100" style="padding: 1rem; font-size: 1.1rem;" @onclick="@(() => PrepareAction("Add"))" disabled="@_isAddingToCart">
+                            @if (_isAddingToCart)
+                            {
+                                <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true" style="margin-right: 0.5rem;"></span>
+                                <span>Adding...</span>
+                            }
+                            else
+                            {
+                                <i class="bi bi-cart-plus me-2"></i> <span>Add to Cart</span>
+                            }
+                        </button>
+                    }
+                }
 
                     @if (_showLicenseModal)
                     {
@@ -274,20 +264,32 @@ else
                                 </div>
                                 
                                 <div class="modal-body-glass">
-                                    <h5 class="text-accent-cyan mb-3">Personal Use License</h5>
+                                    <h5 class="text-accent-cyan mb-3">@(_selectedLicense == LicenseType.Commercial ? "Commercial Use License" : "Personal Use License")</h5>
                                     <div class="license-terms-scroll">
-                                        <p>By purchasing this video clip, you agree to the following terms:</p>
-                                        <ul>
-                                            <li><strong>Allowed:</strong> Personal use, social media posts, personal portfolios, and submission to sponsors/recruiting.</li>
-                                            <li><strong>Prohibited:</strong> Resale of the footage, use in stock libraries, or inclusion in paid advertisements without an extended license.</li>
-                                            <li><strong>Quality:</strong> You are purchasing the full 4K master file. The preview player is for demonstration only.</li>
-                                        </ul>
+                                        @if (_selectedLicense == LicenseType.Commercial)
+                                        {
+                                            <p>By purchasing this <strong>Commercial</strong> license, you agree to the following:</p>
+                                            <ul>
+                                                <li><strong>Allowed:</strong> Professional video production, paid advertisements, corporate use, broadcast media, and business promotion.</li>
+                                                <li><strong>Prohibited:</strong> Resale of the footage as a standalone asset, inclusion in stock libraries, or sub-licensing to third parties as raw footage.</li>
+                                                <li><strong>Scope:</strong> This license provides a world-wide, perpetual right to use this specific clip in its processed form within your commercial works.</li>
+                                            </ul>
+                                        }
+                                        else
+                                        {
+                                            <p>By purchasing this <strong>Personal</strong> license, you agree to the following:</p>
+                                            <ul>
+                                                <li><strong>Allowed:</strong> Personal use, social media posts, personal portfolios, and submission to sponsors/recruiting (non-paid).</li>
+                                                <li><strong>Prohibited:</strong> Paid advertisements, broadcast use, resale, or any form of business promotion where revenue is directly tied to the video's reach.</li>
+                                                <li><strong>Quality:</strong> Includes the full 4K master file for your private collection.</li>
+                                            </ul>
+                                        }
                                     </div>
 
                                     <div class="form-check mt-4 p-3 rounded" style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);">
                                         <input class="form-check-input" type="checkbox" id="licenseAgreementModal" @bind="_hasAgreedToLicense" style="cursor: pointer; border-color: var(--accent-cyan);">
                                         <label class="form-check-label ms-2" for="licenseAgreementModal" style="font-size: 0.95rem; color: var(--text-primary); cursor: pointer; user-select: none;">
-                                            I agree to the <strong>Personal Use License</strong>
+                                            I agree to the <strong>@(_selectedLicense == LicenseType.Commercial ? "Commercial Use License" : "Personal Use License")</strong>
                                         </label>
                                     </div>
                                 </div>
@@ -313,17 +315,6 @@ else
                     <p style="font-size: 0.8rem; color: var(--text-muted); text-align: center; opacity: 0.7;">
                         Secure payment via Stripe. 4K Master file delivered shortly.
                     </p>
-                }
-                else
-                {
-                    <button class="btn-primary" style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 0.5rem; background-color: var(--bg-dark-900); border-color: var(--accent-cyan); color: var(--accent-cyan); cursor: default; opacity: 1;" disabled>
-                         <i class="bi bi-check-circle-fill"></i>
-                         <span>Purchased</span>
-                    </button>
-                    <p style="font-size: 0.8rem; color: var(--text-muted); text-align: center; margin-top: 1rem;">
-                        You own this clip. View it in <a href="/my-purchases" style="color: var(--accent-cyan);">My Purchases</a>.
-                    </p>
-                }
             </div>
         </div>
         
@@ -350,13 +341,15 @@ else
     private Clip? _clip;
     private List<Clip> _relatedClips = new();
     private bool _loading = true;
-    private bool _hasPurchased = false; 
+    private bool _hasPurchasedPersonal = false;
+    private bool _hasPurchasedCommercial = false;
     private bool _processingPurchase = false;
     private string? _userId;
     private bool _isAuthenticated = false;
     private bool _hasAgreedToLicense = false;
     private bool _showLicenseModal = false;
     private string? _pendingAction;
+    private LicenseType _selectedLicense = LicenseType.Personal;
 
     private void PrepareAction(string action)
     {
@@ -384,6 +377,7 @@ else
 
     private bool _isEditingPrice = false;
     private double _editingPrice;
+    private double _editingCommercialPrice;
     private string? _watermarkUrl;
     private string _errorMessage = "";
     private Dictionary<string, string> _tokenCache = new();
@@ -396,6 +390,7 @@ else
         if (_clip != null)
         {
             _editingPrice = _clip.PriceCents / 100.00;
+            _editingCommercialPrice = _clip.PriceCommercialCents / 100.00;
             _isEditingPrice = true;
         }
     }
@@ -498,6 +493,7 @@ else
         {
             var oldPrice = _clip.PriceCents;
             _clip.PriceCents = (int)Math.Round(_editingPrice * 100);
+            _clip.PriceCommercialCents = (int)Math.Round(_editingCommercialPrice * 100);
             await ClipRepository.UpdateAsync(_clip);
 
             // Log the action
@@ -512,7 +508,7 @@ else
                 "Update Price", 
                 "Clip", 
                 _clip.Id, 
-                $"Price changed from ${oldPrice/100.0} to ${_clip.PriceCents/100.0}");
+                $"Price updated. Personal: ${_clip.PriceCents/100.0}, Commercial: ${_clip.PriceCommercialCents/100.0}");
 
             _isEditingPrice = false;
         }
@@ -527,7 +523,8 @@ else
         _clip = null;
         _relatedClips = new();
         _loading = true;
-        _hasPurchased = false;
+        _hasPurchasedPersonal = false;
+        _hasPurchasedCommercial = false;
         _tokenCache.Clear();
         _errorMessage = "";
         StateHasChanged(); // Show loading spinner immediately
@@ -552,7 +549,8 @@ else
             
             if (_clip != null)
             {
-                _hasPurchased = await PurchaseRepository.HasPurchasedAsync(_userId, Id);
+                _hasPurchasedPersonal = await PurchaseRepository.HasPurchasedAsync(_userId, Id, LicenseType.Personal);
+                _hasPurchasedCommercial = await PurchaseRepository.HasPurchasedAsync(_userId, Id, LicenseType.Commercial);
                 
                 VideoHealingService.OnClipHealed -= HandleClipHealed; // Unsubscribe old
                 VideoHealingService.OnClipHealed += HandleClipHealed; // Subscribe new
@@ -576,12 +574,13 @@ else
                     if (purchase != null)
                     {
                         purchase.UserId = _userId;
-                        if (!_hasPurchased)
+                        if (!await PurchaseRepository.HasPurchasedAsync(_userId, Id, purchase.LicenseType))
                         {
                             try 
                             {
                                 await PurchaseRepository.AddAsync(purchase);
-                                _hasPurchased = true;
+                                if (purchase.LicenseType == LicenseType.Personal) _hasPurchasedPersonal = true;
+                                if (purchase.LicenseType == LicenseType.Commercial) _hasPurchasedCommercial = true;
 
                                 // Send Receipt
                                 try 
@@ -604,7 +603,10 @@ else
                                     // Failed to send receipt
                                 }
                             }
-                            catch { _hasPurchased = true; }
+                            catch { 
+                                _hasPurchasedPersonal = true; // Fallback to true if we hit a DB error but verified manually
+                                _hasPurchasedCommercial = true; 
+                            }
                         }
                     }
                     _processingPurchase = false;
@@ -614,7 +616,7 @@ else
                 string targetId = "";
                 string? resolution = null;
                 
-                if (_hasPurchased && !string.IsNullOrEmpty(_clip.PlaybackIdSigned))
+                if ((_hasPurchasedPersonal || _hasPurchasedCommercial) && !string.IsNullOrEmpty(_clip.PlaybackIdSigned))
                 {
                     targetId = _clip.PlaybackIdSigned;
                     resolution = null; // Full quality, tracked
@@ -719,7 +721,8 @@ else
             ClipRecordingStartedAt = _clip.RecordingStartedAt,
             MasterFileName = _clip.MasterFileName,
             ThumbnailFileName = _clip.ThumbnailFileName,
-            PriceCents = _clip.PriceCents
+            PriceCents = _selectedLicense == LicenseType.Commercial ? _clip.PriceCommercialCents : _clip.PriceCents,
+            LicenseType = _selectedLicense
         };
         var url = await PaymentService.CreateCheckoutSessionAsync(new[] { checkoutItem }, successUrl, cancelUrl, userEmail, _userId);
         Navigation.NavigateTo(url);
@@ -738,7 +741,8 @@ else
                 {
                     Id = _clip.Id,
                     Title = _clip.Title,
-                    PriceCents = _clip.PriceCents,
+                    PriceCents = _selectedLicense == LicenseType.Commercial ? _clip.PriceCommercialCents : _clip.PriceCents,
+                    LicenseType = _selectedLicense,
                     DurationSec = _clip.DurationSec,
                     PlaybackId = _clip.PlaybackIdSigned,
                     EventId = _clip.EventId,
@@ -810,7 +814,7 @@ else
 
                 try
                 {
-                    if (_hasPurchased)
+                    if (_hasPurchasedPersonal || _hasPurchasedCommercial)
                     {
                         await JSRuntime.InvokeVoidAsync("setFullscreenElement", "#purchased-player", "player-container");
                     }

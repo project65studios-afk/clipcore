@@ -19,10 +19,10 @@ public class PurchaseRepository : IPurchaseRepository
         await _context.SaveChangesAsync();
     }
 
-    public async Task<bool> HasPurchasedAsync(string? userId, string clipId)
+    public async Task<bool> HasPurchasedAsync(string? userId, string clipId, LicenseType license)
     {
         return await _context.Purchases
-            .AnyAsync(p => p.UserId == userId && p.ClipId == clipId);
+            .AnyAsync(p => p.UserId == userId && p.ClipId == clipId && p.LicenseType == license);
     }
 
     public async Task<List<Purchase>> GetByUserIdAsync(string? userId)

@@ -40,4 +40,5 @@ public class Purchase
     public string? CustomerPhone { get; set; }
     
     public int PricePaidCents { get; set; }
+    public LicenseType LicenseType { get; set; } = LicenseType.Personal;
 }

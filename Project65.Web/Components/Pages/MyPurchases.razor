@@ -125,19 +125,22 @@
                                     }
                                     else if (!string.IsNullOrEmpty(purchase.EventName))
                                     {
-                                        <div style="font-size: 0.9rem; margin-bottom: 0.5rem; color: var(--text-muted);">
+                                        <div style="font-size: 0.9rem; margin-bottom: 0.5rem; color: var(--text-muted); display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
                                             <span>@purchase.EventName</span>
                                             @if (purchase.EventDate.HasValue)
                                             {
-                                                <span style="margin-left: 0.5rem;">• @purchase.EventDate.Value.ToString("MMM dd, yyyy")</span>
+                                                <span>• @purchase.EventDate.Value.ToString("MMM dd, yyyy")</span>
                                             }
                                             @{
-                                                var startTime = purchase.Clip?.RecordingStartedAt ?? purchase.ClipRecordingStartedAt;
+                                                var startTimeDisplay = purchase.Clip?.RecordingStartedAt ?? purchase.ClipRecordingStartedAt;
                                             }
-                                            @if (startTime.HasValue)
+                                            @if (startTimeDisplay.HasValue)
                                             {
-                                                <span style="margin-left: 0.5rem;">• @startTime.Value.ToLocalTime().ToString("t")</span>
+                                                <span>• @startTimeDisplay.Value.ToLocalTime().ToString("t")</span>
                                             }
+                                            <span class="badge" style="background: @(purchase.LicenseType == LicenseType.Commercial ? "var(--accent-purple-dim)" : "var(--accent-cyan-dim)"); color: @(purchase.LicenseType == LicenseType.Commercial ? "var(--accent-purple)" : "var(--accent-cyan)"); border: 1px solid currentColor; font-size: 0.7rem; text-transform: uppercase; font-weight: 600; padding: 0.2rem 0.5rem;">
+                                                @purchase.LicenseType License
+                                            </span>
                                         </div>
                                     }
                                 </div>

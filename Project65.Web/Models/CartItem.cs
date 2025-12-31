@@ -1,3 +1,5 @@
+using Project65.Core.Entities;
+
 namespace Project65.Web.Models;
 
 public class CartItem
@@ -14,4 +16,5 @@ public class CartItem
     public DateTime? ClipRecordingStartedAt { get; set; }
     public string? MasterFileName { get; set; }
     public string? ThumbnailFileName { get; set; }
+    public LicenseType LicenseType { get; set; } = LicenseType.Personal;
 }

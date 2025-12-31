@@ -56,11 +56,15 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
         modelBuilder.Entity<Clip>()
             .Property(c => c.PriceCents)
             .IsRequired();
+            
+        modelBuilder.Entity<Clip>()
+            .Property(c => c.PriceCommercialCents)
+            .IsRequired();
 
         // Purchase configuration
         modelBuilder.Entity<Purchase>()
-            .HasIndex(p => new { p.UserId, p.ClipId })
-            .IsUnique(); // Prevent double purchase
+            .HasIndex(p => new { p.UserId, p.ClipId, p.LicenseType })
+            .IsUnique(); // Prevent double purchase of the same license
             
         modelBuilder.Entity<Purchase>()
             .HasIndex(p => p.StripeSessionId); // Index for lookup, but NOT unique (multi-item orders share ID)

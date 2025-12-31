@@ -46,7 +46,8 @@ public class StripePaymentService : IPaymentService
                             { "ClipRecordingStartedAt", item.ClipRecordingStartedAt?.ToString("o") ?? "" },
                             { "DurationSec", item.DurationSec?.ToString("F2") ?? "" },
                             { "MasterFileName", item.MasterFileName ?? "" },
-                            { "ThumbnailFileName", item.ThumbnailFileName ?? "" }
+                            { "ThumbnailFileName", item.ThumbnailFileName ?? "" },
+                            { "LicenseType", item.LicenseType.ToString() }
                         }
                     },
                 },
@@ -75,6 +76,7 @@ public class StripePaymentService : IPaymentService
             sessionMetadata[$"c{i}_du"] = item.DurationSec?.ToString("F2") ?? "";
             sessionMetadata[$"c{i}_mf"] = item.MasterFileName ?? "";
             sessionMetadata[$"c{i}_tn"] = item.ThumbnailFileName ?? "";
+            sessionMetadata[$"c{i}_li"] = item.LicenseType.ToString();
         }
 
         var options = new SessionCreateOptions
@@ -179,6 +181,7 @@ public class StripePaymentService : IPaymentService
                     var durationStr = product?.Metadata?.GetValueOrDefault("DurationSec");
                     var masterFile = product?.Metadata?.GetValueOrDefault("MasterFileName");
                     var thumbFile = product?.Metadata?.GetValueOrDefault("ThumbnailFileName");
+                    var licenseTypeStr = product?.Metadata?.GetValueOrDefault("LicenseType");
 
                     // Backup lookup from session metadata (by index or by clipId)
                     // Stripe preserves order of line items, so we can use a counter
@@ -200,6 +203,7 @@ public class StripePaymentService : IPaymentService
                                     if (string.IsNullOrEmpty(durationStr)) durationStr = session.Metadata.GetValueOrDefault($"c{i}_du");
                                     if (string.IsNullOrEmpty(masterFile)) masterFile = session.Metadata.GetValueOrDefault($"c{i}_mf");
                                     if (string.IsNullOrEmpty(thumbFile)) thumbFile = session.Metadata.GetValueOrDefault($"c{i}_tn");
+                                    if (string.IsNullOrEmpty(licenseTypeStr)) licenseTypeStr = session.Metadata.GetValueOrDefault($"c{i}_li");
                                     foundByClipId = true;
                                     break;
                                 }
@@ -215,6 +219,7 @@ public class StripePaymentService : IPaymentService
                             if (string.IsNullOrEmpty(durationStr)) durationStr = session.Metadata.GetValueOrDefault($"c{index}_du");
                             if (string.IsNullOrEmpty(masterFile)) masterFile = session.Metadata.GetValueOrDefault($"c{index}_mf");
                             if (string.IsNullOrEmpty(thumbFile)) thumbFile = session.Metadata.GetValueOrDefault($"c{index}_tn");
+                            if (string.IsNullOrEmpty(licenseTypeStr)) licenseTypeStr = session.Metadata.GetValueOrDefault($"c{index}_li");
                             if (string.IsNullOrEmpty(clipId)) clipId = session.Metadata.GetValueOrDefault($"c{index}_id");
                         }
                     }
@@ -235,6 +240,9 @@ public class StripePaymentService : IPaymentService
 
                     double? durationSec = null;
                     if (double.TryParse(durationStr, out var ds)) durationSec = ds;
+
+                    var licenseType = LicenseType.Personal;
+                    if (Enum.TryParse<LicenseType>(licenseTypeStr, out var lt)) licenseType = lt;
                     
                     if (!string.IsNullOrEmpty(clipId))
                     {
@@ -255,7 +263,8 @@ public class StripePaymentService : IPaymentService
                             ClipRecordingStartedAt = clipStartedAt,
                             ClipDurationSec = durationSec,
                             ClipMasterFileName = masterFile,
-                            ClipThumbnailFileName = thumbFile
+                            ClipThumbnailFileName = thumbFile,
+                            LicenseType = licenseType
                         };
                         
                         if (!foundClipIds.Contains(clipId))
@@ -295,7 +304,8 @@ public class StripePaymentService : IPaymentService
                         CustomerAddress = addressStr,
                         CustomerPhone = phone,
                         // Fallback Price: Average of total
-                        PricePaidCents = (int)((session.AmountTotal ?? 0) / (expectedClipIds.Count > 0 ? expectedClipIds.Count : 1)) 
+                        PricePaidCents = (int)((session.AmountTotal ?? 0) / (expectedClipIds.Count > 0 ? expectedClipIds.Count : 1)),
+                        LicenseType = Enum.TryParse<LicenseType>(session.Metadata.GetValueOrDefault($"c{foundClipIds.Count}_li"), out var lt) ? lt : LicenseType.Personal
                     });
                     foundClipIds.Add(expectedId);
                 }

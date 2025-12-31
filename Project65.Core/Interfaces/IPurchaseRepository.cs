@@ -8,7 +8,7 @@ namespace Project65.Core.Interfaces;
 public interface IPurchaseRepository
 {
     Task AddAsync(Purchase purchase);
-    Task<bool> HasPurchasedAsync(string? userId, string clipId);
+    Task<bool> HasPurchasedAsync(string? userId, string clipId, LicenseType license);
     Task<List<Purchase>> GetByUserIdAsync(string? userId);
     Task<List<Purchase>> GetByEmailAsync(string email);
     Task<List<Purchase>> GetByOrderNumberAsync(string email, string partialOrderId);

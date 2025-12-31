@@ -1,3 +1,5 @@
+using Project65.Core.Entities;
+
 namespace Project65.Core.DTOs;
 
 public class CheckoutItem
@@ -11,4 +13,5 @@ public class CheckoutItem
     public string? MasterFileName { get; set; }
     public string? ThumbnailFileName { get; set; }
     public int PriceCents { get; set; }
+    public LicenseType LicenseType { get; set; } = LicenseType.Personal;
 }

@@ -167,6 +167,11 @@
                                                         <i class="bi bi-file-earmark-film me-1"></i>
                                                         @(p.Clip?.MasterFileName ?? p.ClipMasterFileName ?? "No Master File")
                                                     </div>
+                                                    <div class="mt-1">
+                                                        <span class="badge" style="background: @(p.LicenseType == LicenseType.Commercial ? "var(--accent-purple-dim)" : "var(--accent-cyan-dim)"); color: @(p.LicenseType == LicenseType.Commercial ? "var(--accent-purple)" : "var(--accent-cyan)"); border: 1px solid currentColor; font-size: 0.65rem; text-transform: uppercase; font-weight: 600;">
+                                                            @p.LicenseType
+                                                        </span>
+                                                    </div>
                                                     @{
                                                         var startTime = p.Clip?.RecordingStartedAt ?? p.ClipRecordingStartedAt;
                                                     }
