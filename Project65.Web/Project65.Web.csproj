@@ -24,4 +24,8 @@
     <BlazorDisableThrowNavigationException>true</BlazorDisableThrowNavigationException>
   </PropertyGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="Project65.UnitTests" />
+  </ItemGroup>
+
 </Project>

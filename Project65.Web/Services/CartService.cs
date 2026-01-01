@@ -7,14 +7,14 @@ namespace Project65.Web.Services;
 public class CartService
 {
     private readonly ProtectedLocalStorage _storage;
-    private List<CartItem> _cart = new();
-    private bool _isInitialized = false;
+    internal List<CartItem> _cart = new();
+    internal bool _isInitialized = false;
 
     public event Action? OnChange;
 
     private readonly SemaphoreSlim _semaphore = new(1, 1);
 
-    private PromoCode? _appliedPromo;
+    internal PromoCode? _appliedPromo;
     public PromoCode? AppliedPromoCode => _appliedPromo;
 
     public CartService(ProtectedLocalStorage storage)
