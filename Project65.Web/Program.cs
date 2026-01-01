@@ -6,6 +6,7 @@ using Project65.Core.Interfaces;
 using Project65.Infrastructure.Data.Repositories;
 using Project65.Infrastructure.Repositories;
 using Project65.Infrastructure.Services;
+using Project65.Infrastructure.Services.Fakes;
 using Project65.Core.Entities;
 using Amazon.S3;
 using Amazon.Extensions.NETCore.Setup;
@@ -58,7 +59,16 @@ builder.Services.AddAuthentication()
 builder.Services.AddScoped<IEventRepository, EventRepository>();
 builder.Services.AddScoped<IClipRepository, ClipRepository>();
 builder.Services.AddScoped<EmailTemplateService>();
-builder.Services.AddScoped<IVideoService, MuxVideoService>();
+
+if (builder.Environment.IsEnvironment("Testing") || builder.Configuration["USE_FAKE_VIDEO"] == "true")
+{
+    builder.Services.AddScoped<IVideoService, FakeVideoService>();
+}
+else
+{
+    builder.Services.AddScoped<IVideoService, MuxVideoService>();
+}
+
 builder.Services.AddScoped<IVisionService, OpenAIVisionService>();
 builder.Services.AddHttpClient<OpenAIVisionService>(); // Best practice for HttpClient injection
 
@@ -79,7 +89,14 @@ builder.Services.AddScoped<IExternalProductRepository, ExternalProductRepository
 builder.Services.AddScoped<IAuditRepository, AuditRepository>();
 builder.Services.AddScoped<IPromoCodeRepository, PromoCodeRepository>();
 builder.Services.AddScoped<IAuditService, AuditService>();
-builder.Services.AddScoped<IPaymentService, StripePaymentService>();
+if (builder.Environment.IsEnvironment("Testing") || builder.Configuration["USE_FAKE_VIDEO"] == "true")
+{
+    builder.Services.AddScoped<IPaymentService, FakePaymentService>();
+}
+else
+{
+    builder.Services.AddScoped<IPaymentService, StripePaymentService>();
+}
 
 if (!string.IsNullOrEmpty(builder.Configuration["AWS:AccessKeyId"]))
 {
@@ -113,15 +130,19 @@ builder.Services.AddRateLimiter(options =>
     
     // Global rate limit
     options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(httpContext =>
-        RateLimitPartition.GetFixedWindowLimiter(
+    {
+        var isTestOrDev = builder.Environment.IsDevelopment() || builder.Environment.EnvironmentName == "Testing";
+        
+        return RateLimitPartition.GetFixedWindowLimiter(
             partitionKey: httpContext.User.Identity?.Name ?? httpContext.Connection.RemoteIpAddress?.ToString() ?? "global",
             factory: _ => new FixedWindowRateLimiterOptions
             {
                 AutoReplenishment = true,
-                PermitLimit = 100,
-                QueueLimit = 0,
+                PermitLimit = isTestOrDev ? 1000 : 100,
+                QueueLimit = isTestOrDev ? 100 : 0,
                 Window = TimeSpan.FromMinutes(1)
-            }));
+            });
+    });
 
     // Specific limit for Login
     options.AddFixedWindowLimiter("login", opt => 

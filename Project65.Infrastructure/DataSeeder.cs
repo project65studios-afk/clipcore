@@ -79,11 +79,11 @@ public static class DataSeeder
                 CreatedAt = DateTime.UtcNow,
                 Clips = new List<Clip>
                 {
-                    new Clip { Title = "Urban Neon Loop 1", PriceCents = 999, DurationSec = 15, PublishedAt = DateTime.UtcNow, PlaybackIdSigned = "mock_signed_1", PlaybackIdTeaser = "mock_teaser_1" },
-                    new Clip { Title = "Midnight Highway 4", PriceCents = 1999, DurationSec = 45, PublishedAt = DateTime.UtcNow, PlaybackIdSigned = "mock_signed_2", PlaybackIdTeaser = "mock_teaser_2" },
-                    new Clip { Title = "Studio Light Sweep 7", PriceCents = 1499, DurationSec = 12, PublishedAt = DateTime.UtcNow, PlaybackIdSigned = "mock_signed_3", PlaybackIdTeaser = "mock_teaser_3" },
-                    new Clip { Title = "Rainy Street Corner", PriceCents = 999, DurationSec = 20, PublishedAt = DateTime.UtcNow, PlaybackIdSigned = "mock_signed_4" }, // No teaser
-                    new Clip { Title = "Subway Entrance Glitch", PriceCents = 2499, DurationSec = 30, PublishedAt = DateTime.UtcNow, PlaybackIdSigned = "mock_signed_5", PlaybackIdTeaser = "mock_teaser_5" },
+                    new Clip { Title = "Urban Neon Loop 1", PriceCents = 999, DurationSec = 15, PublishedAt = DateTime.UtcNow, PlaybackIdSigned = "fake_signed_1", PlaybackIdTeaser = "fake_teaser_1" },
+                    new Clip { Title = "Midnight Highway 4", PriceCents = 1999, DurationSec = 45, PublishedAt = DateTime.UtcNow, PlaybackIdSigned = "fake_signed_2", PlaybackIdTeaser = "fake_teaser_2" },
+                    new Clip { Title = "Studio Light Sweep 7", PriceCents = 1499, DurationSec = 12, PublishedAt = DateTime.UtcNow, PlaybackIdSigned = "fake_signed_3", PlaybackIdTeaser = "fake_teaser_3" },
+                    new Clip { Title = "Rainy Street Corner", PriceCents = 999, DurationSec = 20, PublishedAt = DateTime.UtcNow, PlaybackIdSigned = "fake_signed_4" }, // No teaser
+                    new Clip { Title = "Subway Entrance Glitch", PriceCents = 2499, DurationSec = 30, PublishedAt = DateTime.UtcNow, PlaybackIdSigned = "fake_signed_5", PlaybackIdTeaser = "fake_teaser_5" },
                 }
             },
             new Event
@@ -95,9 +95,9 @@ public static class DataSeeder
                 CreatedAt = DateTime.UtcNow,
                 Clips = new List<Clip>
                 {
-                    new Clip { Title = "Drone Coastline 1", PriceCents = 2999, DurationSec = 60, PublishedAt = DateTime.UtcNow, PlaybackIdSigned = "mock_signed_6", PlaybackIdTeaser = "mock_teaser_6" },
-                    new Clip { Title = "Wave Crash Slowmo", PriceCents = 1599, DurationSec = 10, PublishedAt = DateTime.UtcNow, PlaybackIdSigned = "mock_signed_7", PlaybackIdTeaser = "mock_teaser_7" },
-                    new Clip { Title = "Underwater Bubble Stream", PriceCents = 1299, DurationSec = 25, PublishedAt = DateTime.UtcNow, PlaybackIdSigned = "mock_signed_8" },
+                    new Clip { Title = "Drone Coastline 1", PriceCents = 2999, DurationSec = 60, PublishedAt = DateTime.UtcNow, PlaybackIdSigned = "fake_signed_6", PlaybackIdTeaser = "fake_teaser_6" },
+                    new Clip { Title = "Wave Crash Slowmo", PriceCents = 1599, DurationSec = 10, PublishedAt = DateTime.UtcNow, PlaybackIdSigned = "fake_signed_7", PlaybackIdTeaser = "fake_teaser_7" },
+                    new Clip { Title = "Underwater Bubble Stream", PriceCents = 1299, DurationSec = 25, PublishedAt = DateTime.UtcNow, PlaybackIdSigned = "fake_signed_8" },
                 }
             },
             new Event
@@ -109,8 +109,8 @@ public static class DataSeeder
                 CreatedAt = DateTime.UtcNow,
                 Clips = new List<Clip>
                 {
-                    new Clip { Title = "Strobe Effect Test", PriceCents = 999, DurationSec = 8, PublishedAt = DateTime.UtcNow, PlaybackIdSigned = "mock_signed_9", PlaybackIdTeaser = "mock_teaser_9" },
-                    new Clip { Title = "Laser Grid Scan", PriceCents = 1999, DurationSec = 15, PublishedAt = DateTime.UtcNow, PlaybackIdSigned = "mock_signed_10", PlaybackIdTeaser = "mock_teaser_10" },
+                    new Clip { Title = "Strobe Effect Test", PriceCents = 999, DurationSec = 8, PublishedAt = DateTime.UtcNow, PlaybackIdSigned = "fake_signed_9", PlaybackIdTeaser = "fake_teaser_9" },
+                    new Clip { Title = "Laser Grid Scan", PriceCents = 1999, DurationSec = 15, PublishedAt = DateTime.UtcNow, PlaybackIdSigned = "fake_signed_10", PlaybackIdTeaser = "fake_teaser_10" },
                 }
             }
         };
@@ -131,6 +131,19 @@ public static class DataSeeder
                 // Add new event
                 await context.Events.AddAsync(evt);
             }
+        }
+
+        // Seed Promo Codes
+        if (!await context.PromoCodes.AnyAsync(p => p.Code == "TEST25"))
+        {
+            await context.PromoCodes.AddAsync(new PromoCode
+            {
+                Code = "TEST25",
+                DiscountType = DiscountType.Percentage,
+                Value = 25,
+                ExpiryDate = DateTime.UtcNow.AddMonths(1),
+                IsActive = true
+            });
         }
 
         await context.SaveChangesAsync();
