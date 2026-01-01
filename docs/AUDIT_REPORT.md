@@ -47,7 +47,7 @@ This report summarizes the current technical health and ratings of the Project65
 
 ## 🗺️ Roadmap to 10/10
 
-1.  **Production Secret Management**: Move all API keys out of configuration files to Azure Key Vault or AWS Secrets Manager.
+1.  **Production Secret Management**: Transition to **AWS Parameter Store** (FREE) for secure configuration. (Plan: [Deployment Guide](DEPLOYMENT_AWS.md))
 2.  **Edge Caching**: Implement Cloudflare edge caching for static components.
 3.  **Accessibility (a11y)**: Conduct ARIA compliance audit for WCAG 2.1 support.
-4.  **Database Scaling**: Transition to a distributed database (SQL Server/Postgres) from SQLite for multi-instance scaling.
+4.  **Database Scaling**: Migrate to Amazon RDS (PostgreSQL) `t4g.micro` for managed, scalable data. (Plan: [Deployment Guide](DEPLOYMENT_AWS.md))

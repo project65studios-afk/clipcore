@@ -19,6 +19,7 @@ Project65 Studios is a premium, high-performance video storefront built with Bla
 
 - **[Architecture Overview](docs/ARCHITECTURE.md)**: Deep dive into the system design, tech stack, and service integrations.
 - **[Audit Report](docs/AUDIT_REPORT.md)**: 360-degree technical health check (Security, Speed, Performance, UX).
+- **[AWS Deployment Guide](docs/DEPLOYMENT_AWS.md)**: Production-ready roadmap and CI/CD setup for AWS.
 - **[QA & Testing Guide](docs/TESTING.md)**: Procedures for automated (Unit/E2E) and manual verification.
 - **[Smoke Test Requirements](docs/SMOKE_TESTS.md)**: Roadmap and requirements for core user flow protection.
 - **[Changelog](docs/CHANGELOG.md)**: Track record of recent security and performance optimizations.
