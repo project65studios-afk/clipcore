@@ -18,6 +18,7 @@ Project65 Studios is a premium, high-performance video storefront built with Bla
 ## 📖 Documentation
 
 - **[Architecture Overview](ARCHITECTURE.md)**: Deep dive into the system design, tech stack, and service integrations.
+- **[Audit Report](AUDIT_REPORT.md)**: 360-degree technical health check (Security, Speed, Performance, UX).
 - **[Changelog](CHANGELOG.md)**: History of recent security and performance optimizations.
 - **[Security Audit](brain/dc0acd33-2c27-4d48-a94c-2aed2efc59b3/security_audit.md)**: Detailed security posture and implemented fixes.
 - **[Performance Audit](brain/dc0acd33-2c27-4d48-a94c-2aed2efc59b3/performance_audit.md)**: Optimization results and infrastructure tuning.
