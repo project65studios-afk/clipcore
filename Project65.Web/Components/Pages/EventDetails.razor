@@ -220,8 +220,13 @@ else
 
     protected override async Task OnInitializedAsync()
     {
-        _watermarkUrl = await SettingsRepository.GetValueAsync("WatermarkUrl");
-        _event = await EventRepository.GetByIdAsync(Id);
+        var watermarkTask = SettingsRepository.GetValueAsync("WatermarkUrl");
+        var eventTask = EventRepository.GetByIdAsync(Id);
+
+        await Task.WhenAll(watermarkTask, eventTask);
+        
+        _watermarkUrl = await watermarkTask;
+        _event = await eventTask;
         
         if (_event?.Clips != null)
         {

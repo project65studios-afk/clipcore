@@ -19,17 +19,12 @@
             if (theme === 'light') document.documentElement.classList.add('light-theme');
         })();
     </script>
-    <script src="https://cdn.jsdelivr.net/npm/@@mux/mux-player@@3.10.2/dist/mux-player.min.js" integrity="sha384-1Yny8zC2/46uRmxmAlq1CjUdBkIpw+yDLoNYjbS5j5P5AZ+MaVsdQHBFL7LoI6WV" crossorigin="anonymous"></script>
-    <script src="https://unpkg.com/@@mux/upchunk@@3.5.0/dist/upchunk.js" integrity="sha384-bwJVjlwVvcjbat6FD3HBJld0rgBXxCRGw+RZOjNlQKkwXnLUF+4+EV3Ta48ePHF7" crossorigin="anonymous"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/@@mux/mux-player@@3.10.2/dist/mux-player.min.js" integrity="sha384-1Yny8zC2/46uRmxmAlq1CjUdBkIpw+yDLoNYjbS5j5P5AZ+MaVsdQHBFL7LoI6WV" crossorigin="anonymous"></script>
+    <script defer src="https://unpkg.com/@@mux/upchunk@@3.5.0/dist/upchunk.js" integrity="sha384-bwJVjlwVvcjbat6FD3HBJld0rgBXxCRGw+RZOjNlQKkwXnLUF+4+EV3Ta48ePHF7" crossorigin="anonymous"></script>
     <link href="https://releases.transloadit.com/uppy/v3.21.0/uppy.min.css" rel="stylesheet" integrity="sha384-B9QAI/Q/voCCPw79NWnGc+LuSK3Xtu2eyNIRkIM3l5TCUa65vnwDShuD4XaoF+IF" crossorigin="anonymous">
-    <script src="https://releases.transloadit.com/uppy/v3.21.0/uppy.min.js" integrity="sha384-6Ky9trS4ShiMa9oTdRnSk2Efr9Qk6JD6N5zruXLrg4tsDHx4a8UfKsACNZafZE/R" crossorigin="anonymous"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@@4.5.1/dist/chart.umd.min.js" integrity="sha384-jb8JQMbMoBUzgWatfe6COACi2ljcDdZQ2OxczGA3bGNeWe+6DChMTBJemed7ZnvJ" crossorigin="anonymous"></script>
-    <script src="js/sales-chart.js"></script>
+    <script defer src="https://releases.transloadit.com/uppy/v3.21.0/uppy.min.js" integrity="sha384-6Ky9trS4ShiMa9oTdRnSk2Efr9Qk6JD6N5zruXLrg4tsDHx4a8UfKsACNZafZE/R" crossorigin="anonymous"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/chart.js@@4.5.1/dist/chart.umd.min.js" integrity="sha384-jb8JQMbMoBUzgWatfe6COACi2ljcDdZQ2OxczGA3bGNeWe+6DChMTBJemed7ZnvJ" crossorigin="anonymous"></script>
     <HeadOutlet @rendermode="@(new InteractiveServerRenderMode(prerender: false))" />
-    <script src="js/upload.js?v=3"></script>
-    <script src="js/theme.js"></script>
-    <script src="js/fullscreen.js"></script>
-    <script src="js/video-observer.js"></script>
 </head>
 
 <body>
@@ -37,6 +32,11 @@
         <Routes @rendermode="@(new InteractiveServerRenderMode(prerender: false))" />
     </CascadingAuthenticationState>
     <script src="@Assets["_framework/blazor.web.js"]"></script>
+    <script src="js/sales-chart.js"></script>
+    <script src="js/upload.js?v=3"></script>
+    <script src="js/theme.js"></script>
+    <script src="js/fullscreen.js"></script>
+    <script src="js/video-observer.js"></script>
 </body>
 
 </html>

@@ -11,6 +11,7 @@ using Amazon.S3;
 using Amazon.Extensions.NETCore.Setup;
 using Microsoft.AspNetCore.RateLimiting;
 using System.Threading.RateLimiting;
+using Microsoft.AspNetCore.ResponseCompression;
 // Ensure Repositories namespace is included, which it is.
 
 var builder = WebApplication.CreateBuilder(args);
@@ -139,6 +140,15 @@ builder.Services.AddRateLimiter(options =>
     });
 });
 
+builder.Services.AddResponseCompression(options =>
+{
+    options.EnableForHttps = true;
+    options.Providers.Add<BrotliCompressionProvider>();
+    options.Providers.Add<GzipCompressionProvider>();
+    options.MimeTypes = ResponseCompressionDefaults.MimeTypes.Concat(
+        new[] { "application/octet-stream", "application/javascript", "text/css" });
+});
+
 builder.Services.AddControllers();
 
 // Configure CORS for Mux/R2/Stripe interactions
@@ -182,10 +192,10 @@ app.Use(async (context, next) =>
     string appOrigins = string.Join(" ", allowedOrigins);
     
     string csp = "default-src 'self'; " +
-                 "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://unpkg.com https://releases.transloadit.com https://js.stripe.com https://www.gstatic.com http://www.gstatic.com; " +
+                 "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://unpkg.com https://releases.transloadit.com https://js.stripe.com https://www.gstatic.com http://www.gstatic.com chrome-extension:; " +
                  "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://releases.transloadit.com https://fonts.googleapis.com; " +
                  "img-src 'self' data: blob: https://*.mux.com https://*.r2.cloudflarestorage.com https://*.stripe.com https://www.gstatic.com http://www.gstatic.com; " +
-                 $"connect-src 'self' {appOrigins} https://*.mux.com https://*.r2.cloudflarestorage.com https://api.stripe.com https://www.gstatic.com http://www.gstatic.com https://cdn.jsdelivr.net https://unpkg.com https://releases.transloadit.com wss://localhost:* ws://localhost:*; " +
+                 $"connect-src 'self' {appOrigins} https://*.mux.com https://*.r2.cloudflarestorage.com https://api.stripe.com https://www.gstatic.com http://www.gstatic.com https://cdn.jsdelivr.net https://unpkg.com https://releases.transloadit.com wss://localhost:* ws://localhost:* chrome-extension:; " +
                  "frame-src 'self' https://js.stripe.com; " +
                  "media-src 'self' blob: https://*.mux.com; " +
                  "worker-src 'self' blob:; " +
@@ -206,6 +216,8 @@ app.Use(async (context, next) =>
 
     await next();
 });
+
+app.UseResponseCompression();
 
 // Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment())

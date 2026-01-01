@@ -19,6 +19,7 @@ public class EventRepository : IEventRepository
             .AsNoTracking()
             .Include(e => e.Clips)
             .Include(e => e.FeaturedProducts)
+            .AsSplitQuery()
             .FirstOrDefaultAsync(e => e.Id == id);
     }
 
@@ -28,6 +29,7 @@ public class EventRepository : IEventRepository
             .AsNoTracking()
             .Include(e => e.Clips)
             .Include(e => e.FeaturedProducts)
+            .AsSplitQuery()
             .OrderByDescending(e => e.Date)
             .ToListAsync();
     }

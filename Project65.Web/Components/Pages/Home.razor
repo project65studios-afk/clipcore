@@ -30,7 +30,7 @@ else
         @foreach (var evt in _events)
         {
             var firstClip = evt.Clips?.OrderBy(c => c.RecordingStartedAt ?? DateTime.MaxValue).FirstOrDefault();
-            var thumbUrl = GetThumbnailUrl(firstClip);
+            var thumbUrl = GetThumbnailUrl(evt.Id);
 
             <a href="/events/@evt.Id" class="grid-card">
                 <div style="height: 180px; background: linear-gradient(135deg, var(--bg-dark-700) 0%, var(--bg-dark-800) 100%); border-radius: var(--radius-md); display: flex; align-items: center; justify-content: center; margin-bottom: 1rem; overflow: hidden; position: relative; border: 1px solid var(--border-color);">
@@ -66,6 +66,7 @@ else
 @code {
     private List<Event>? _events;
     private Dictionary<string, string> _tokenCache = new();
+    private Dictionary<string, string?> _thumbCache = new();
 
     protected override async Task OnInitializedAsync()
     {
@@ -74,6 +75,8 @@ else
         
         if (_events != null)
         {
+            var tokenTasks = new List<Task<(string playbackId, string token)>>();
+
             foreach (var evt in _events)
             {
                 var firstClip = evt.Clips?.OrderBy(c => c.RecordingStartedAt ?? DateTime.MaxValue).FirstOrDefault();
@@ -84,13 +87,37 @@ else
                     {
                         if (!_tokenCache.ContainsKey(playbackId))
                         {
-                            var token = await VideoService.GetPlaybackToken(playbackId, "t");
-                            _tokenCache[playbackId] = token;
+                            tokenTasks.Add(GetThumbnailTokenAsync(playbackId));
                         }
                     }
                 }
             }
+
+            var results = await Task.WhenAll(tokenTasks);
+            foreach (var res in results)
+            {
+                if (!string.IsNullOrEmpty(res.token))
+                {
+                    _tokenCache[res.playbackId] = res.token;
+                }
+            }
+
+            // Pre-calculate thumbnails now that we have tokens
+            foreach (var evt in _events)
+            {
+                var firstClip = evt.Clips?.OrderBy(c => c.RecordingStartedAt ?? DateTime.MaxValue).FirstOrDefault();
+                if (firstClip != null)
+                {
+                    _thumbCache[evt.Id] = GetThumbnailUrlInternal(clip: firstClip);
+                }
+            }
         }
+    }
+
+    private async Task<(string playbackId, string token)> GetThumbnailTokenAsync(string playbackId)
+    {
+        var token = await VideoService.GetPlaybackToken(playbackId, "t");
+        return (playbackId, token);
     }
 
     protected override void OnAfterRender(bool firstRender)
@@ -128,6 +155,8 @@ else
                         var token = await VideoService.GetPlaybackToken(playbackId, "t");
                         _tokenCache[playbackId] = token;
                     }
+                    // Refresh the thumb cache for this event
+                    _thumbCache[evt.Id] = GetThumbnailUrlInternal(targetClip);
                     StateHasChanged();
                 });
                 return;
@@ -140,7 +169,13 @@ else
         VideoHealingService.OnClipHealed -= HandleClipHealed;
     }
 
-    private string? GetThumbnailUrl(Clip? clip)
+    private string? GetThumbnailUrl(string eventId)
+    {
+        _thumbCache.TryGetValue(eventId, out var url);
+        return url;
+    }
+
+    private string? GetThumbnailUrlInternal(Clip? clip)
     {
         if (clip == null) return null;
         
@@ -148,13 +183,12 @@ else
         {
             // Hybrid Check: Does it exist locally? (Legacy)
             var localPath = Path.Combine(Environment.WebRootPath, "thumbnails", clip.ThumbnailFileName);
-            if (File.Exists(localPath))
+            if (File.Exists(localPath)) // Sync I/O okay here as it's pre-calculated or in background
             {
                 return $"/thumbnails/{clip.ThumbnailFileName}";
             }
             
             // Otherwise, assume it's in R2 (New)
-            // If filename contains a folder prefix (e.g. ai-thumbnails/), use it directly
             var storageKey = clip.ThumbnailFileName.Contains("/") 
                 ? clip.ThumbnailFileName 
                 : $"thumbnails/{clip.ThumbnailFileName}";
@@ -162,7 +196,7 @@ else
             return StorageService.GetPresignedDownloadUrl(storageKey);
         }
         
-        // Priority 2: Mux Thumbnail (Prefer Signed/Full clip for "regular" thumbnail)
+        // Priority 2: Mux Thumbnail
         var playbackId = !string.IsNullOrEmpty(clip.PlaybackIdSigned) ? clip.PlaybackIdSigned : clip.PlaybackIdTeaser;
         if (string.IsNullOrEmpty(playbackId) || playbackId.StartsWith("mock")) return null;
 

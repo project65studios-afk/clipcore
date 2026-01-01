@@ -165,10 +165,10 @@ namespace Project65.Infrastructure.Services
                     new CORSRule
                     {
                         AllowedOrigins = new System.Collections.Generic.List<string>(allowedOrigins),
-                        AllowedMethods = new System.Collections.Generic.List<string> { "GET", "PUT", "POST", "HEAD" },
+                        AllowedMethods = new System.Collections.Generic.List<string> { "GET", "HEAD", "PUT", "POST" },
                         AllowedHeaders = new System.Collections.Generic.List<string> { "*" },
-                        ExposeHeaders = new System.Collections.Generic.List<string> { "ETag", "Content-Length", "Access-Control-Allow-Origin" },
-                        MaxAgeSeconds = 3600
+                        ExposeHeaders = new System.Collections.Generic.List<string> { "ETag", "Content-Length", "Content-Range" },
+                        MaxAgeSeconds = 3000
                     }
                 };
 

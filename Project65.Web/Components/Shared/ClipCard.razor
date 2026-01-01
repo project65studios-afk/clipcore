@@ -151,30 +151,35 @@
 
     private async Task LoadTokensForClip(string playbackId)
     {
-        bool tokensAdded = false;
+        var tasks = new List<Task<(string type, string token)>>();
 
         if (!_tokenCache.ContainsKey($"{playbackId}-v"))
-        {
-            var token = await VideoService.GetPlaybackToken(playbackId, "v", "480p");
-            if (!string.IsNullOrEmpty(token)) { _tokenCache[$"{playbackId}-v"] = token; tokensAdded = true; }
-        }
+            tasks.Add(GetSpecificTokenAsync(playbackId, "v"));
 
         if (!_tokenCache.ContainsKey($"{playbackId}-t"))
-        {
-            var token = await VideoService.GetPlaybackToken(playbackId, "t", "480p");
-            if (!string.IsNullOrEmpty(token)) { _tokenCache[$"{playbackId}-t"] = token; tokensAdded = true; }
-        }
+            tasks.Add(GetSpecificTokenAsync(playbackId, "t"));
 
         if (!_tokenCache.ContainsKey($"{playbackId}-s"))
-        {
-            var token = await VideoService.GetPlaybackToken(playbackId, "s", "480p");
-            if (!string.IsNullOrEmpty(token)) { _tokenCache[$"{playbackId}-s"] = token; tokensAdded = true; }
-        }
+            tasks.Add(GetSpecificTokenAsync(playbackId, "s"));
 
-        if (tokensAdded)
+        if (tasks.Any())
         {
+            var results = await Task.WhenAll(tasks);
+            foreach (var (type, token) in results)
+            {
+                if (!string.IsNullOrEmpty(token))
+                {
+                    _tokenCache[$"{playbackId}-{type}"] = token;
+                }
+            }
             await InvokeAsync(StateHasChanged);
         }
+    }
+
+    private async Task<(string type, string token)> GetSpecificTokenAsync(string playbackId, string type)
+    {
+        var token = await VideoService.GetPlaybackToken(playbackId, type, "480p");
+        return (type, token);
     }
 
     private string? GetTokenFromCache(string playbackId, string type)
@@ -184,9 +189,11 @@
 
     private bool HasTokens(string playbackId)
     {
-        // Only enforce Video token presence for playback.
-        // Thumbnail and Storyboard are optional enhancements.
-        return _tokenCache.TryGetValue($"{playbackId}-v", out var v) && !string.IsNullOrEmpty(v);
+        // For signed assets, we must have all tokens that we pass to the player
+        // to avoid [mux-player] errors about missing expected tokens.
+        return _tokenCache.TryGetValue($"{playbackId}-v", out var v) && !string.IsNullOrEmpty(v) &&
+               _tokenCache.TryGetValue($"{playbackId}-t", out var t) && !string.IsNullOrEmpty(t) &&
+               _tokenCache.TryGetValue($"{playbackId}-s", out var s) && !string.IsNullOrEmpty(s);
     }
 
     private string GetThumbnailUrl()
