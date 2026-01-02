@@ -218,22 +218,18 @@ else
                     <label class="form-label" style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 0.75rem; display: block;">Select License Type</label>
                     <div class="d-flex flex-column gap-2">
                         <div class="license-choice @(_selectedLicense == LicenseType.Personal ? "active" : "")" @onclick="() => _selectedLicense = LicenseType.Personal">
-                            <div class="d-flex justify-content-between align-items-center">
-                                <div>
-                                    <div class="license-name">Personal Use</div>
-                                    <div class="license-desc">Social media, personal portfolio</div>
-                                </div>
-                                <div class="license-price">$@(_clip?.PriceCents / 100.00)</div>
+                            <div class="d-flex flex-column me-5"> <!-- me-5 ensures text doesn't overlap price -->
+                                <div class="license-name mb-1">Personal Use</div>
+                                <div class="license-desc">Social media, personal portfolio</div>
                             </div>
+                            <div class="license-price position-absolute" style="top: 1rem; right: 1rem;">$@(_clip?.PriceCents / 100.00)</div>
                         </div>
                         <div class="license-choice @(_selectedLicense == LicenseType.Commercial ? "active" : "")" @onclick="() => _selectedLicense = LicenseType.Commercial">
-                            <div class="d-flex justify-content-between align-items-center">
-                                <div>
-                                    <div class="license-name">Commercial Use</div>
-                                    <div class="license-desc">Ads, brand deals, commercial projects</div>
-                                </div>
-                                <div class="license-price">$@(_clip?.PriceCommercialCents / 100.00)</div>
+                            <div class="d-flex flex-column me-5">
+                                <div class="license-name mb-1">Commercial Use</div>
+                                <div class="license-desc">Ads, brand deals, commercial projects</div>
                             </div>
+                            <div class="license-price position-absolute" style="top: 1rem; right: 1rem;">$@(_clip?.PriceCommercialCents / 100.00)</div>
                         </div>
                     </div>
                 </div>

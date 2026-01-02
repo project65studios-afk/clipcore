@@ -527,6 +527,8 @@ hr {
     border-radius: var(--radius-md);
     cursor: pointer;
     transition: all 0.2s ease;
+    position: relative;
+    /* For absolute positioning of price */
 }
 
 .license-choice:hover {
