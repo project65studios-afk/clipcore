@@ -63,6 +63,7 @@ public class EventRepository : IEventRepository
             existing.Date = evt.Date;
             existing.Location = evt.Location;
             existing.Summary = evt.Summary;
+            existing.HeroClipId = evt.HeroClipId;
             
             // Update Featured Products
             existing.FeaturedProducts.Clear();

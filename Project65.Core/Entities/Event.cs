@@ -11,6 +11,7 @@ public class Event
     public string? Location { get; set; }
     public string? Summary { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public string? HeroClipId { get; set; }
 
     public List<Clip> Clips { get; set; } = new();
     public List<ExternalProduct> FeaturedProducts { get; set; } = new();

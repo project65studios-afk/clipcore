@@ -29,7 +29,8 @@ else
     <div class="card-grid">
         @foreach (var evt in _events)
         {
-            var firstClip = evt.Clips?.OrderBy(c => c.RecordingStartedAt ?? DateTime.MaxValue).FirstOrDefault();
+            var heroClip = evt.Clips?.FirstOrDefault(c => c.Id == evt.HeroClipId);
+            var displayClip = heroClip ?? evt.Clips?.OrderBy(c => c.RecordingStartedAt ?? DateTime.MaxValue).FirstOrDefault();
             var thumbUrl = GetThumbnailUrl(evt.Id);
 
             <a href="/events/@evt.Id" class="grid-card">
@@ -79,10 +80,11 @@ else
 
             foreach (var evt in _events)
             {
-                var firstClip = evt.Clips?.OrderBy(c => c.RecordingStartedAt ?? DateTime.MaxValue).FirstOrDefault();
-                if (firstClip != null)
+                var heroClip = evt.Clips?.FirstOrDefault(c => c.Id == evt.HeroClipId);
+                var displayClip = heroClip ?? evt.Clips?.OrderBy(c => c.RecordingStartedAt ?? DateTime.MaxValue).FirstOrDefault();
+                if (displayClip != null)
                 {
-                    var playbackId = !string.IsNullOrEmpty(firstClip.PlaybackIdSigned) ? firstClip.PlaybackIdSigned : firstClip.PlaybackIdTeaser;
+                    var playbackId = !string.IsNullOrEmpty(displayClip.PlaybackIdSigned) ? displayClip.PlaybackIdSigned : displayClip.PlaybackIdTeaser;
                     if (!string.IsNullOrEmpty(playbackId) && !playbackId.StartsWith("mock"))
                     {
                         if (!_tokenCache.ContainsKey(playbackId))
@@ -105,10 +107,11 @@ else
             // Pre-calculate thumbnails now that we have tokens
             foreach (var evt in _events)
             {
-                var firstClip = evt.Clips?.OrderBy(c => c.RecordingStartedAt ?? DateTime.MaxValue).FirstOrDefault();
-                if (firstClip != null)
+                var heroClip = evt.Clips?.FirstOrDefault(c => c.Id == evt.HeroClipId);
+                var displayClip = heroClip ?? evt.Clips?.OrderBy(c => c.RecordingStartedAt ?? DateTime.MaxValue).FirstOrDefault();
+                if (displayClip != null)
                 {
-                    _thumbCache[evt.Id] = GetThumbnailUrlInternal(clip: firstClip);
+                    _thumbCache[evt.Id] = GetThumbnailUrlInternal(clip: displayClip);
                 }
             }
         }
@@ -124,7 +127,11 @@ else
     {
         if (firstRender && _events != null)
         {
-            var clipsToHeal = _events.Select(e => e.Clips?.OrderBy(c => c.RecordingStartedAt ?? DateTime.MaxValue).FirstOrDefault())
+            var clipsToHeal = _events.Select(e => 
+            {
+                var hero = e.Clips?.FirstOrDefault(c => c.Id == e.HeroClipId);
+                return hero ?? e.Clips?.OrderBy(c => c.RecordingStartedAt ?? DateTime.MaxValue).FirstOrDefault();
+            })
                                      .Where(c => c != null)
                                      .Cast<Clip>();
             VideoHealingService.StartHealingForClips(clipsToHeal);

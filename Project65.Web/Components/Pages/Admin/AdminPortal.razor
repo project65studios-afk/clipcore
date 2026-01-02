@@ -252,8 +252,10 @@
                     
                     <!-- Bottom Section: Clip Prices -->
                     <div class="p-4 border-top">
-                        <h6 class="text-uppercase text-secondary fw-bold small mb-3">Clip Prices</h6>
-                        <p class="text-muted small mb-4">Update the individual prices for each clip in this event.</p>
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                             <h6 class="text-uppercase text-secondary fw-bold small mb-0">Clip Prices</h6>
+                             <div class="text-muted small"><i class="bi bi-star-fill text-warning me-1"></i> Star a clip to use it as the event thumbnail.</div>
+                        </div>
                         
                         @if (_eventToEdit.Clips == null || !_eventToEdit.Clips.Any())
                         {
@@ -268,8 +270,9 @@
                                     <thead class="bg-light sticky-top">
                                         <tr>
                                             <th class="ps-3 py-2" style="width: 40%;">Clip Title</th>
-                                            <th class="py-2" style="width: 30%;">Personal Price ($)</th>
-                                            <th class="py-2" style="width: 30%;">Commercial Price ($)</th>
+                                            <th class="py-2 text-center" style="width: 10%;">Hero</th>
+                                            <th class="py-2" style="width: 25%;">Personal Price ($)</th>
+                                            <th class="py-2" style="width: 25%;">Commercial Price ($)</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -277,6 +280,18 @@
                                         {
                                             <tr>
                                                 <td class="ps-3 fw-bold small">@clip.Title</td>
+                                                <td class="text-center">
+                                                    <button class="btn btn-sm border-0 p-0 fs-5" @onclick="() => ToggleHeroClip(clip.Id)" title="Set as Event Thumbnail">
+                                                        @if (_eventToEdit.HeroClipId == clip.Id)
+                                                        {
+                                                            <i class="bi bi-star-fill text-warning"></i>
+                                                        }
+                                                        else
+                                                        {
+                                                            <i class="bi bi-star text-muted opacity-25"></i>
+                                                        }
+                                                    </button>
+                                                </td>
                                                 <td>
                                                     <div class="input-group input-group-sm">
                                                         <span class="input-group-text">$</span>
@@ -400,6 +415,7 @@
             Location = evt.Location,
             Summary = evt.Summary,
             CreatedAt = evt.CreatedAt,
+            HeroClipId = evt.HeroClipId,
             // Deep clone clips so we can cancel changes
             Clips = evt.Clips.Select(c => new Clip
             {
@@ -577,6 +593,21 @@
         {
             _isProcessing = false;
             _eventToDelete = null;
+        }
+    }
+
+    private void ToggleHeroClip(string clipId)
+    {
+        if (_eventToEdit == null) return;
+
+        if (_eventToEdit.HeroClipId == clipId)
+        {
+            // Toggle off if already selected (optional, but good UX)
+            _eventToEdit.HeroClipId = null;
+        }
+        else
+        {
+            _eventToEdit.HeroClipId = clipId;
         }
     }
     
