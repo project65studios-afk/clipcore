@@ -108,6 +108,12 @@ Don't put passwords in your code! We'll put them in the vault.
 10. **Service name**: `project65-web`.
 11. **Environment variables**: Use the "SSM Parameter" reference syntax (e.g. `Amazon.Extensions.Configuration.SystemsManager` setup in code) OR just manually add them here if you want to be quick for now:
     - Key: `ASPNETCORE_ENVIRONMENT` -> Value: `Production`
+    - Key: `AllowedOrigins__0` -> Value: `https://your-app-runner-url.awsapprunner.com` (Add this AFTER you get your URL!)
+    - Key: `AllowedOrigins__1` -> Value: `https://your-custom-domain.com` (Optional)
+
+    > **Why is "AllowedOrigins" needed?** 
+    > Think of your R2 Storage as a secure vault. By default, it blocks everyone. When you deploy, your new website address (e.g., `https://myapp.awsapprunner.com`) is a stranger. You must add it to this list so the app can introduce itself to the vault and say "It's okay to show images to me!"
+
 12. Click **Next** -> **Create & deploy**.
 
 *Grab a coffee ☕. It takes about 5 minutes for your site to go live.*
