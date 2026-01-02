@@ -1,4 +1,9 @@
-﻿@inject ISettingsRepository SettingsRepository
+﻿@page "/"
+@inject ISettingsRepository SettingsRepository
+@inject IEventRepository EventRepository
+@inject IVideoService VideoService
+@inject IStorageService StorageService
+@inject IWebHostEnvironment Environment
 @using System.IO
 @inject Project65.Web.Services.VideoHealingService VideoHealingService
 

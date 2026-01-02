@@ -173,6 +173,24 @@
         }
     }
 
+    private async Task LoadPurchasedClipsAsync()
+    {
+        if (AuthenticationStateTask != null)
+        {
+            var authState = await AuthenticationStateTask;
+            var user = authState.User;
+            if (user.Identity?.IsAuthenticated == true)
+            {
+                var userId = user.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+                var purchases = await PurchaseRepository.GetByUserIdAsync(userId);
+                _purchasedClipIds = purchases
+                    .Where(p => !string.IsNullOrEmpty(p.ClipId))
+                    .Select(p => p.ClipId!)
+                    .ToHashSet();
+            }
+        }
+    }
+
     private void HandleClipHealed(Clip healedClip)
     {
         if (_clips == null) return;

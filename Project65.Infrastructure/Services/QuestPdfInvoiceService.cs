@@ -27,6 +27,7 @@ public class QuestPdfInvoiceService : IInvoiceService
     {
         // 1. Fetch Settings
         var logoBytes = await GetLogoBytesAsync();
+        var storeName = await _settingsRepository.GetValueAsync("StoreName") ?? "Project65 Studios";
         var storeAddress = await _settingsRepository.GetValueAsync("StoreAddress");
 
         return Document.Create(container =>
@@ -58,54 +59,47 @@ public class QuestPdfInvoiceService : IInvoiceService
 
                         if (logoBytes != null && logoBytes.Length > 0)
                         {
-                            row.ConstantItem(100).Height(50).AlignRight().Image(logoBytes).FitArea();
-                        }
-                        else 
-                        {
-                             row.ConstantItem(100).Height(50).Placeholder();
+                            row.ConstantItem(100).Image(logoBytes);
                         }
                     });
 
-                page.Content()
-                    .PaddingVertical(1, Unit.Centimetre)
-                    .Column(x =>
+                page.Content().PaddingVertical(1, Unit.Centimetre).Column(col =>
+                {
+                    col.Item().PaddingBottom(0.5f, Unit.Centimetre).LineHorizontal(1).LineColor(Colors.Grey.Lighten2);
+
+                    col.Item().Row(row =>
                     {
-                        x.Spacing(20);
-
-                        x.Item().Row(row =>
+                        row.RelativeItem().Column(column =>
                         {
-                            row.RelativeItem().Column(column =>
+                            column.Item().Text("Bill To").SemiBold();
+                            column.Item().Text(purchase.CustomerName ?? purchase.User?.UserName ?? "Valued Customer");
+                            column.Item().Text(purchase.CustomerEmail ?? purchase.User?.Email ?? "");
+                            if (!string.IsNullOrEmpty(purchase.CustomerAddress))
                             {
-                                column.Item().Text("Bill To").SemiBold();
-                                column.Item().Text(purchase.CustomerName ?? purchase.User?.UserName ?? "Valued Customer");
-                                column.Item().Text(purchase.CustomerEmail ?? purchase.User?.Email ?? "");
-                                if (!string.IsNullOrEmpty(purchase.CustomerAddress))
+                                var parts = purchase.CustomerAddress.Split(new[] { ", " }, StringSplitOptions.RemoveEmptyEntries);
+                                if (parts.Length >= 3)
                                 {
-                                    var parts = purchase.CustomerAddress.Split(new[] { ", " }, StringSplitOptions.RemoveEmptyEntries);
-                                    if (parts.Length >= 3)
-                                    {
-                                        column.Item().Text(parts[0]).SemiBold();
-                                        column.Item().Text(string.Join(", ", parts.Skip(1).Take(parts.Length - 2)));
-                                        
-                                        var country = parts.Last();
-                                        if (country.Trim().Equals("US", StringComparison.OrdinalIgnoreCase)) country = "USA";
-                                        column.Item().Text(country.ToUpper());
-                                    }
-                                    else
-                                    {
-                                        column.Item().Text(purchase.CustomerAddress);
-                                    }
+                                    column.Item().Text(parts[0]).SemiBold();
+                                    column.Item().Text(string.Join(", ", parts.Skip(1).Take(parts.Length - 2)));
+                                    
+                                    var country = parts.Last();
+                                    if (country.Trim().Equals("US", StringComparison.OrdinalIgnoreCase)) country = "USA";
+                                    column.Item().Text(country.ToUpper());
                                 }
-                            });
-
-                            row.RelativeItem().Column(column =>
-                            {
-                                column.Item().Text("From").SemiBold();
-                                var storeName = await _settingsRepository.GetValueAsync("StoreName") ?? "Project65 Studios";
-                                column.Item().Text(storeName);
-                                
-                                if (!string.IsNullOrEmpty(storeAddress))
+                                else
                                 {
+                                    column.Item().Text(purchase.CustomerAddress);
+                                }
+                            }
+                        });
+
+                        row.RelativeItem().Column(column =>
+                        {
+                            column.Item().Text("From").SemiBold();
+                            column.Item().Text(storeName);
+                            
+                            if (!string.IsNullOrEmpty(storeAddress))
+                            {
                                     var storeParts = storeAddress.Split(new[] { ", " }, StringSplitOptions.RemoveEmptyEntries);
                                     if (storeParts.Length >= 3)
                                     {
@@ -133,7 +127,7 @@ public class QuestPdfInvoiceService : IInvoiceService
                             });
                         });
                         
-                        x.Item().Table(table =>
+                        col.Item().Table(table =>
                         {
                             table.ColumnsDefinition(columns =>
                             {
@@ -167,7 +161,7 @@ public class QuestPdfInvoiceService : IInvoiceService
                             }
                         });
                         
-                        x.Item().AlignRight().Text($"Total: ${purchase.PricePaidCents / 100.00:F2}").FontSize(14).SemiBold();
+                        col.Item().AlignRight().Text($"Total: ${purchase.PricePaidCents / 100.00:F2}").FontSize(14).SemiBold();
                     });
 
                 page.Footer()

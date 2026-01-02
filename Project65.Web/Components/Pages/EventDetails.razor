@@ -328,10 +328,6 @@ else
         }
     }
 
-    private HubConnection? _hubConnection;
-    [Inject] private IClipRepository ClipRepository { get; set; } = default!;
-
-
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender && _event != null)
