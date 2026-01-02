@@ -58,12 +58,12 @@ Enhancements to increase user engagement and perceived performance.
 - **Details**: Ensure granular progress events are effectively bubbled up and visualized for each file in the queue.
 - also after event upload, thumbnails do not instantly show up and hover previews do not work. i have to refresh the page to see the changes.
 
-### 10. Advanced Search (Fuzzy Matching)
+### 10. Advanced Search (Fuzzy Matching) ✅ Completed
 - **Problem**: Search requires exact substrings. A typo like "weedding" returns zero results for "wedding".
 - **Solution**: Implement Fuzzy Search.
 - **Details**: Use PostgreSQL's `pg_trgm` (trigram) extension or integrate a lightweight search engine like Algolia/Typesense.
 
-### 11. User Dashboard & Invoices
+### 11. User Dashboard & Invoices ✅ Completed
 - **Problem**: "My Purchases" is a simple list. Users cannot retrieve receipts.
 - **Solution**: Expand the User Dashboard.
 - **Details**: Add PDF Invoice generation (using `QuestPDF`) and a detailed order history view.

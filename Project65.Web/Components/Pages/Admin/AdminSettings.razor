@@ -161,6 +161,12 @@
                     </div>
 
                     <div>
+                        <label class="form-label" style="color: var(--text-primary);">Store Address (for Invoices)</label>
+                        <textarea class="form-control p-3" @bind="_storeAddress" placeholder="Project65 Studios&#10;123 Creative Blvd&#10;Los Angeles, CA 90001" style="background: var(--bg-dark-700); border-color: var(--border-color); color: var(--text-primary); min-height: 100px;"></textarea>
+                        <div class="form-text text-muted">Appears in the "From" section of PDF invoices.</div>
+                    </div>
+
+                    <div>
                         <label class="form-label" style="color: var(--text-primary);">Default Clip Price ($)</label>
                         <div class="input-group">
                             <span class="input-group-text" style="background: var(--bg-dark-700); border-color: var(--border-color); color: var(--text-secondary);">$</span>
@@ -234,6 +240,7 @@
     private string? _brandLogoUrl;
     private string? _watermarkUrl;
     private string? _storeName;
+    private string? _storeAddress;
     private string? _supportEmail;
     private string? _baseSiteUrl;
     private double _defaultPrice = 10.00;
@@ -270,6 +277,7 @@
         }
 
         _storeName = await SettingsRepository.GetValueAsync("StoreName") ?? "Project65 Studios";
+        _storeAddress = await SettingsRepository.GetValueAsync("StoreAddress") ?? "";
         _supportEmail = await SettingsRepository.GetValueAsync("SupportEmail") ?? "";
         _baseSiteUrl = await SettingsRepository.GetValueAsync("BaseSiteUrl") ?? "";
         
@@ -353,6 +361,7 @@
             await SettingsRepository.SetValueAsync("BrandLogoUrl", _brandLogoUrl ?? "");
             await SettingsRepository.SetValueAsync("WatermarkUrl", _watermarkUrl ?? "");
             await SettingsRepository.SetValueAsync("StoreName", _storeName ?? "Project65 Studios");
+            await SettingsRepository.SetValueAsync("StoreAddress", _storeAddress ?? "");
             await SettingsRepository.SetValueAsync("SupportEmail", _supportEmail ?? "");
             await SettingsRepository.SetValueAsync("BaseSiteUrl", _baseSiteUrl ?? "");
             await SettingsRepository.SetValueAsync("DefaultPrice", _defaultPrice.ToString());

@@ -114,7 +114,11 @@ else
 
 builder.Services.AddScoped<Project65.Web.Services.CartService>();
 builder.Services.AddScoped<Project65.Web.Services.SummaryGenerationService>();
+builder.Services.AddScoped<IInvoiceService, QuestPdfInvoiceService>();
 builder.Services.AddSingleton<Project65.Web.Services.VideoHealingService>();
+
+// Configure QuestPDFLicense
+QuestPDF.Settings.License = QuestPDF.Infrastructure.LicenseType.Community;
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<IUsageRepository, UsageRepository>();
 builder.Services.AddMemoryCache();

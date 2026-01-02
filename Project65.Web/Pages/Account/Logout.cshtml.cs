@@ -6,6 +6,7 @@ using Project65.Core.Entities;
 
 namespace Project65.Web.Pages.Account;
 
+[IgnoreAntiforgeryToken]
 public class LogoutModel : PageModel
 {
     private readonly SignInManager<ApplicationUser> _signInManager;
