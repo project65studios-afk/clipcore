@@ -3,6 +3,7 @@
 @using Project65.Core.Interfaces
 @inject IEventRepository EventRepository
 @inject IClipRepository ClipRepository
+@inject ISearchService SearchService
 @inject IVideoService VideoService
 @inject ISettingsRepository SettingsRepository
 @inject IStorageService StorageService
@@ -130,7 +131,7 @@
         try
         {
             var eventsTask = EventRepository.SearchAsync(Query);
-            var clipsTask = ClipRepository.SearchAsync(Query);
+            var clipsTask = SearchService.SearchAsync(Query);
 
             await Task.WhenAll(eventsTask, clipsTask);
 

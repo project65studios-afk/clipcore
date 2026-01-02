@@ -52,7 +52,7 @@ Enhancements to increase user engagement and perceived performance.
 - **Solution**: Implement "Expand and Preview".
 - **Details**: On hover, the clip card should expand slightly, play a muted preview, and show quick stats/actions, similar to Netflix/YouTube.
 
-### 9. Upload Progress Bar Fixes
+### 9. Upload Progress Bar Fixes ✅ Completed
 - **Problem**: Progress bars in the Admin Upload event don't accurately reflect individual clip progress vs. overall bulk upload progress.
 - **Solution**: Refactor `Uppy` or upload logic.
 - **Details**: Ensure granular progress events are effectively bubbled up and visualized for each file in the queue.
