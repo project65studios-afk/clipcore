@@ -124,22 +124,48 @@
 
                                             <div class="vr mx-2 d-none d-md-block text-secondary"></div>
 
-                                            <div>
-                                                <div class="text-uppercase text-muted fw-bold" style="font-size: 0.7rem; letter-spacing: 0.5px;">Customer</div>
-                                                <div class="fw-bold text-primary">@(firstItem.CustomerName ?? "Anonymous")</div>
-                                                <div class="small text-info text-decoration-underline">@(firstItem.CustomerEmail ?? "No Email")</div>
-                                                @if (!string.IsNullOrEmpty(firstItem.CustomerPhone))
+                                            <div class="d-flex gap-5 align-items-start text-start">
+                                                <div style="min-width: 150px;">
+                                                    <div class="text-uppercase text-muted fw-bold mb-1" style="font-size: 0.7rem; letter-spacing: 0.5px;">Customer</div>
+                                                    <div class="fw-bold text-primary" style="line-height: 1.4;">@(firstItem.CustomerName ?? "Anonymous")</div>
+                                                    <div class="small text-secondary" style="line-height: 1.4;">@(firstItem.CustomerEmail ?? "No Email")</div>
+                                                    <div class="small text-secondary" style="line-height: 1.4;">
+                                                        @if (!string.IsNullOrEmpty(firstItem.CustomerPhone))
+                                                        {
+                                                            <i class="bi bi-telephone me-1"></i>@firstItem.CustomerPhone
+                                                        }
+                                                        else
+                                                        {
+                                                            <span>&nbsp;</span>
+                                                        }
+                                                    </div>
+                                                </div>
+                                                @if (!string.IsNullOrEmpty(firstItem.CustomerAddress))
                                                 {
-                                                    <div class="small text-secondary mt-1"><i class="bi bi-telephone me-1"></i>@firstItem.CustomerPhone</div>
+                                                    <div style="min-width: 180px;">
+                                                        <div class="text-uppercase text-muted fw-bold mb-1" style="font-size: 0.7rem; letter-spacing: 0.5px;">Billing Address</div>
+                                                        @{
+                                                            var parts = firstItem.CustomerAddress.Split(new[] { ", " }, StringSplitOptions.RemoveEmptyEntries);
+                                                            if (parts.Length >= 3)
+                                                            {
+                                                                <div class="fw-bold text-primary" style="max-width: 250px; line-height: 1.4;">@parts[0]</div>
+                                                                <div class="small text-secondary" style="max-width: 250px; line-height: 1.4;">@string.Join(", ", parts.Skip(1).Take(parts.Length - 2))</div>
+                                                                
+                                                                var country = parts.Last();
+                                                                if (country.Trim().Equals("US", StringComparison.OrdinalIgnoreCase)) country = "USA";
+                                                                
+                                                                <div class="small text-secondary text-uppercase" style="max-width: 250px; line-height: 1.4;">@country</div>
+                                                            }
+                                                            else
+                                                            {
+                                                                <div class="fw-bold text-primary" style="max-width: 250px; line-height: 1.4;">@firstItem.CustomerAddress</div>
+                                                                <div class="small text-secondary" style="line-height: 1.4;">&nbsp;</div>
+                                                                <div class="small text-secondary" style="line-height: 1.4;">&nbsp;</div>
+                                                            }
+                                                        }
+                                                    </div>
                                                 }
                                             </div>
-                                            @if (!string.IsNullOrEmpty(firstItem.CustomerAddress))
-                                            {
-                                                <div>
-                                                    <div class="text-uppercase text-muted fw-bold" style="font-size: 0.7rem; letter-spacing: 0.5px;">Billing Address</div>
-                                                    <div class="small text-secondary" style="max-width: 250px; line-height: 1.2;">@firstItem.CustomerAddress</div>
-                                                </div>
-                                            }
                                         </div>
                                     </div>
                                 </div>

@@ -56,8 +56,26 @@
 						<div class="mt-2 pt-2 border-top border-secondary" style="font-size: 0.8rem; border-color: rgba(255,255,255,0.1) !important;">
 							@if (!string.IsNullOrEmpty(firstItem.CustomerAddress))
 							{
-								<div class="text-muted">
-									<i class="bi bi-geo-alt me-1"></i> @firstItem.CustomerAddress
+								<div class="text-muted" style="line-height: 1.4;">
+									<i class="bi bi-geo-alt me-1"></i>
+                                    @{
+                                        var parts = firstItem.CustomerAddress.Split(new[] { ", " }, StringSplitOptions.RemoveEmptyEntries);
+                                        if (parts.Length >= 3)
+                                        {
+                                            <div class="fw-bold text-primary d-inline-block">@parts[0]</div><br/>
+                                            <span>@string.Join(", ", parts.Skip(1).Take(parts.Length - 2))</span><br/>
+                                            
+                                            
+                                                var country = parts.Last();
+                                                if (country.Trim().Equals("US", StringComparison.OrdinalIgnoreCase)) country = "USA";
+                                            
+                                            <span class="text-uppercase" style="font-size: 0.8em;">@country</span>
+                                        }
+                                        else
+                                        {
+                                            @firstItem.CustomerAddress
+                                        }
+                                    }
 								</div>
 							}
                             <div class="mt-2">

@@ -70,6 +70,20 @@ public class EmailTemplateService
             ? $@"<img src=""{absoluteLogoUrl}"" alt=""{storeName}"" style=""max-height: 80px; width: auto; display: block; margin: 0 auto;"" />"
             : $@"<div style=""font-size: 24px; font-weight: bold; color: #111111; text-align: center; text-transform: uppercase;"">{storeName}</div>";
 
+        static string FormatAddress(string? address)
+        {
+            if (string.IsNullOrEmpty(address)) return "";
+            var parts = address.Split(new[] { ", " }, StringSplitOptions.RemoveEmptyEntries);
+            if (parts.Length < 3) return address;
+
+            var street = parts[0];
+            var details = string.Join(", ", parts.Skip(1).Take(parts.Length - 2));
+            var country = parts.Last();
+            if (country.Trim().Equals("US", StringComparison.OrdinalIgnoreCase)) country = "USA";
+
+            return $@"<strong style=""color: #111111;"">{street}</strong><br/>{details}<br/>{country.ToUpper()}";
+        }
+
         return $@"
 <!DOCTYPE html>
 <html>
@@ -131,7 +145,7 @@ public class EmailTemplateService
                             <div style=""font-size: 14px; font-weight: 600; color: #111111; margin-bottom: 8px;"">Billed To:</div>
                             <div style=""font-size: 14px; color: #666666; line-height: 1.5;"">
                                 {customerName}<br/>
-                                {firstItem?.CustomerAddress}
+                                {FormatAddress(firstItem?.CustomerAddress)}
                             </div>
                         </td>
                         <td style=""vertical-align: top; padding-bottom: 30px; padding-left: 20px;"">
