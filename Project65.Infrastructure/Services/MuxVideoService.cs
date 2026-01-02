@@ -7,6 +7,8 @@ using Microsoft.AspNetCore.Http;
 using Project65.Core.Entities;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
+using Polly;
+using Polly.Retry;
 
 namespace Project65.Infrastructure.Services;
 
@@ -24,6 +26,9 @@ public class MuxVideoService : IVideoService
     private readonly IMemoryCache _cache;
     private readonly ILogger<MuxVideoService> _logger;
     private const int MaxDailyTokens = 1000; // Increased buffer for dev/testing
+
+    private readonly Polly.ResiliencePipeline _resiliencePipeline;
+    
 
     public MuxVideoService(IConfiguration configuration, IHttpContextAccessor httpContextAccessor, IUsageRepository usageRepository, IMemoryCache cache, ILogger<MuxVideoService> logger)
     {
@@ -44,6 +49,22 @@ public class MuxVideoService : IVideoService
 
         _directUploadsApi = new DirectUploadsApi(config);
         _assetsApi = new AssetsApi(config);
+        
+        // Define Polly Resilience Pipeline (Retry w/ Exponential Backoff)
+        _resiliencePipeline = new Polly.ResiliencePipelineBuilder()
+            .AddRetry(new Polly.Retry.RetryStrategyOptions
+            {
+                ShouldHandle = new Polly.PredicateBuilder().Handle<ApiException>(),
+                MaxRetryAttempts = 3,
+                Delay = TimeSpan.FromSeconds(2),
+                BackoffType = Polly.DelayBackoffType.Exponential,
+                OnRetry = static args =>
+                {
+                    Console.WriteLine($"[MUX-RETRY] Retrying Mux API call... (Attempt {args.AttemptNumber})");
+                    return ValueTask.CompletedTask;
+                }
+            })
+            .Build();
     }
 
     private string GetAppOrigin()
@@ -71,7 +92,7 @@ public class MuxVideoService : IVideoService
         var request = new CreateUploadRequest(newAssetSettings: assetSettings);
         request.CorsOrigin = GetAppOrigin();
         
-        var result = await _directUploadsApi.CreateDirectUploadAsync(request);
+        var result = await _resiliencePipeline.ExecuteAsync(async ct => await _directUploadsApi.CreateDirectUploadAsync(request, cancellationToken: ct));
         return (result.Data.Url, result.Data.Id);
     }
 
@@ -126,13 +147,13 @@ public class MuxVideoService : IVideoService
 
     public async Task<string?> GetPlaybackIdAsync(string assetId)
     {
-        var asset = await _assetsApi.GetAssetAsync(assetId);
+        var asset = await _resiliencePipeline.ExecuteAsync(async ct => await _assetsApi.GetAssetAsync(assetId, cancellationToken: ct));
         return asset.Data.PlaybackIds?.FirstOrDefault()?.Id;
     }
 
     public async Task<string?> EnsurePlaybackIdAsync(string assetId)
     {
-        var asset = await _assetsApi.GetAssetAsync(assetId);
+        var asset = await _resiliencePipeline.ExecuteAsync(async ct => await _assetsApi.GetAssetAsync(assetId, cancellationToken: ct));
         var existingId = asset.Data.PlaybackIds?.FirstOrDefault()?.Id;
 
         if (!string.IsNullOrEmpty(existingId))
@@ -142,7 +163,7 @@ public class MuxVideoService : IVideoService
 
         // No playback ID exists, create one with Signed policy
         var req = new CreatePlaybackIDRequest(policy: PlaybackPolicy.Signed);
-        var newPlaybackId = await _assetsApi.CreateAssetPlaybackIdAsync(assetId, req);
+        var newPlaybackId = await _resiliencePipeline.ExecuteAsync(async ct => await _assetsApi.CreateAssetPlaybackIdAsync(assetId, req, cancellationToken: ct));
         
         return newPlaybackId.Data.Id;
     }
@@ -298,7 +319,7 @@ public class MuxVideoService : IVideoService
         if (string.IsNullOrEmpty(assetId)) return;
         try 
         {
-            await _assetsApi.DeleteAssetAsync(assetId);
+            await _resiliencePipeline.ExecuteAsync(async ct => await _assetsApi.DeleteAssetAsync(assetId, cancellationToken: ct));
         }
         catch (Exception ex)
         {
@@ -312,7 +333,7 @@ public class MuxVideoService : IVideoService
         if (string.IsNullOrEmpty(uploadId)) return null;
         try 
         {
-            var upload = await _directUploadsApi.GetDirectUploadAsync(uploadId);
+            var upload = await _resiliencePipeline.ExecuteAsync(async ct => await _directUploadsApi.GetDirectUploadAsync(uploadId, cancellationToken: ct));
             return upload.Data.AssetId;
         }
         catch (Exception ex)
@@ -327,7 +348,7 @@ public class MuxVideoService : IVideoService
         if (string.IsNullOrEmpty(assetId)) return null;
         try 
         {
-            var result = await _assetsApi.GetAssetAsync(assetId);
+            var result = await _resiliencePipeline.ExecuteAsync(async ct => await _assetsApi.GetAssetAsync(assetId, cancellationToken: ct));
             return result.Data.Duration;
         }
         catch 
@@ -341,7 +362,7 @@ public class MuxVideoService : IVideoService
         if (string.IsNullOrEmpty(assetId)) return (null, null);
         try 
         {
-            var result = await _assetsApi.GetAssetAsync(assetId);
+            var result = await _resiliencePipeline.ExecuteAsync(async ct => await _assetsApi.GetAssetAsync(assetId, cancellationToken: ct));
             
             // Only capture duration if the asset is fully ready
             if (result.Data.Status != Asset.StatusEnum.Ready)
@@ -376,7 +397,7 @@ public class MuxVideoService : IVideoService
 
         try
         {
-            var asset = await _assetsApi.GetAssetAsync(assetId);
+            var asset = await _resiliencePipeline.ExecuteAsync(async ct => await _assetsApi.GetAssetAsync(assetId, cancellationToken: ct));
             
             // Check Master Access Status
             var masterStatus = asset.Data.Master?.Status;
@@ -409,7 +430,7 @@ public class MuxVideoService : IVideoService
             if (asset.Data.MasterAccess == Asset.MasterAccessEnum.None)
             {
                  var updateRequest = new UpdateAssetMasterAccessRequest(masterAccess: UpdateAssetMasterAccessRequest.MasterAccessEnum.Temporary);
-                 await _assetsApi.UpdateAssetMasterAccessAsync(assetId, updateRequest);
+                 await _resiliencePipeline.ExecuteAsync(async ct => await _assetsApi.UpdateAssetMasterAccessAsync(assetId, updateRequest, cancellationToken: ct));
             }
 
             return null; // Request sent, user needs to wait.

@@ -4,17 +4,36 @@ using Project65.Core.Interfaces;
 using Stripe;
 using Stripe.Checkout;
 using Microsoft.Extensions.Configuration;
+using Polly;
+using Polly.Retry;
 
 namespace Project65.Infrastructure.Services;
 
 public class StripePaymentService : IPaymentService
 {
     private readonly string _apiKey;
+    private readonly Polly.ResiliencePipeline _resiliencePipeline;
 
     public StripePaymentService(IConfiguration configuration)
     {
         _apiKey = configuration["Stripe:SecretKey"] ?? throw new ArgumentNullException("Stripe:SecretKey");
         StripeConfiguration.ApiKey = _apiKey; // Global setting, simpler for MVP
+        
+        // Define Polly Resilience Pipeline for Stripe
+        _resiliencePipeline = new Polly.ResiliencePipelineBuilder()
+            .AddRetry(new Polly.Retry.RetryStrategyOptions
+            {
+                ShouldHandle = new Polly.PredicateBuilder().Handle<StripeException>(),
+                MaxRetryAttempts = 3,
+                Delay = TimeSpan.FromSeconds(2),
+                BackoffType = Polly.DelayBackoffType.Exponential,
+                OnRetry = static args =>
+                {
+                    Console.WriteLine($"[STRIPE-RETRY] Retrying Stripe API call... (Attempt {args.AttemptNumber})");
+                    return ValueTask.CompletedTask;
+                }
+            })
+            .Build();
     }
 
     public async Task<string> CreateCheckoutSessionAsync(IEnumerable<CheckoutItem> items, string successUrl, string cancelUrl, string? userEmail = null, string? userId = null, int? promoCodeId = null)
@@ -124,7 +143,7 @@ public class StripePaymentService : IPaymentService
         var service = new SessionService();
         try 
         {
-            Session session = await service.CreateAsync(options);
+            Session session = await _resiliencePipeline.ExecuteAsync(async ct => await service.CreateAsync(options, cancellationToken: ct));
             return session.Url;
         }
         catch (StripeException ex)
@@ -142,7 +161,7 @@ public class StripePaymentService : IPaymentService
         options.AddExpand("line_items");
         options.AddExpand("line_items.data.price.product"); // Necessary to access Product Metadata
         
-        var session = await service.GetAsync(sessionId, options);
+        var session = await _resiliencePipeline.ExecuteAsync(async ct => await service.GetAsync(sessionId, options, cancellationToken: ct));
         var purchases = new List<Purchase>();
         var foundClipIds = new HashSet<string>();
         var userId = session.ClientReferenceId;
@@ -319,14 +338,14 @@ public class StripePaymentService : IPaymentService
     public async Task<string?> GetCustomerEmailFromSessionAsync(string sessionId)
     {
         var service = new SessionService();
-        var session = await service.GetAsync(sessionId);
+        var session = await _resiliencePipeline.ExecuteAsync(async ct => await service.GetAsync(sessionId, cancellationToken: ct));
         return session.CustomerDetails?.Email ?? session.CustomerEmail;
     }
 
     public async Task<int?> GetPromoCodeIdFromSessionAsync(string sessionId)
     {
         var service = new SessionService();
-        var session = await service.GetAsync(sessionId);
+        var session = await _resiliencePipeline.ExecuteAsync(async ct => await service.GetAsync(sessionId, cancellationToken: ct));
         if (session.Metadata.TryGetValue("PromoCodeId", out var promoIdStr) && int.TryParse(promoIdStr, out var promoId))
         {
             return promoId;

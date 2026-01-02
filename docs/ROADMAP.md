@@ -6,10 +6,10 @@ This document outlines the strategic technical roadmap for Project65. It priorit
 
 These items address potential failure points in a production environment.
 
-### 1. HTTP Resilience (Polly)
+### 1. HTTP Resilience (Polly) - ✅ Completed
 - **Problem**: Transient network errors (e.g., Stripe API timeout) currently cause immediate user-facing failures.
 - **Solution**: Implement `Microsoft.Extensions.Http.Polly` policies.
-- **Details**: Add "Wait and Retry" (Exponential Backoff) and "Circuit Breaker" patterns to `MuxVideoService` and `StripePaymentService`.
+- **Details**: Added "Wait and Retry" (Exponential Backoff: 2s, 4s, 8s) to `MuxVideoService` and `StripePaymentService` using `Polly.ResiliencePipeline`.
 
 ### 2. Distributed Caching (Redis)
 - **Problem**: `IMemoryCache` is local to the server. If we scale to 2+ instances, cache data (like Mux tokens) is not shared.
