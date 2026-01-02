@@ -64,7 +64,7 @@
                                         <span class="badge @GetActionBadgeClass(log.Action)">@log.Action</span>
                                     </td>
                                     <td class="small" data-label="Entity">
-                                        <div class="text-uppercase fw-bold" style="font-size: 0.7rem; color: var(--accent-cyan);">@log.EntityType</div>
+                                        <div class="text-uppercase fw-bold" style="font-size: 0.7rem; color: var(--accent-primary);">@log.EntityType</div>
                                         <div class="text-muted" style="font-size: 0.7rem;">ID: @log.EntityId</div>
                                     </td>
                                     <td class="small d-none d-md-table-cell" style="max-width: 300px; white-space: normal;">
@@ -85,10 +85,10 @@
     .extra-small {
         font-size: 0.75rem;
     }
-    .badge-create { background-color: #198754; }
-    .badge-update { background-color: #0dcaf0; color: #000; }
-    .badge-delete { background-color: #dc3545; }
-    .badge-other { background-color: var(--text-muted); color: var(--bg-dark-900); }
+    .badge-create { background-color: var(--status-success); }
+    .badge-update { background-color: var(--accent-primary); color: var(--text-main); }
+    .badge-delete { background-color: var(--status-danger); }
+    .badge-other { background-color: var(--text-muted); color: var(--bg-main); }
 </style>
 
 @code {

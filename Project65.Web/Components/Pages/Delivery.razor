@@ -6,6 +6,8 @@
 @inject IStorageService StorageService
 @inject NavigationManager Navigation
 @inject ISettingsRepository SettingsRepository
+@implements IDisposable
+@inject Project65.Web.Services.StoreSettingsService StoreSettingsService
 
 <PageTitle>Order Delivery - @(_storeName ?? "Project65 Studios")</PageTitle>
 
@@ -113,8 +115,14 @@
 
     protected override async Task OnInitializedAsync()
     {
-        _storeName = await SettingsRepository.GetValueAsync("StoreName");
+        _storeName = await StoreSettingsService.GetStoreNameAsync();
+        StoreSettingsService.OnChange += HandleSettingsChange;
         
+        await LoadOrder();
+    }
+
+    private async Task LoadOrder()
+    {
         if (string.IsNullOrEmpty(OrderId))
         {
             _isLoading = false;
@@ -208,6 +216,20 @@
         }
     }
     
+    private void HandleSettingsChange()
+    {
+        InvokeAsync(async () =>
+        {
+            _storeName = await StoreSettingsService.GetStoreNameAsync();
+            StateHasChanged();
+        });
+    }
+
+    public void Dispose()
+    {
+        StoreSettingsService.OnChange -= HandleSettingsChange;
+    }
+
     public async ValueTask DisposeAsync()
     {
         if (_jsModule != null)

@@ -10,6 +10,8 @@
 @inject IWebHostEnvironment Environment
 @rendermode RenderMode.InteractiveServer
 @inject ISettingsRepository SettingsRepository
+@inject Project65.Web.Services.StoreSettingsService StoreSettingsService
+@implements IDisposable
 
 <PageTitle>Find My Order - @(_storeName ?? "Project65 Studios")</PageTitle>
 
@@ -21,7 +23,7 @@
 
     @if (!_hasSearched)
     {
-        <div style="max-width: 500px; margin: 0 auto; background: var(--bg-dark-800); padding: 2rem; border-radius: var(--radius-lg); border: 1px solid var(--border-color);">
+        <div style="max-width: 500px; margin: 0 auto; background: var(--bg-surface); padding: 2rem; border-radius: var(--radius-lg); border: 1px solid var(--border-color);">
             <EditForm Model="this" OnValidSubmit="HandleSubmit">
                 <div class="mb-3">
                     <label class="form-label">Email Address</label>
@@ -55,7 +57,7 @@
             <div class="d-flex flex-column gap-4">
                 @foreach (var order in _foundOrders)
                 {
-                    <div class="order-card" style="background: var(--bg-dark-800); border: 1px solid var(--border-color); border-radius: var(--radius-lg); overflow: hidden;">
+                    <div class="order-card" style="background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: var(--radius-lg); overflow: hidden;">
                          <div class="p-3 border-bottom border-secondary d-flex justify-content-between align-items-center" style="background: rgba(255,255,255,0.03);">
                             <div>
                                 <h5 class="m-0">Order #@order.OrderIdDisplay</h5>
@@ -119,7 +121,22 @@
 
     protected override async Task OnInitializedAsync()
     {
-        _storeName = await SettingsRepository.GetValueAsync("StoreName");
+        _storeName = await StoreSettingsService.GetStoreNameAsync();
+        StoreSettingsService.OnChange += HandleSettingsChange;
+    }
+
+    private void HandleSettingsChange()
+    {
+        InvokeAsync(async () =>
+        {
+            _storeName = await StoreSettingsService.GetStoreNameAsync();
+            StateHasChanged();
+        });
+    }
+
+    public void Dispose()
+    {
+        StoreSettingsService.OnChange -= HandleSettingsChange;
     }
 
     private class OrderViewModel

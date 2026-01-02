@@ -10,6 +10,7 @@
 @inject IPurchaseRepository PurchaseRepository
 @inject NavigationManager Navigation
 @inject ISettingsRepository SettingsRepository
+@inject Project65.Web.Services.StoreSettingsService StoreSettingsService
 @inject IEmailService EmailService
 @inject IJSRuntime JSRuntime
 @inject Project65.Web.Services.CartService CartService
@@ -18,6 +19,7 @@
 @inject IAuditService AuditService
 @using Microsoft.AspNetCore.SignalR.Client
 @implements IAsyncDisposable
+@implements IDisposable
 
 <PageTitle>@_clip?.Title - @(_storeName ?? "Project65 Studios")</PageTitle>
 
@@ -61,8 +63,8 @@ else
                                  thumbnail-token="@GetTokenFromCache(_clip.PlaybackIdSigned!, "t")"
                                  storyboard-token="@GetTokenFromCache(_clip.PlaybackIdSigned!, "s")"
                                  metadata-video-title="@_clip.Title"
-                                 primary-color="#06b6d4"
-                                 accent-color="#ec4899"
+                                 primary-color="var(--accent-primary)"
+                                 accent-color="var(--accent-secondary)"
                                  fullscreen-element="player-container"
                                  disable-tracking
                                  disable-cast
@@ -84,7 +86,7 @@ else
                          }
                          else if (_limitReached)
                          {
-                              <div style="width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #0f172a; min-height: 400px; padding: 2rem; text-align: center;">
+                              <div style="width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; background: var(--bg-main); min-height: 400px; padding: 2rem; text-align: center;">
                                   <i class="bi bi-hourglass-split text-warning mb-3" style="font-size: 2rem;"></i>
                                   <h4 class="text-white">Daily Limit Reached</h4>
                                   <p class="text-secondary mb-4" style="max-width: 400px;">
@@ -93,7 +95,7 @@ else
                                   @if (!_isAuthenticated)
                                   {
                                       <a href="Account/Register" class="btn btn-primary">Create Free Account to Watch More</a>
-                                      <p class="text-muted small mt-2">Already have an account? <a href="Account/Login" class="text-accent-cyan">Log In</a></p>
+                                      <p class="text-muted small mt-2">Already have an account? <a href="Account/Login" class="text-accent-primary">Log In</a></p>
                                   }
                                   else
                                   {
@@ -103,7 +105,7 @@ else
                          }
                          else
                          {
-                              <div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background: #000; min-height: 400px;">
+                              <div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background: var(--bg-main); min-height: 400px;">
                                   <div class="spinner-border text-info" role="status"></div>
                               </div>
                          }
@@ -119,8 +121,8 @@ else
                                  thumbnail-token="@GetTokenFromCache(pid, "t")"
                                  storyboard-token="@GetTokenFromCache(pid, "s")"
                                  metadata-video-title="@_clip.Title (Preview)"
-                                 primary-color="#06b6d4"
-                                 accent-color="#ec4899"
+                                 primary-color="var(--accent-primary)"
+                                 accent-color="var(--accent-secondary)"
                                  fullscreen-element="player-container"
                                  disable-tracking
                                  disable-cast
@@ -142,7 +144,7 @@ else
                          }
                          else
                          {
-                              <div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background: #000; min-height: 400px;">
+                              <div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background: var(--bg-main); min-height: 400px;">
                                   <div class="spinner-border text-info" role="status"></div>
                               </div>
                          }
@@ -167,7 +169,7 @@ else
                         <p style="color: var(--text-secondary); margin: 0;">Filmed: @_clip.RecordingStartedAt.Value.ToLocalTime().ToString("MMM dd, yyyy h:mm tt")</p>
                     }
                     <span style="color: var(--text-muted); font-size: 0.8rem;">•</span>
-                    <span style="color: var(--accent-cyan); font-weight: 600; font-size: 0.9rem;">
+                    <span style="color: var(--accent-primary); font-weight: 600; font-size: 0.9rem;">
                         @(_clip.DurationSec.HasValue ? TimeSpan.FromSeconds(_clip.DurationSec.Value).ToString(@"mm\:ss") : "--:--")
                     </span>
                 </div>
@@ -178,7 +180,7 @@ else
                             <h4 class="h6 mb-0 text-secondary">Tags</h4>
                             @if (!_isEditingTags)
                             {
-                                <button class="btn btn-sm btn-link text-decoration-none p-0" style="color: var(--accent-cyan); font-size: 0.85rem;" @onclick="ToggleEditTags">
+                                <button class="btn btn-sm btn-link text-decoration-none p-0" style="color: var(--accent-primary); font-size: 0.85rem;" @onclick="ToggleEditTags">
                                     Edit Tags
                                 </button>
                             }
@@ -187,7 +189,7 @@ else
                         @if (_isEditingTags)
                         {
                             <div class="mb-3">
-                                <textarea class="form-control mb-2" rows="3" style="background: var(--bg-dark-900); border: 1px solid var(--border-color); color: var(--text-primary); font-size: 0.9rem;" @bind="_editingTagsInput" placeholder="Enter tags separated by commas..."></textarea>
+                                <textarea class="form-control mb-2" rows="3" style="background: var(--bg-main); border: 1px solid var(--border-color); color: var(--text-main); font-size: 0.9rem;" @bind="_editingTagsInput" placeholder="Enter tags separated by commas..."></textarea>
                                 <div class="d-flex gap-2 justify-content-end">
                                     <button class="btn btn-sm btn-secondary" @onclick="CancelEditTags">Cancel</button>
                                     <button class="btn btn-sm btn-primary" @onclick="SaveTagsAsync">Save Tags</button>
@@ -207,7 +209,7 @@ else
             
             <!-- Purchase / Details Column -->
             <div class="premium-card" style="height: fit-content;">
-                <div style="font-size: 0.85rem; color: var(--accent-cyan); margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem;">
+                <div style="font-size: 0.85rem; color: var(--accent-primary); margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem;">
                     <i class="bi bi-stars"></i> Includes 4K Master File
                 </div>
 
@@ -237,15 +239,17 @@ else
                 </div>
                 
                 <AuthorizeView Roles="Admin">
-                    <div style="margin: 2rem 0; padding: 1.25rem; background: rgba(99, 102, 241, 0.05); border: 1px solid rgba(99, 102, 241, 0.2); border-radius: var(--radius-lg); position: relative; overflow: hidden;">
-                        <div style="position: absolute; top: 0; right: 0; padding: 0.5rem 0.75rem; background: rgba(99, 102, 241, 0.1); border-bottom-left-radius: var(--radius-md); font-size: 0.65rem; font-weight: 800; text-transform: uppercase; color: #818cf8; letter-spacing: 1px;">
+                    <div style="margin: 2rem 0; padding: 1.25rem; background: var(--accent-primary-dim); border: 1px solid var(--accent-primary-dim); border-radius: var(--radius-lg); position: relative; overflow: hidden;">
+                        <div style="position: absolute; top: 0; right: 0; padding: 0.5rem 0.75rem; background: var(--accent-primary-dim); border-bottom-left-radius: var(--radius-md); font-size: 0.65rem; font-weight: 800; text-transform: uppercase; color: var(--accent-primary); letter-spacing: 1px;">
                             Admin
                         </div>
                         
-                        <h6 style="font-size: 0.8rem; font-weight: 700; color: var(--text-primary); margin-bottom: 1.25rem; display: flex; align-items: center; gap: 0.5rem;">
-                            <i class="bi bi-sliders2-vertical" style="color: #818cf8;"></i> Manage Clip Rates
-                        </h6>
-
+                        <div class="mb-3 d-flex align-items-center gap-2">
+                            <h6 style="font-size: 0.8rem; font-weight: 700; color: var(--text-main); margin-bottom: 0;">
+                                <i class="bi bi-sliders2-vertical" style="color: var(--accent-primary);"></i> Manage Clip Rates
+                            </h6>
+                        </div>
+                        
                         @if (_isEditingPrice)
                         {
                             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.25rem;">
@@ -279,12 +283,12 @@ else
                                 <div style="display: flex; gap: 1.5rem;">
                                     <div style="display: flex; flex-direction: column;">
                                         <span style="font-size: 0.65rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">Personal</span>
-                                        <span style="font-size: 1.1rem; font-weight: 700; color: var(--text-primary);">$@(_clip?.PriceCents / 100.0)</span>
+                                        <span style="font-size: 1.1rem; font-weight: 700; color: var(--text-main);">$@(_clip?.PriceCents / 100.0)</span>
                                     </div>
                                     <div style="width: 1px; background: rgba(255,255,255,0.1);"></div>
                                     <div style="display: flex; flex-direction: column;">
                                         <span style="font-size: 0.65rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">Commercial</span>
-                                        <span style="font-size: 1.1rem; font-weight: 700; color: var(--text-primary);">$@(_clip?.PriceCommercialCents / 100.0)</span>
+                                        <span style="font-size: 1.1rem; font-weight: 700; color: var(--text-main);">$@(_clip?.PriceCommercialCents / 100.0)</span>
                                     </div>
                                 </div>
                                 <button class="btn btn-sm btn-outline-secondary" style="border-radius: var(--radius-md); padding: 0.4rem 0.75rem; border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.02);" @onclick="ToggleEditPrice">
@@ -306,7 +310,7 @@ else
 
                 @if (status)
                 {
-                    <div style="background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.2); color: #34d399; padding: 1.25rem; border-radius: var(--radius-md); text-align: center; margin-bottom: 2rem;">
+                    <div style="background: var(--status-success-dim); border: 1px solid var(--status-success); color: var(--status-success); padding: 1.25rem; border-radius: var(--radius-md); text-align: center; margin-bottom: 2rem;">
                         <i class="bi bi-check2-circle fs-3 mb-2 d-block"></i>
                         <div class="fw-bold">Owned License: @(_selectedLicense)</div>
                         <div class="small mt-1 opacity-75">Available in your dashboard.</div>
@@ -320,13 +324,13 @@ else
                     
                     @if (_isInCart)
                     {
-                        <a href="/cart" class="btn-secondary w-100" style="padding: 1rem; width: 100%; text-decoration: none; display: flex; align-items: center; justify-content: center; font-size: 1.1rem;">
+                        <a href="/cart" class="cart-btn w-100" style="padding: 1rem; width: 100%; text-decoration: none; display: flex; align-items: center; justify-content: center; font-size: 1.1rem;">
                             <i class="bi bi-cart-check-fill me-2"></i> <span>View in Cart</span>
                         </a>
                     }
                     else
                     {
-                        <button type="button" class="btn-secondary w-100" style="padding: 1rem; font-size: 1.1rem;" @onclick="@(() => PrepareAction("Add"))" disabled="@_isAddingToCart">
+                        <button type="button" class="cart-btn w-100" style="padding: 1rem; font-size: 1.1rem;" @onclick="@(() => PrepareAction("Add"))" disabled="@_isAddingToCart">
                             @if (_isAddingToCart)
                             {
                                 <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true" style="margin-right: 0.5rem;"></span>
@@ -350,7 +354,7 @@ else
                                 </div>
                                 
                                 <div class="modal-body-glass">
-                                    <h5 class="text-accent-cyan mb-3">@(_selectedLicense == LicenseType.Commercial ? "Commercial Use License" : "Personal Use License")</h5>
+                                    <h5 class="text-accent-primary mb-3">@(_selectedLicense == LicenseType.Commercial ? "Commercial Use License" : "Personal Use License")</h5>
                                     <div class="license-terms-scroll">
                                         @if (_selectedLicense == LicenseType.Commercial)
                                         {
@@ -373,8 +377,8 @@ else
                                     </div>
 
                                     <div class="form-check mt-4 p-3 rounded" style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);">
-                                        <input class="form-check-input" type="checkbox" id="licenseAgreementModal" @bind="_hasAgreedToLicense" style="cursor: pointer; border-color: var(--accent-cyan);">
-                                        <label class="form-check-label ms-2" for="licenseAgreementModal" style="font-size: 0.95rem; color: var(--text-primary); cursor: pointer; user-select: none;">
+                                        <input class="form-check-input" type="checkbox" id="licenseAgreementModal" @bind="_hasAgreedToLicense" style="cursor: pointer; border-color: var(--accent-primary);">
+                                        <label class="form-check-label ms-2" for="licenseAgreementModal" style="font-size: 0.95rem; color: var(--text-main); cursor: pointer; user-select: none;">
                                             I agree to the <strong>@(_selectedLicense == LicenseType.Commercial ? "Commercial Use License" : "Personal Use License")</strong>
                                         </label>
                                     </div>
@@ -565,7 +569,7 @@ else
                     builder.OpenElement(4, "a");
                     builder.AddAttribute(5, "href", $"/search?q={tag}");
                     builder.AddAttribute(6, "class", "badge text-decoration-none me-1");
-                    builder.AddAttribute(7, "style", "background: var(--bg-dark-900); color: var(--text-secondary); border: 1px solid var(--border-color); font-weight: 500;");
+                    builder.AddAttribute(7, "style", "background: var(--bg-main); color: var(--text-secondary); border: 1px solid var(--border-color); font-weight: 500;");
                     builder.AddContent(8, tag);
                     builder.CloseElement();
                 }
@@ -602,6 +606,20 @@ else
         }
     }
 
+    private void HandleSettingsChange()
+    {
+        InvokeAsync(async () => {
+            _storeName = await StoreSettingsService.GetStoreNameAsync();
+            StateHasChanged();
+        });
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        _storeName = await StoreSettingsService.GetStoreNameAsync();
+        StoreSettingsService.OnChange += HandleSettingsChange;
+    }
+
     protected override async Task OnParametersSetAsync()
     {
         // Prevent unnecessary reloads if Id hasn't changed (though unlikely to trigger unless parent causes render)
@@ -619,7 +637,7 @@ else
 
         try 
         {
-            _storeName = await SettingsRepository.GetValueAsync("StoreName");
+            _storeName = await StoreSettingsService.GetStoreNameAsync();
             _watermarkUrl = await SettingsRepository.GetValueAsync("WatermarkUrl");
             
             if (AuthenticationStateTask != null)
@@ -945,5 +963,10 @@ else
         {
             await _hubConnection.DisposeAsync();
         }
+    }
+
+    public void Dispose()
+    {
+        StoreSettingsService.OnChange -= HandleSettingsChange;
     }
 }

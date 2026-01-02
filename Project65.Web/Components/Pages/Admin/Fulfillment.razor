@@ -24,7 +24,7 @@
         </div>
     </div>
 
-    <div class="card border-0 shadow-sm" style="background: var(--bg-dark-800);">
+    <div class="card border-0 shadow-sm" style="background: var(--bg-surface);">
         <div class="card-header bg-transparent border-bottom py-3 d-flex justify-content-between align-items-center">
             <h5 class="mb-0 text-primary">Delivery Queue</h5>
             <div class="btn-group shadow-sm">
@@ -63,7 +63,7 @@
                             ? "ORD-" + firstItem.StripeSessionId.Substring(firstItem.StripeSessionId.Length - 8).ToUpper() 
                             : "LEGACY-" + firstItem.Id;
 
-                        <div class="card border-0 shadow-sm mb-4 mx-3 mt-3 overflow-hidden rounded-3" style="background: var(--bg-dark-700); border: 1px solid var(--border-color) !important;">
+                        <div class="card border-0 shadow-sm mb-4 mx-3 mt-3 overflow-hidden rounded-3" style="background: var(--bg-subtle); border: 1px solid var(--border-color) !important;">
                              
                              <!-- Order Header -->
                              <div class="card-header bg-transparent p-3 border-bottom border-secondary-subtle">
@@ -194,7 +194,7 @@
                                                         @(p.Clip?.MasterFileName ?? p.ClipMasterFileName ?? "No Master File")
                                                     </div>
                                                     <div class="mt-1">
-                                                        <span class="badge" style="background: @(p.LicenseType == LicenseType.Commercial ? "var(--accent-purple-dim)" : "var(--accent-cyan-dim)"); color: @(p.LicenseType == LicenseType.Commercial ? "var(--accent-purple)" : "var(--accent-cyan)"); border: 1px solid currentColor; font-size: 0.65rem; text-transform: uppercase; font-weight: 600;">
+                                                        <span class="badge" style="background: @(p.LicenseType == LicenseType.Commercial ? "var(--accent-purple-dim)" : "var(--accent-primary-dim)"); color: @(p.LicenseType == LicenseType.Commercial ? "var(--accent-purple)" : "var(--accent-primary)"); border: 1px solid currentColor; font-size: 0.65rem; text-transform: uppercase; font-weight: 600;">
                                                             @p.LicenseType
                                                         </span>
                                                     </div>

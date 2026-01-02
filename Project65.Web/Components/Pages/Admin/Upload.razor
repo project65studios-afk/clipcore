@@ -41,7 +41,7 @@
 
     @if (_isCreatingEvent)
     {
-        <div class="card p-4 mb-4" style="background: var(--bg-dark-800); border: 1px solid var(--border-color); border-radius: var(--radius-lg);">
+        <div class="card p-4 mb-4" style="background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: var(--radius-lg);">
              <h5 class="mb-3">New Event</h5>
              <div class="mb-3">
                  <label class="form-label" style="color: var(--text-secondary); font-size: 0.85rem;">Event Name</label>
@@ -85,7 +85,7 @@
 
     <div class="mb-4">
         <label class="form-label" style="color: var(--text-secondary); font-weight: 600;">3. Add Videos (Processed sequentially)</label>
-        <div id="uppy-dashboard" style="border-radius: 8px; overflow: hidden; border: 1px solid var(--border-color); box-shadow: 0 4px 12px rgba(0,0,0,0.1);"></div>
+        <div id="uppy-dashboard" style="border-radius: 8px; overflow: hidden; border: 1px solid var(--border-color); box-shadow: 0 4px 12px var(--glass-shadow);"></div>
     </div>
 
     @if (!string.IsNullOrEmpty(_selectedEventId))

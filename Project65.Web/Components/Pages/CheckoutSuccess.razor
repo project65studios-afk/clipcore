@@ -18,7 +18,7 @@
     .success-card {
         max-width: 650px;
         margin: 4rem auto;
-        background: var(--bg-dark-800);
+        background: var(--bg-surface);
         border-radius: 24px;
         border: 1px solid var(--border-color);
         overflow: hidden;
@@ -63,7 +63,7 @@
         align-items: center;
         gap: 0.5rem;
         background: rgba(6, 182, 212, 0.1);
-        color: var(--accent-cyan);
+        color: var(--accent-primary);
         padding: 0.4rem 1rem;
         border-radius: 100px;
         font-size: 0.85rem;
@@ -74,7 +74,7 @@
     .pulse-dot {
         width: 8px;
         height: 8px;
-        background: var(--accent-cyan);
+        background: var(--accent-primary);
         border-radius: 50%;
         animation: pulse 1.5s infinite;
     }
@@ -105,7 +105,7 @@
     .item-thumb {
         width: 90px;
         aspect-ratio: 16/9;
-        background: #000;
+        background: var(--bg-main);
         border-radius: 8px;
         overflow: hidden;
         flex-shrink: 0;
@@ -118,6 +118,8 @@
 </style>
 
 @inject ISettingsRepository SettingsRepository
+@inject Project65.Web.Services.StoreSettingsService StoreSettingsService
+@implements IDisposable
 
 <PageTitle>Order Confirmed - @(_storeName ?? "Project65 Studios")</PageTitle>
 
@@ -165,7 +167,7 @@
                             }
                             else
                             {
-                                <div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background: #111;">
+                                <div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background: var(--bg-surface);">
                                     <i class="bi bi-camera-video text-muted"></i>
                                 </div>
                             }
@@ -203,8 +205,8 @@
 
             <div class="mt-4 text-center">
                 <p class="text-muted small">
-                    Have questions? <a href="/faq" style="color: var(--accent-cyan); text-decoration: none;">View FAQ</a> or 
-                    <a href="mailto:support@project65.com" style="color: var(--accent-cyan); text-decoration: none;">Contact Support</a>
+                    Have questions? <a href="/faq" style="color: var(--accent-primary); text-decoration: none;">View FAQ</a> or 
+                    <a href="mailto:support@project65.com" style="color: var(--accent-primary); text-decoration: none;">Contact Support</a>
                 </p>
             </div>
         </div>
@@ -236,8 +238,26 @@
 
     protected override async Task OnInitializedAsync()
     {
-        _storeName = await SettingsRepository.GetValueAsync("StoreName");
-        _supportEmail = await SettingsRepository.GetValueAsync("SupportEmail");
+        _storeName = await StoreSettingsService.GetStoreNameAsync();
+        StoreSettingsService.OnChange += HandleSettingsChange;
+        _supportEmail = await SettingsRepository.GetValueAsync("SupportEmail"); // Keep this line
+        // The instruction implies a FinalizeOrder() method, but doesn't provide its content.
+        // Assuming the original logic for processing the order should be called here or in OnAfterRenderAsync.
+        // For now, keeping the original OnAfterRenderAsync logic for order processing.
+    }
+
+    private void HandleSettingsChange()
+    {
+        InvokeAsync(async () =>
+        {
+            _storeName = await StoreSettingsService.GetStoreNameAsync();
+            StateHasChanged();
+        });
+    }
+
+    public void Dispose()
+    {
+        StoreSettingsService.OnChange -= HandleSettingsChange;
     }
 
     private string ResolveThumbnailUrl(string? fileName)

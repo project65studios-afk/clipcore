@@ -15,7 +15,9 @@ public class SettingsRepository : ISettingsRepository
 
     public async Task<string?> GetValueAsync(string key)
     {
-        var setting = await _context.Settings.FindAsync(key);
+        var setting = await _context.Settings
+            .AsNoTracking()
+            .FirstOrDefaultAsync(s => s.Key == key);
         return setting?.Value;
     }
 

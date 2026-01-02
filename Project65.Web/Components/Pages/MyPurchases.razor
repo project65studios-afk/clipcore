@@ -12,6 +12,8 @@
 @inject IWebHostEnvironment Environment
 @using System.IO
 @inject ISettingsRepository SettingsRepository
+@inject Project65.Web.Services.StoreSettingsService StoreSettingsService
+@implements IDisposable
 @rendermode RenderMode.InteractiveServer
 
 
@@ -29,7 +31,7 @@
     }
     else if (_purchases.Count == 0)
     {
-        <div style="text-align: center; padding: 4rem 1rem; background: var(--bg-dark-800); border-radius: var(--radius-lg); border: 1px dashed var(--border-color);">
+        <div style="text-align: center; padding: 4rem 1rem; background: var(--bg-surface); border-radius: var(--radius-lg); border: 1px dashed var(--border-color);">
             <p style="color: var(--text-secondary); margin-bottom: 1.5rem; font-size: 1.1rem;">You haven't purchased any clips yet.</p>
             <a href="/" class="btn-primary">Browse Events</a>
         </div>
@@ -44,11 +46,11 @@
                     ? "ORD-" + firstItem.StripeSessionId.Substring(firstItem.StripeSessionId.Length - 8).ToUpper() 
                     : "LEGACY-" + firstItem.Id;
 
-                <div class="order-group" style="background: var(--bg-dark-800); border-radius: var(--radius-lg); border: 1px solid var(--border-color); overflow: hidden;">
+                <div class="order-group" style="background: var(--bg-surface); border-radius: var(--radius-lg); border: 1px solid var(--border-color); overflow: hidden;">
                     <!-- Order Header -->
                     <div class="order-header" style="background: rgba(255, 255, 255, 0.05); padding: 1rem 1.5rem; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center;">
                         <div>
-                            <div style="font-weight: 700; color: var(--text-primary);">@orderId</div>
+                            <div style="font-weight: 700; color: var(--text-main);">@orderId</div>
                             <div style="font-size: 0.85rem; color: var(--text-muted);">
                                 						Purchased on @firstItem.CreatedAt.ToLocalTime().ToString("MMMM dd, yyyy") at @firstItem.CreatedAt.ToLocalTime().ToString("t")
 					</div>
@@ -124,7 +126,7 @@
                                     @if (purchase.Clip?.Event != null)
                                     {
                                         <div style="font-size: 0.9rem; margin-bottom: 0.5rem;">
-                                            <a href="/events/@purchase.Clip.EventId" style="color: var(--accent-cyan); text-decoration: none;">
+                                            <a href="/events/@purchase.Clip.EventId" style="color: var(--accent-primary); text-decoration: none;">
                                                 @purchase.Clip.Event.Name
                                             </a>
                                             <span style="color: var(--text-muted); margin-left: 0.5rem;">
@@ -156,7 +158,7 @@
                                             {
                                                 <span>• @startTimeDisplay.Value.ToLocalTime().ToString("t")</span>
                                             }
-                                            <span class="badge" style="background: @(purchase.LicenseType == LicenseType.Commercial ? "var(--accent-purple-dim)" : "var(--accent-cyan-dim)"); color: @(purchase.LicenseType == LicenseType.Commercial ? "var(--accent-purple)" : "var(--accent-cyan)"); border: 1px solid currentColor; font-size: 0.7rem; text-transform: uppercase; font-weight: 600; padding: 0.2rem 0.5rem;">
+                                            <span class="badge" style="background: @(purchase.LicenseType == LicenseType.Commercial ? "var(--accent-purple-dim)" : "var(--accent-primary-dim)"); color: @(purchase.LicenseType == LicenseType.Commercial ? "var(--accent-purple)" : "var(--accent-primary)"); border: 1px solid currentColor; font-size: 0.7rem; text-transform: uppercase; font-weight: 600; padding: 0.2rem 0.5rem;">
                                                 @purchase.LicenseType License
                                             </span>
                                         </div>
@@ -202,7 +204,14 @@
 
     protected override async Task OnInitializedAsync()
     {
-        _storeName = await SettingsRepository.GetValueAsync("StoreName");
+        _storeName = await StoreSettingsService.GetStoreNameAsync();
+        StoreSettingsService.OnChange += HandleSettingsChange;
+        
+        await LoadPurchases();
+    }
+
+    private async Task LoadPurchases()
+    {
         var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
         var user = authState.User;
 
@@ -288,5 +297,18 @@
         }
         
         await JSRuntime.InvokeVoidAsync("alert", "High-res version is not available yet.");
+    }
+    private void HandleSettingsChange()
+    {
+        InvokeAsync(async () =>
+        {
+            _storeName = await StoreSettingsService.GetStoreNameAsync();
+            StateHasChanged();
+        });
+    }
+
+    public void Dispose()
+    {
+        StoreSettingsService.OnChange -= HandleSettingsChange;
     }
 }

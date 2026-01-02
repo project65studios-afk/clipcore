@@ -17,7 +17,7 @@
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
     <style>
         body {
-            background-color: var(--bg-dark-900);
+            background-color: var(--bg-main);
             background-image:
                 radial-gradient(circle at 10% 20%, rgba(6, 182, 212, 0.1) 0%, transparent 40%),
                 radial-gradient(circle at 90% 80%, rgba(236, 72, 153, 0.05) 0%, transparent 40%);
@@ -54,8 +54,12 @@
             margin: 0;
         }
 
-        .brand-logo span {
-            color: var(--accent-cyan);
+        .brand-logo span, .brand-accent {
+            background: linear-gradient(135deg, #06b6d4 0%, #22d3ee 50%, #06b6d4 100%) !important;
+            -webkit-background-clip: text !important;
+            background-clip: text !important;
+            -webkit-text-fill-color: transparent !important;
+            filter: drop-shadow(0 0 8px rgba(6, 182, 212, 0.3));
         }
 
         .section-title {
@@ -80,7 +84,7 @@
 
         .form-control:focus {
             outline: none;
-            border-color: var(--accent-cyan);
+            border-color: var(--accent-primary);
             background: rgba(6, 182, 212, 0.05);
         }
 
@@ -98,7 +102,7 @@
         }
 
         .text-info {
-            color: var(--accent-cyan);
+            color: var(--accent-primary);
             font-size: 0.95rem;
             margin-bottom: 1.5rem;
             line-height: 1.5;
@@ -107,7 +111,7 @@
         .alert-danger {
              background: rgba(236, 72, 153, 0.1);
             border: 1px solid rgba(236, 72, 153, 0.2);
-            color: var(--accent-pink);
+            color: var(--accent-secondary);
             padding: 0.75rem;
             border-radius: 8px;
             font-size: 0.875rem;
@@ -118,7 +122,19 @@
 <body>
     <div class="login-card">
         <div class="brand-logo">
-            <h1 style="text-transform: uppercase;">@storeName</h1>
+            <h1 style="text-transform: uppercase;">
+                @{
+                    var partsE = storeName.Split(' ', 2, StringSplitOptions.RemoveEmptyEntries);
+                    if (partsE.Length > 0)
+                    {
+                        <span class="brand-accent">@partsE[0]</span>
+                        if (partsE.Length > 1)
+                        {
+                            @(" " + partsE[1])
+                        }
+                    }
+                }
+            </h1>
         </div>
 
         <h2 style="margin-top: 0; margin-bottom: 1rem;">Register</h2>

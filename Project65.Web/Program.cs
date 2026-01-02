@@ -59,6 +59,7 @@ builder.Services.AddAuthentication()
 builder.Services.AddScoped<IEventRepository, EventRepository>();
 builder.Services.AddScoped<IClipRepository, ClipRepository>();
 builder.Services.AddSingleton<ISearchService, LevenshteinSearchService>();
+builder.Services.AddSingleton<GlobalSettingsNotifier>();
 builder.Services.AddScoped<EmailTemplateService>();
 
 if (builder.Environment.IsEnvironment("Testing") || builder.Configuration["USE_FAKE_VIDEO"] == "true")
@@ -113,6 +114,7 @@ else
 }
 
 builder.Services.AddScoped<Project65.Web.Services.CartService>();
+builder.Services.AddScoped<Project65.Web.Services.StoreSettingsService>();
 builder.Services.AddScoped<Project65.Web.Services.SummaryGenerationService>();
 builder.Services.AddScoped<IInvoiceService, QuestPdfInvoiceService>();
 builder.Services.AddSingleton<Project65.Web.Services.VideoHealingService>();

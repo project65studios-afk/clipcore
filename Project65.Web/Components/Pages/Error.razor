@@ -2,6 +2,7 @@
 @using System.Diagnostics
 
 @inject ISettingsRepository SettingsRepository
+@inject Project65.Web.Services.StoreSettingsService StoreSettingsService
 
 <PageTitle>Error - @(_storeName ?? "Project65 Studios")</PageTitle>
 
@@ -36,7 +37,7 @@
 
     protected override async Task OnInitializedAsync()
     {
-        _storeName = await SettingsRepository.GetValueAsync("StoreName");
+        _storeName = await StoreSettingsService.GetStoreNameAsync();
         RequestId = Activity.Current?.Id ?? HttpContext?.TraceIdentifier;
     }
 }

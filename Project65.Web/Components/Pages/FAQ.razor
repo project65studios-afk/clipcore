@@ -1,5 +1,7 @@
 @page "/faq"
 @inject ISettingsRepository SettingsRepository
+@inject Project65.Web.Services.StoreSettingsService StoreSettingsService
+@implements IDisposable
 
 <PageTitle>FAQ - @(_storeName ?? "Project65 Studios")</PageTitle>
 
@@ -10,10 +12,10 @@
         
         <!-- Quality Question -->
         <div class="faq-item">
-            <h3 style="color: var(--accent-cyan); margin-bottom: 1rem;">
+            <h3 style="color: var(--accent-primary); margin-bottom: 1rem;">
                 <i class="bi bi-question-circle-fill me-2"></i> Why is the preview video quality low?
             </h3>
-            <div style="background: var(--bg-dark-800); padding: 1.5rem; border-radius: var(--radius-lg); border: 1px solid var(--border-color); color: var(--text-secondary); line-height: 1.6;">
+            <div style="background: var(--bg-surface); padding: 1.5rem; border-radius: var(--radius-lg); border: 1px solid var(--border-color); color: var(--text-secondary); line-height: 1.6;">
                 <p class="mb-3">
                     Our website serves <strong>lightweight 540p previews</strong> for immediate browsing. This ensures that you can quickly scan through hundreds of clips from an event without waiting for massive 4K files to buffer.
                 </p>
@@ -25,10 +27,10 @@
 
         <!-- Delivery Question -->
         <div class="faq-item">
-            <h3 style="color: var(--accent-cyan); margin-bottom: 1rem;">
+            <h3 style="color: var(--accent-primary); margin-bottom: 1rem;">
                 <i class="bi bi-box-seam-fill me-2"></i> How do I receive my video after purchase?
             </h3>
-            <div style="background: var(--bg-dark-800); padding: 1.5rem; border-radius: var(--radius-lg); border: 1px solid var(--border-color); color: var(--text-secondary); line-height: 1.6;">
+            <div style="background: var(--bg-surface); padding: 1.5rem; border-radius: var(--radius-lg); border: 1px solid var(--border-color); color: var(--text-secondary); line-height: 1.6;">
                 <p class="mb-3">
                     We use a secure, direct delivery system:
                 </p>
@@ -47,10 +49,10 @@
 
         <!-- Mobile Question -->
         <div class="faq-item">
-            <h3 style="color: var(--accent-cyan); margin-bottom: 1rem;">
+            <h3 style="color: var(--accent-primary); margin-bottom: 1rem;">
                 <i class="bi bi-phone-fill me-2"></i> Can I download to my phone?
             </h3>
-            <div style="background: var(--bg-dark-800); padding: 1.5rem; border-radius: var(--radius-lg); border: 1px solid var(--border-color); color: var(--text-secondary); line-height: 1.6;">
+            <div style="background: var(--bg-surface); padding: 1.5rem; border-radius: var(--radius-lg); border: 1px solid var(--border-color); color: var(--text-secondary); line-height: 1.6;">
                 <p class="mb-0">
                     <strong>Yes!</strong> Our delivery pages are mobile-friendly. You can tap "Download" on your iPhone or Android device, and the video will be saved to your Files app or Gallery (depending on your device settings).
                 </p>
@@ -59,12 +61,12 @@
 
            <!-- Lost Order Question -->
         <div class="faq-item">
-            <h3 style="color: var(--accent-cyan); margin-bottom: 1rem;">
+            <h3 style="color: var(--accent-primary); margin-bottom: 1rem;">
                 <i class="bi bi-envelope-exclamation-fill me-2"></i> I lost my email! How do I find my order?
             </h3>
-            <div style="background: var(--bg-dark-800); padding: 1.5rem; border-radius: var(--radius-lg); border: 1px solid var(--border-color); color: var(--text-secondary); line-height: 1.6;">
+            <div style="background: var(--bg-surface); padding: 1.5rem; border-radius: var(--radius-lg); border: 1px solid var(--border-color); color: var(--text-secondary); line-height: 1.6;">
                 <p class="mb-0">
-                   You can always recover your past orders using our <a href="/order-lookup" style="color: var(--accent-pink); text-decoration: underline;">Order Lookup</a> tool. Simply enter the email address you used at checkout, and we will show you your purchase history instantly.
+                   You can always recover your past orders using our <a href="/order-lookup" style="color: var(--accent-secondary); text-decoration: underline;">Order Lookup</a> tool. Simply enter the email address you used at checkout, and we will show you your purchase history instantly.
                 </p>
             </div>
         </div>
@@ -83,6 +85,21 @@
 
     protected override async Task OnInitializedAsync()
     {
-        _storeName = await SettingsRepository.GetValueAsync("StoreName");
+        _storeName = await StoreSettingsService.GetStoreNameAsync();
+        StoreSettingsService.OnChange += HandleSettingsChange;
+    }
+
+    private void HandleSettingsChange()
+    {
+        InvokeAsync(async () => 
+        {
+            _storeName = await StoreSettingsService.GetStoreNameAsync();
+            StateHasChanged();
+        });
+    }
+
+    public void Dispose()
+    {
+        StoreSettingsService.OnChange -= HandleSettingsChange;
     }
 }

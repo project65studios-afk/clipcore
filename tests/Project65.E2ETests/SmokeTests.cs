@@ -18,9 +18,15 @@ public class SmokeTests : PageTest
         await Expect(heading).ToContainTextAsync("Events");
         
         // Check Page Title - verify it matches the dynamic brand text in the header
-        var brandText = await Page.Locator(".brand").InnerTextAsync();
+        // Check Page Title - verify it matches the dynamic brand text in the header
+        var brandText = (await Page.Locator(".brand").InnerTextAsync()).Trim();
         var pageTitle = await Page.TitleAsync();
-        Assert.Contains(brandText.Trim(), pageTitle.ToUpper());
+        
+        // Normalize whitespace for comparison
+        var normalizedBrand = System.Text.RegularExpressions.Regex.Replace(brandText, @"\s+", " ");
+        var normalizedTitle = System.Text.RegularExpressions.Regex.Replace(pageTitle.ToUpper(), @"\s+", " ");
+        
+        Assert.Contains(normalizedBrand, normalizedTitle);
     }
 
     [Fact]

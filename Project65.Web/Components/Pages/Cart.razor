@@ -25,7 +25,7 @@
     }
     else if (CartService.Count == 0)
     {
-        <div style="text-align: center; padding: 4rem 1rem; background: var(--bg-dark-800); border-radius: var(--radius-lg); border: 1px dashed var(--border-color);">
+        <div style="text-align: center; padding: 4rem 1rem; background: var(--bg-surface); border-radius: var(--radius-lg); border: 1px dashed var(--border-color);">
             <p style="color: var(--text-secondary); margin-bottom: 1.5rem; font-size: 1.1rem;">Your cart is empty.</p>
             <a href="/" class="btn-primary">Browse Events</a>
         </div>
@@ -48,21 +48,21 @@
                         <h4>@item.Title</h4>
                         @if (_events.TryGetValue(item.EventId, out var evt))
                         {
-                            <div style="font-size: 0.85rem; color: var(--accent-cyan); margin-bottom: 0.25rem;">
+                            <div style="font-size: 0.85rem; color: var(--accent-primary); margin-bottom: 0.25rem;">
                                 @evt.Name
                             </div>
                         }
                         <div style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 0.25rem;">
                              Duration: @(item.DurationSec.HasValue ? TimeSpan.FromSeconds(item.DurationSec.Value).ToString(@"mm\:ss") : "--:--")
                         </div>
-                        <div class="badge" style="background: @(item.LicenseType == LicenseType.Commercial ? "var(--accent-purple-dim)" : "var(--accent-cyan-dim)"); color: @(item.LicenseType == LicenseType.Commercial ? "var(--accent-purple)" : "var(--accent-cyan)"); border: 1px solid currentColor; font-size: 0.7rem; text-transform: uppercase; font-weight: 600; padding: 0.2rem 0.5rem;">
+                        <div class="badge" style="background: @(item.LicenseType == LicenseType.Commercial ? "var(--accent-purple-dim)" : "var(--accent-primary-dim)"); color: @(item.LicenseType == LicenseType.Commercial ? "var(--accent-purple)" : "var(--accent-primary)"); border: 1px solid currentColor; font-size: 0.7rem; text-transform: uppercase; font-weight: 600; padding: 0.2rem 0.5rem;">
                             @item.LicenseType License
                         </div>
                     </div>
 
                     <div class="cart-item-price-actions">
                         <div class="cart-item-price">$@(item.PriceCents / 100.00)</div>
-                        <button class="btn-link" style="color: var(--accent-pink); font-size: 0.8rem; text-decoration: none; padding: 0; border: none; background: none; cursor: pointer;" @onclick="() => RemoveItem(item)">
+                        <button class="btn-link" style="color: var(--accent-secondary); font-size: 0.8rem; text-decoration: none; padding: 0; border: none; background: none; cursor: pointer;" @onclick="() => RemoveItem(item)">
                             Remove
                         </button>
                     </div>
@@ -70,9 +70,9 @@
             }
         </div>
 
-        <div style="background: var(--bg-dark-800); padding: 1.5rem; border-radius: var(--radius-lg); border: 1px solid var(--border-color);">
+        <div style="background: var(--bg-surface); padding: 1.5rem; border-radius: var(--radius-lg); border: 1px solid var(--border-color);">
             <div style="margin-bottom: 2rem; display: flex; gap: 0.5rem;">
-                <input class="form-control" style="background: var(--bg-dark-700); border-color: var(--border-color); color: var(--text-primary); text-transform: uppercase;" @bind="_promoInput" placeholder="Promo Code" disabled="@_isApplyingPromo" />
+                <input class="form-control" style="background: var(--bg-subtle); border-color: var(--border-color); color: var(--text-main); text-transform: uppercase;" @bind="_promoInput" placeholder="Promo Code" disabled="@_isApplyingPromo" />
                 <button class="btn-secondary" style="white-space: nowrap;" @onclick="ApplyPromoAsync" disabled="@(string.IsNullOrWhiteSpace(_promoInput) || _isApplyingPromo)">
                     @(_isApplyingPromo ? "..." : "Apply")
                 </button>
@@ -80,20 +80,20 @@
 
             @if (CartService.IsBundleDiscountApplied)
             {
-                <div style="background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.2); color: #34d399; padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem; text-align: center; font-weight: 500;">
+                <div style="background: var(--status-success-dim); border: 1px solid var(--status-success); color: var(--status-success); padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem; text-align: center; font-weight: 500;">
                     🎉 Volume Discount Unlocked: 25% Off!
                 </div>
             }
             else if (CartService.AppliedPromoCode != null)
             {
-                 <div style="background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.2); color: #34d399; padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem; text-align: center; font-weight: 500; display: flex; justify-content: center; align-items: center; gap: 0.5rem;">
+                 <div style="background: var(--status-success-dim); border: 1px solid var(--status-success); color: var(--status-success); padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem; text-align: center; font-weight: 500; display: flex; justify-content: center; align-items: center; gap: 0.5rem;">
                     <span>🎟️ Promo Applied: <strong>@CartService.AppliedPromoCode.Code</strong></span>
-                    <button class="btn-link" style="color: #ef4444; font-size: 0.8rem; text-decoration: none; padding: 0; border: none; background: none; cursor: pointer;" @onclick="CartService.RemovePromoAsync">Remove</button>
+                    <button class="btn-link" style="color: var(--status-danger); font-size: 0.8rem; text-decoration: none; padding: 0; border: none; background: none; cursor: pointer;" @onclick="CartService.RemovePromoAsync">Remove</button>
                 </div>
             }
             else
             {
-                <div style="background: rgba(6, 182, 212, 0.1); border: 1px solid rgba(6, 182, 212, 0.2); color: var(--accent-cyan); padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem; text-align: center;">
+                <div style="background: var(--accent-primary-dim); border: 1px solid var(--accent-primary); color: var(--accent-primary); padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem; text-align: center;">
                     Add <strong>@(3 - CartService.Count)</strong> more item@(3 - CartService.Count > 1 ? "s" : "") to unlock 25% off!
                 </div>
             }
@@ -105,14 +105,14 @@
 
             @if (CartService.BundleDiscountCents > 0 && CartService.BundleDiscountCents >= CartService.PromoDiscountCents)
             {
-                <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem; font-size: 1rem; color: #34d399;">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem; font-size: 1rem; color: var(--status-success);">
                     <span>Volume Discount (25%)</span>
                     <span>-$@((CartService.BundleDiscountCents / 100.00).ToString("N2"))</span>
                 </div>
             }
             else if (CartService.PromoDiscountCents > 0)
             {
-                 <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem; font-size: 1rem; color: #34d399;">
+                 <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem; font-size: 1rem; color: var(--status-success);">
                     <span>Promo Discount (@(CartService.AppliedPromoCode?.Code))</span>
                     <span>-$@((CartService.PromoDiscountCents / 100.00).ToString("N2"))</span>
                 </div>
@@ -131,6 +131,7 @@
 </div>
 
 @inject ISettingsRepository SettingsRepository
+@inject Project65.Web.Services.StoreSettingsService StoreSettingsService
 
 @code {
     private bool _isInitialized = false;
@@ -140,7 +141,17 @@
 
     protected override async Task OnInitializedAsync()
     {
-        _storeName = await SettingsRepository.GetValueAsync("StoreName");
+        _storeName = await StoreSettingsService.GetStoreNameAsync();
+        StoreSettingsService.OnChange += HandleSettingsChange;
+    }
+
+    private void HandleSettingsChange()
+    {
+        InvokeAsync(async () =>
+        {
+            _storeName = await StoreSettingsService.GetStoreNameAsync();
+            StateHasChanged();
+        });
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -290,5 +301,6 @@
     public void Dispose()
     {
         CartService.OnChange -= StateHasChanged;
+        StoreSettingsService.OnChange -= HandleSettingsChange;
     }
 }

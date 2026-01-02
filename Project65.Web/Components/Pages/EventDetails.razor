@@ -4,6 +4,7 @@
 @inject IEventRepository EventRepository
 @inject IVideoService VideoService
 @inject ISettingsRepository SettingsRepository
+@inject Project65.Web.Services.StoreSettingsService StoreSettingsService
 @inject IStorageService StorageService
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
@@ -14,7 +15,7 @@
 @inject Project65.Web.Services.SummaryGenerationService SummaryGenerationService
 @using Microsoft.AspNetCore.SignalR.Client
 @implements IAsyncDisposable
-@rendermode @(new InteractiveServerRenderMode(prerender: false))
+@implements IDisposable
 
 <PageTitle>@_event?.Name - @(_storeName ?? "Project65 Studios")</PageTitle>
 <HeadContent>
@@ -137,7 +138,7 @@ else
                             @foreach (var p in _event.FeaturedProducts)
                             {
                                 <div class="col-12 col-sm-6">
-                                    <a href="@p.ProductUrl" target="_blank" class="card h-100 shadow-sm border-secondary text-decoration-none product-card" style="background: var(--bg-dark-800); transition: transform 0.2s;">
+                                    <a href="@p.ProductUrl" target="_blank" class="card h-100 shadow-sm border-secondary text-decoration-none product-card" style="background: var(--bg-surface); transition: transform 0.2s;">
                                         <div class="card-img-top bg-black d-flex justify-content-center align-items-center position-relative overflow-hidden" style="height: 160px;">
                                             @if (!string.IsNullOrEmpty(p.ImageUrl))
                                             {
@@ -179,18 +180,18 @@ else
         <style>
             .product-card:hover {
                 transform: translateY(-5px);
-                border-color: var(--accent-cyan) !important;
+                border-color: var(--accent-primary) !important;
             }
         </style>
     </div>
 
     @if (_event.Clips.Count >= 3)
     {
-        <div class="bundle-banner" style="background: linear-gradient(90deg, rgba(6, 182, 212, 0.1) 0%, rgba(2, 132, 199, 0.1) 100%); border: 1px solid var(--accent-cyan-dim); border-radius: var(--radius-md); padding: 1rem; margin-bottom: 3rem; display: flex; align-items: center; gap: 1rem;">
-            <i class="bi bi-stars" style="font-size: 1.5rem; color: var(--accent-cyan);"></i>
+        <div class="bundle-banner" style="background: color-mix(in srgb, var(--accent-primary), transparent 90%); border: 1px solid var(--accent-primary-dim); border-radius: var(--radius-md); padding: 1rem; margin-bottom: 3rem; display: flex; align-items: center; gap: 1rem;">
+            <i class="bi bi-stars" style="font-size: 1.5rem; color: var(--accent-primary);"></i>
             <div>
                 <div class="fw-bold text-body">Event Bundle Discount!</div>
-                <div style="font-size: 0.9rem;" class="text-secondary">Add 3 or more clips from this event to your cart and get <span style="color: var(--accent-cyan); font-weight: 600;">25% OFF</span> your entire order.</div>
+                <div style="font-size: 0.9rem;" class="text-secondary">Add 3 or more clips from this event to your cart and get <span style="color: var(--accent-primary); font-weight: 600;">25% OFF</span> your entire order.</div>
             </div>
         </div>
     }
@@ -275,9 +276,10 @@ else
         var watermarkTask = SettingsRepository.GetValueAsync("WatermarkUrl");
         var eventTask = EventRepository.GetByIdAsync(Id);
 
-        await Task.WhenAll(storeNameTask, watermarkTask, eventTask);
+        await Task.WhenAll(watermarkTask, eventTask);
         
-        _storeName = await storeNameTask;
+        _storeName = await StoreSettingsService.GetStoreNameAsync();
+        StoreSettingsService.OnChange += HandleSettingsChange;
         _watermarkUrl = await watermarkTask;
         _event = await eventTask;
         
@@ -368,6 +370,14 @@ else
         }
     }
 
+    private void HandleSettingsChange()
+    {
+        InvokeAsync(async () => {
+            _storeName = await StoreSettingsService.GetStoreNameAsync();
+            StateHasChanged();
+        });
+    }
+
     public async ValueTask DisposeAsync()
     {
         VideoHealingService.OnClipHealed -= HandleClipHealed;
@@ -375,6 +385,11 @@ else
         {
             await _hubConnection.DisposeAsync();
         }
+    }
+
+    public void Dispose()
+    {
+        StoreSettingsService.OnChange -= HandleSettingsChange;
     }
 
     private void OnSortChanged(ChangeEventArgs e)
