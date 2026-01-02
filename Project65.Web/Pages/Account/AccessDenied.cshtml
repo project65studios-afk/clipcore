@@ -1,7 +1,9 @@
 @page
 @model Project65.Web.Pages.Account.AccessDeniedModel
+@inject ISettingsRepository SettingsRepository
 @{
     Layout = null; // Standalone page like Login/Register
+    var storeName = await SettingsRepository.GetValueAsync("StoreName") ?? "Project65 Studios";
     ViewData["Title"] = "Access Denied";
 }
 
@@ -10,7 +12,7 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Access Denied - Project65</title>
+    <title>Access Denied - @storeName</title>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
     <style>
         body {

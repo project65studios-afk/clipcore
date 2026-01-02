@@ -12,7 +12,7 @@
 @inject IJSRuntime JS
 @rendermode RenderMode.InteractiveServer
 
-<PageTitle>Shopping Cart - Project65</PageTitle>
+<PageTitle>Shopping Cart - @(_storeName ?? "Project65 Studios")</PageTitle>
 
 <div class="content-container" style="max-width: 800px; margin: 0 auto; padding: 2rem 1rem;">
     <h1 style="margin-bottom: 2rem;">Your Cart</h1>
@@ -130,10 +130,18 @@
     }
 </div>
 
+@inject ISettingsRepository SettingsRepository
+
 @code {
     private bool _isInitialized = false;
+    private string? _storeName;
     private Dictionary<string, Event> _events = new();
     private Dictionary<string, string> _thumbnailUrls = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        _storeName = await SettingsRepository.GetValueAsync("StoreName");
+    }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {

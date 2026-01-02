@@ -19,7 +19,7 @@
 @using Microsoft.AspNetCore.SignalR.Client
 @implements IAsyncDisposable
 
-<PageTitle>@_clip?.Title - Project65</PageTitle>
+<PageTitle>@_clip?.Title - @(_storeName ?? "Project65 Studios")</PageTitle>
 
 @if (_loading)
 {
@@ -630,12 +630,20 @@ else
                 }
             }
 
-            _clip = await ClipRepository.GetByIdAsync(Id);
+            // If _clip was not loaded in OnInitializedAsync (e.g., Id was 0 or not set yet), load it here.
+            // Or if Id has changed, reload it.
+            if (_clip == null || _clip.Id != Id)
+            {
+                _clip = await ClipRepository.GetByIdAsync(Id);
+                if (_clip != null)
+                {
+                    _hasPurchasedPersonal = await PurchaseRepository.HasPurchasedAsync(_userId, Id, LicenseType.Personal);
+                    _hasPurchasedCommercial = await PurchaseRepository.HasPurchasedAsync(_userId, Id, LicenseType.Commercial);
+                }
+            }
             
             if (_clip != null)
             {
-                _hasPurchasedPersonal = await PurchaseRepository.HasPurchasedAsync(_userId, Id, LicenseType.Personal);
-                _hasPurchasedCommercial = await PurchaseRepository.HasPurchasedAsync(_userId, Id, LicenseType.Commercial);
                 
                 VideoHealingService.OnClipHealed -= HandleClipHealed; // Unsubscribe old
                 VideoHealingService.OnClipHealed += HandleClipHealed; // Subscribe new

@@ -1,15 +1,8 @@
-﻿@page "/"
-@using Project65.Core.Entities
-@using Project65.Core.Interfaces
-@inject IEventRepository EventRepository
-@inject IVideoService VideoService
-@inject IStorageService StorageService
-@inject IWebHostEnvironment Environment
+﻿@inject ISettingsRepository SettingsRepository
 @using System.IO
 @inject Project65.Web.Services.VideoHealingService VideoHealingService
-@implements IDisposable
 
-<PageTitle>Project65 Studios</PageTitle>
+<PageTitle>@(_storeName ?? "Project65 Studios")</PageTitle>
 
 <div class="mb-4">
     <h1 style="font-size: 2rem; margin-bottom: 0.5rem;">Events</h1>
@@ -66,11 +59,13 @@ else
 
 @code {
     private List<Event>? _events;
+    private string? _storeName;
     private Dictionary<string, string> _tokenCache = new();
     private Dictionary<string, string?> _thumbCache = new();
 
     protected override async Task OnInitializedAsync()
     {
+        _storeName = await SettingsRepository.GetValueAsync("StoreName");
         _events = await EventRepository.ListAsync();
         VideoHealingService.OnClipHealed += HandleClipHealed;
         

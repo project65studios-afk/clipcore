@@ -101,18 +101,32 @@ public class QuestPdfInvoiceService : IInvoiceService
                             row.RelativeItem().Column(column =>
                             {
                                 column.Item().Text("From").SemiBold();
-                                column.Item().Text("Project65 Studios");
+                                var storeName = await _settingsRepository.GetValueAsync("StoreName") ?? "Project65 Studios";
+                                column.Item().Text(storeName);
                                 
                                 if (!string.IsNullOrEmpty(storeAddress))
                                 {
-                                    foreach (var line in storeAddress.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries))
+                                    var storeParts = storeAddress.Split(new[] { ", " }, StringSplitOptions.RemoveEmptyEntries);
+                                    if (storeParts.Length >= 3)
                                     {
-                                        column.Item().Text(line);
+                                        column.Item().Text(storeParts[0]).SemiBold();
+                                        column.Item().Text(string.Join(", ", storeParts.Skip(1).Take(storeParts.Length - 2)));
+                                        
+                                        var storeCountry = storeParts.Last();
+                                        if (storeCountry.Trim().Equals("US", StringComparison.OrdinalIgnoreCase)) storeCountry = "USA";
+                                        column.Item().Text(storeCountry.ToUpper());
+                                    }
+                                    else
+                                    {
+                                        foreach (var line in storeAddress.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries))
+                                        {
+                                            column.Item().Text(line);
+                                        }
                                     }
                                 }
                                 else
                                 {
-                                    column.Item().Text("123 Creative Blvd");
+                                    column.Item().Text("123 Creative Blvd").SemiBold();
                                     column.Item().Text("Los Angeles, CA 90001");
                                 }
                                 column.Item().Text("support@project65.com");

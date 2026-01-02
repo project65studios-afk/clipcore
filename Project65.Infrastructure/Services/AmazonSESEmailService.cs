@@ -11,12 +11,13 @@ public class AmazonSESEmailService : IEmailService
 {
     private readonly IAmazonSimpleEmailService _sesClient;
     private readonly ILogger<AmazonSESEmailService> _logger;
+    private readonly ISettingsRepository _settingsRepository;
     private readonly string _fromEmail;
-    private readonly string _fromName;
 
-    public AmazonSESEmailService(IConfiguration configuration, ILogger<AmazonSESEmailService> logger)
+    public AmazonSESEmailService(IConfiguration configuration, ILogger<AmazonSESEmailService> logger, ISettingsRepository settingsRepository)
     {
         _logger = logger;
+        _settingsRepository = settingsRepository;
         
         // Amazon SES Configuration
         // distinct from R2 configuration
@@ -25,7 +26,6 @@ public class AmazonSESEmailService : IEmailService
         var regionStr = configuration["AWS:Region"] ?? "us-east-1";
         
         _fromEmail = configuration["AWS:FromEmail"] ?? "no-reply@project65.com";
-        _fromName = configuration["AWS:FromName"] ?? "Project65 Studios";
 
         if (string.IsNullOrEmpty(accessKey) || string.IsNullOrEmpty(secretKey))
         {
@@ -47,9 +47,10 @@ public class AmazonSESEmailService : IEmailService
     {
         try
         {
+            var storeName = await _settingsRepository.GetValueAsync("StoreName") ?? "Project65 Studios";
             var sendRequest = new SendEmailRequest
             {
-                Source = $"{_fromName} <{_fromEmail}>",
+                Source = $"{storeName} <{_fromEmail}>",
                 Destination = new Destination
                 {
                     ToAddresses = new List<string> { to }

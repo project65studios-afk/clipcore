@@ -117,7 +117,9 @@
     }
 </style>
 
-<PageTitle>Order Confirmed - Project65</PageTitle>
+@inject ISettingsRepository SettingsRepository
+
+<PageTitle>Order Confirmed - @(_storeName ?? "Project65 Studios")</PageTitle>
 
 <div class="success-card">
     @if (_isValidating)
@@ -228,7 +230,15 @@
 
     private bool _isValidating = true;
     private bool _success = false;
+    private string? _storeName;
+    private string? _supportEmail;
     private List<Purchase> _purchases = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        _storeName = await SettingsRepository.GetValueAsync("StoreName");
+        _supportEmail = await SettingsRepository.GetValueAsync("SupportEmail");
+    }
 
     private string ResolveThumbnailUrl(string? fileName)
     {
@@ -361,11 +371,13 @@
                 // 5. Send Branded Email Receipt
                 try
                 {
+                    // UPDATE: Use dynamic subject
+                    var subject = $"{_storeName ?? "Project65"} Order Receipt";
                     var customerEmail = await PaymentService.GetCustomerEmailFromSessionAsync(SessionId!) ?? "customer@example.com";
                     var customerName = _purchases.FirstOrDefault()?.CustomerName ?? "Customer";
                     
                     var htmlBody = await EmailTemplateService.GenerateOrderReceiptHtmlAsync(shortOrderId, _purchases, customerName);
-                    await EmailService.SendEmailAsync(customerEmail, "Your Project65 Order Receipt", htmlBody);
+                    await EmailService.SendEmailAsync(customerEmail, subject, htmlBody);
                 }
                 catch (Exception)
                 {

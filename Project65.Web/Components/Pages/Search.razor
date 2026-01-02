@@ -18,7 +18,7 @@
 @implements IAsyncDisposable
 @rendermode RenderMode.InteractiveServer
 
-<PageTitle>Search Results - Project65</PageTitle>
+<PageTitle>Search Results - @(_storeName ?? "Project65 Studios")</PageTitle>
 
 <div class="content-container" style="max-width: 1200px; margin: 0 auto; padding: 2rem 1rem;">
     <div class="mb-4">
@@ -105,6 +105,7 @@
     private List<Clip> _clips = new();
     private bool _isSearching = false;
     private string? _watermarkUrl;
+    private string? _storeName;
     private HashSet<string> _purchasedClipIds = new();
 
     [CascadingParameter]
@@ -112,7 +113,10 @@
 
     protected override async Task OnInitializedAsync()
     {
+        _storeName = await SettingsRepository.GetValueAsync("StoreName");
         _watermarkUrl = await SettingsRepository.GetValueAsync("WatermarkUrl");
+        
+        await LoadPurchasedClipsAsync();
         VideoHealingService.OnClipHealed += HandleClipHealed;
     }
 

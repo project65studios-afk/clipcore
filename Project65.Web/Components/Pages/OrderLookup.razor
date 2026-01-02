@@ -9,8 +9,9 @@
 @inject IVideoService VideoService
 @inject IWebHostEnvironment Environment
 @rendermode RenderMode.InteractiveServer
+@inject ISettingsRepository SettingsRepository
 
-<PageTitle>Find My Order - Project65</PageTitle>
+<PageTitle>Find My Order - @(_storeName ?? "Project65 Studios")</PageTitle>
 
 <div style="max-width: 800px; margin: 4rem auto; padding: 2rem;">
     <h1 class="h3 mb-3 text-center">Find My Order</h1>
@@ -111,9 +112,15 @@
 @code {
     private string _email = "";
     private string _orderNumber = "";
+    private string? _storeName;
     private bool _isProcessing = false;
     private bool _hasSearched = false;
     private List<OrderViewModel> _foundOrders = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        _storeName = await SettingsRepository.GetValueAsync("StoreName");
+    }
 
     private class OrderViewModel
     {

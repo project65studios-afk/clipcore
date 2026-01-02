@@ -11,11 +11,12 @@
 @inject IStorageService StorageService
 @inject IWebHostEnvironment Environment
 @using System.IO
+@inject ISettingsRepository SettingsRepository
 @rendermode RenderMode.InteractiveServer
 
 
 
-<PageTitle>My Purchases - Project65</PageTitle>
+<PageTitle>My Purchases - @(_storeName ?? "Project65 Studios")</PageTitle>
 
 <div class="content-container" style="max-width: 1000px; margin: 0 auto; padding: 2rem 1rem;">
     <h1 style="margin-bottom: 2rem;">My Purchases</h1>
@@ -197,9 +198,11 @@
     private bool _isLoading = true;
 
     private Dictionary<string, string> _thumbnailUrls = new();
+    private string? _storeName;
 
     protected override async Task OnInitializedAsync()
     {
+        _storeName = await SettingsRepository.GetValueAsync("StoreName");
         var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
         var user = authState.User;
 

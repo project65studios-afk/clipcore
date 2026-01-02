@@ -5,7 +5,9 @@
 @inject IPurchaseRepository PurchaseRepository
 @inject IStorageService StorageService
 @inject NavigationManager Navigation
-@layout Project65.Web.Components.Layout.MainLayout
+@inject ISettingsRepository SettingsRepository
+
+<PageTitle>Order Delivery - @(_storeName ?? "Project65 Studios")</PageTitle>
 
 <div class="container py-5">
     <div class="row justify-content-center">
@@ -99,6 +101,7 @@
 
     private List<DeliveryItem>? _items;
     private bool _isLoading = true;
+    private string? _storeName;
     private IJSObjectReference? _jsModule;
 
     private class DeliveryItem
@@ -110,6 +113,8 @@
 
     protected override async Task OnInitializedAsync()
     {
+        _storeName = await SettingsRepository.GetValueAsync("StoreName");
+        
         if (string.IsNullOrEmpty(OrderId))
         {
             _isLoading = false;

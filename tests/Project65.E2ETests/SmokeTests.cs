@@ -17,8 +17,10 @@ public class SmokeTests : PageTest
         var heading = Page.Locator("h1");
         await Expect(heading).ToContainTextAsync("Events");
         
-        // Check Page Title
-        await Expect(Page).ToHaveTitleAsync("Project65 Studios");
+        // Check Page Title - verify it matches the dynamic brand text in the header
+        var brandText = await Page.Locator(".brand").InnerTextAsync();
+        var pageTitle = await Page.TitleAsync();
+        Assert.Contains(brandText.Trim(), pageTitle.ToUpper());
     }
 
     [Fact]

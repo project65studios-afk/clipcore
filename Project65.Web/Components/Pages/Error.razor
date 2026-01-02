@@ -1,7 +1,9 @@
 ﻿@page "/Error"
 @using System.Diagnostics
 
-<PageTitle>Error</PageTitle>
+@inject ISettingsRepository SettingsRepository
+
+<PageTitle>Error - @(_storeName ?? "Project65 Studios")</PageTitle>
 
 <h1 class="text-danger">Error.</h1>
 <h2 class="text-danger">An error occurred while processing your request.</h2>
@@ -29,8 +31,12 @@
     private HttpContext? HttpContext { get; set; }
 
     private string? RequestId { get; set; }
+    private string? _storeName;
     private bool ShowRequestId => !string.IsNullOrEmpty(RequestId);
 
-    protected override void OnInitialized() =>
+    protected override async Task OnInitializedAsync()
+    {
+        _storeName = await SettingsRepository.GetValueAsync("StoreName");
         RequestId = Activity.Current?.Id ?? HttpContext?.TraceIdentifier;
+    }
 }

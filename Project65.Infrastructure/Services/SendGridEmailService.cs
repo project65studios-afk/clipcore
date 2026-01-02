@@ -10,15 +10,15 @@ public class SendGridEmailService : IEmailService
 {
     private readonly ISendGridClient _client;
     private readonly string _fromEmail;
-    private readonly string _fromName;
+    private readonly ISettingsRepository _settingsRepository;
     private readonly ILogger<SendGridEmailService> _logger;
 
-    public SendGridEmailService(IConfiguration configuration, ILogger<SendGridEmailService> logger)
+    public SendGridEmailService(IConfiguration configuration, ILogger<SendGridEmailService> logger, ISettingsRepository settingsRepository)
     {
         _logger = logger;
+        _settingsRepository = settingsRepository;
         var apiKey = configuration["SendGrid:ApiKey"];
         _fromEmail = configuration["SendGrid:FromEmail"] ?? "no-reply@project65.com";
-        _fromName = configuration["SendGrid:FromName"] ?? "Project65 Studios";
 
         if (string.IsNullOrEmpty(apiKey))
         {
@@ -32,7 +32,8 @@ public class SendGridEmailService : IEmailService
 
     public async Task SendEmailAsync(string to, string subject, string body)
     {
-        var from = new EmailAddress(_fromEmail, _fromName);
+        var storeName = await _settingsRepository.GetValueAsync("StoreName") ?? "Project65 Studios";
+        var from = new EmailAddress(_fromEmail, storeName);
         var toAddress = new EmailAddress(to);
         var msg = MailHelper.CreateSingleEmail(from, toAddress, subject, body, body); // Plain text and HTML same for now
 

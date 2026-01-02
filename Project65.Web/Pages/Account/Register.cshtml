@@ -1,7 +1,9 @@
 @page
 @model Project65.Web.Pages.Account.RegisterModel
+@inject ISettingsRepository SettingsRepository
 @{
     Layout = null;
+    var storeName = await SettingsRepository.GetValueAsync("StoreName") ?? "Project65 Studios";
 }
 
 <!DOCTYPE html>
@@ -9,7 +11,7 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Register - Project65</title>
+    <title>Register - @storeName</title>
     <link rel="stylesheet" href="/app.css" />
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" >
     <style>
@@ -190,7 +192,7 @@
 <body>
     <div class="login-card">
         <div class="brand-logo">
-            <h1>PROJECT<span>65</span> STUDIOS</h1>
+            <h1 style="text-transform: uppercase;">@storeName</h1>
             <p style="color: var(--text-secondary); margin-top: 0.5rem; font-size: 0.9rem;">Create your account</p>
         </div>
 

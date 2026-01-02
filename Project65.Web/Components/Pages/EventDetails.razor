@@ -16,11 +16,11 @@
 @implements IAsyncDisposable
 @rendermode @(new InteractiveServerRenderMode(prerender: false))
 
-<PageTitle>@_event?.Name - Project65</PageTitle>
+<PageTitle>@_event?.Name - @(_storeName ?? "Project65 Studios")</PageTitle>
 <HeadContent>
     @if (_event != null)
     {
-        <meta property="og:title" content="@_event.Name | Project65 Studios" />
+        <meta property="og:title" content="@_event.Name | @(_storeName ?? "Project65 Studios")" />
         <meta property="og:description" content="@_event.Summary" />
         <meta property="og:type" content="website" />
         <meta property="og:url" content="@Navigation.Uri" />
@@ -254,7 +254,7 @@ else
         var uri = Navigation.Uri;
         try 
         {
-            await JS.InvokeVoidAsync("navigator.share", new { title = _event?.Name ?? "Project65 Event", url = uri });
+            await JS.InvokeVoidAsync("navigator.share", new { title = _event?.Name ?? (_storeName ?? "Project65") + " Event", url = uri });
         }
         catch 
         {
@@ -263,13 +263,21 @@ else
     }
 
 
+    private HubConnection? _hubConnection;
+    private string? _storeName;
+    [Inject] private IClipRepository ClipRepository { get; set; } = default!;
+
+
     protected override async Task OnInitializedAsync()
     {
+        _loading = true;
+        var storeNameTask = SettingsRepository.GetValueAsync("StoreName");
         var watermarkTask = SettingsRepository.GetValueAsync("WatermarkUrl");
         var eventTask = EventRepository.GetByIdAsync(Id);
 
-        await Task.WhenAll(watermarkTask, eventTask);
+        await Task.WhenAll(storeNameTask, watermarkTask, eventTask);
         
+        _storeName = await storeNameTask;
         _watermarkUrl = await watermarkTask;
         _event = await eventTask;
         

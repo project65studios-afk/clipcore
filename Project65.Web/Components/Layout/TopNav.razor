@@ -9,7 +9,14 @@
     <header class="top-nav">
         <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
             <a href="/" class="brand">
-                PROJECT<span>65</span> STUDIOS
+                @if (!string.IsNullOrEmpty(_storeName))
+                {
+                    @_storeName.ToUpper()
+                }
+                else
+                {
+                    <text>PROJECT<span>65</span> STUDIOS</text>
+                }
             </a>
             
             <div class="desktop-nav-content">
@@ -101,9 +108,9 @@
                 <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path>
             </svg>
             <span class="cart-text">Cart</span>
-            @if (CartService.Count > 0)
+            @if (_cartCount > 0)
             {
-                <span style="background: var(--accent-pink); color: white; font-size: 0.7rem; padding: 2px 6px; border-radius: 10px; margin-left: 1px; font-weight: bold;">@CartService.Count</span>
+                <span style="background: var(--accent-pink); color: white; font-size: 0.7rem; padding: 2px 6px; border-radius: 10px; margin-left: 1px; font-weight: bold;">@_cartCount</span>
             }
         </a>
     };
@@ -112,6 +119,8 @@
     private string NavOpenClass => _isNavOpen ? "active" : "";
     private string _searchQuery = "";
     private string? _brandLogoUrl;
+    private int _cartCount = 0;
+    private string? _storeName;
 
     private void HandleSearchKeyUp(KeyboardEventArgs e)
     {
@@ -134,7 +143,9 @@
     protected override async Task OnInitializedAsync()
     {
         _brandLogoUrl = await SettingsRepository.GetValueAsync("BrandLogoUrl");
-        CartService.OnChange += StateHasChanged;
+        _storeName = await SettingsRepository.GetValueAsync("StoreName");
+        CartService.OnChange += HandleCartChange;
+        _cartCount = CartService.Count;
         // Initialize logic moved to AfterRender to avoid prerendering storage issues if needed, 
         // but ProtectedStorage works in OnAfterRender mostly.
     }
@@ -160,9 +171,15 @@
         StateHasChanged();
     }
 
+    private void HandleCartChange()
+    {
+        _cartCount = CartService.Count;
+        StateHasChanged();
+    }
+
     public void Dispose()
     {
-        CartService.OnChange -= StateHasChanged;
+        CartService.OnChange -= HandleCartChange;
         Navigation.LocationChanged -= CloseNav;
     }
 }
