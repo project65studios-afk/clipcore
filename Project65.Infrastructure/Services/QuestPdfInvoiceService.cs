@@ -81,7 +81,20 @@ public class QuestPdfInvoiceService : IInvoiceService
                                 column.Item().Text(purchase.CustomerEmail ?? purchase.User?.Email ?? "");
                                 if (!string.IsNullOrEmpty(purchase.CustomerAddress))
                                 {
-                                    column.Item().Text(purchase.CustomerAddress);
+                                    var parts = purchase.CustomerAddress.Split(new[] { ", " }, StringSplitOptions.RemoveEmptyEntries);
+                                    if (parts.Length >= 3)
+                                    {
+                                        column.Item().Text(parts[0]).SemiBold();
+                                        column.Item().Text(string.Join(", ", parts.Skip(1).Take(parts.Length - 2)));
+                                        
+                                        var country = parts.Last();
+                                        if (country.Trim().Equals("US", StringComparison.OrdinalIgnoreCase)) country = "USA";
+                                        column.Item().Text(country.ToUpper());
+                                    }
+                                    else
+                                    {
+                                        column.Item().Text(purchase.CustomerAddress);
+                                    }
                                 }
                             });
 
