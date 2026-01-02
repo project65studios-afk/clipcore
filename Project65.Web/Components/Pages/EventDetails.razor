@@ -35,10 +35,55 @@
     }
 </HeadContent>
 
-@if (_event == null)
+@if (_loading)
 {
-    @if (_loading) { <p>Loading...</p> }
-    else { <p>Event not found.</p> }
+    <div class="mb-4">
+        <div class="skeleton-text" style="width: 120px;"></div>
+    </div>
+
+    <div class="premium-card">
+        <div class="row g-4">
+            <!-- Left Column: Skeleton Details -->
+            <div class="col-lg-7 col-xl-8">
+                <div class="skeleton-text" style="width: 60%; height: 3rem; margin-bottom: 1rem;"></div> <!-- Title -->
+                <div class="event-meta">
+                    <div class="skeleton-text" style="width: 100px;"></div>
+                    <span class="meta-dot">•</span>
+                    <div class="skeleton-text" style="width: 120px;"></div>
+                </div>
+                <!-- Summary Lines -->
+                <div class="skeleton-text" style="width: 90%; height: 1rem; margin-bottom: 0.5rem;"></div>
+                <div class="skeleton-text" style="width: 80%; height: 1rem; margin-bottom: 0.5rem;"></div>
+                <div class="skeleton-text" style="width: 50%; height: 1rem;"></div>
+                
+                <div class="event-header-actions" style="margin-top: 1.5rem; display: flex; gap: 0.5rem;">
+                     <!-- Skeleton Buttons -->
+                    <div class="skeleton" style="width: 120px; height: 45px; border-radius: 12px;"></div>
+                    <div class="skeleton" style="width: 120px; height: 45px; border-radius: 12px;"></div>
+                </div>
+            </div>
+            <!-- Right Column: Skeleton Featured -->
+            <div class="col-lg-5 col-xl-4">
+                 <div class="skeleton" style="width: 100%; height: 200px; border-radius: 12px;"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="mb-4 event-details-header" style="display: flex; justify-content: space-between; align-items: center;">
+        <h3 class="section-title">All Clips</h3>
+        <div class="skeleton" style="width: 200px; height: 38px; border-radius: 12px;"></div>
+    </div>
+
+    <div class="video-grid">
+        @for (int i = 0; i < 8; i++)
+        {
+            <SkeletonCard />
+        }
+    </div>
+}
+else if (_event == null)
+{
+    <p>Event not found.</p>
 }
 else
 {

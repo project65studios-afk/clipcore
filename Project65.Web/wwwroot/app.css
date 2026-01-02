@@ -1811,3 +1811,41 @@ h3 {
         transform: translateY(0) scale(1);
     }
 }
+/* Skeleton Loading Animation */
+.skeleton-card {
+    pointer-events: none;
+    user-select: none;
+}
+
+.skeleton, .skeleton-text {
+    background: #1e293b;
+    background: linear-gradient(
+        90deg, 
+        rgba(30, 41, 59, 1) 0%, 
+        rgba(51, 65, 85, 1) 50%, 
+        rgba(30, 41, 59, 1) 100%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite linear;
+    border-radius: 4px;
+}
+
+.skeleton-text {
+    height: 1em;
+    margin-bottom: 0.5rem;
+    display: inline-block;
+}
+
+.video-title.skeleton-text {
+    height: 1.4rem; /* Match h3 height roughly */
+    margin-bottom: 0.75rem;
+}
+
+@keyframes shimmer {
+    0% {
+        background-position: -200% 0;
+    }
+    100% {
+        background-position: 200% 0;
+    }
+}
