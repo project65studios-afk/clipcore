@@ -58,7 +58,7 @@ public class QuestPdfInvoiceService : IInvoiceService
 
                         if (logoBytes != null && logoBytes.Length > 0)
                         {
-                            row.ConstantItem(100).Height(50).AlignRight().Image(logoBytes, ImageScaling.FitArea);
+                            row.ConstantItem(100).Height(50).AlignRight().Image(logoBytes).FitArea();
                         }
                         else 
                         {

@@ -25,7 +25,7 @@ public class MuxVideoService : IVideoService
     private readonly IUsageRepository _usageRepository;
     private readonly IMemoryCache _cache;
     private readonly ILogger<MuxVideoService> _logger;
-    private const int MaxDailyTokens = 1000; // Increased buffer for dev/testing
+    private const int MaxDailyTokens = 200; // Lowered to 200 (human-safe, bot-hostile)
 
     private readonly Polly.ResiliencePipeline _resiliencePipeline;
     
@@ -213,14 +213,18 @@ public class MuxVideoService : IVideoService
                 
                 // Allow Admins AND low-res previews (480p) to bypass limits
                 bool isAdmin = context?.User?.IsInRole("Admin") ?? false;
-                bool isPreview = !string.IsNullOrEmpty(maxResolution);
+                bool isPreview = !string.IsNullOrEmpty(maxResolution); // Previews send "540p"
                 
                 if (!isAdmin && !isPreview && ip != "unknown")
                 {
+                    // Tiered Limits: 400 for Logged In, 200 for Anonymous
+                    bool isAuthenticated = context?.User?.Identity?.IsAuthenticated == true;
+                    int dailyLimit = isAuthenticated ? 400 : 200;
+
                     var usage = await _usageRepository.GetUsageAsync(ip, date);
-                    if (usage.TokenRequestCount >= MaxDailyTokens)
+                    if (usage.TokenRequestCount >= dailyLimit)
                     {
-                        _logger.LogWarning($"[LIMIT] IP {ip} exceeded daily limit ({usage.TokenRequestCount}). Denying token.");
+                        _logger.LogWarning($"[LIMIT] IP {ip} exceeded daily limit ({usage.TokenRequestCount}/{dailyLimit}). Denying token.");
                         return ""; 
                     }
 

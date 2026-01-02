@@ -31,8 +31,9 @@ These items address potential failure points in a production environment.
 - **Solution**: Implement filename/metadata matching.
 - **Details**: Block upload if the filename does not match the expected pattern or Clip ID.
 
-### 6. Strict Watch Limits (Per IP)
-- **Problem**: Basic token limits exist, but we need a hard "Watch Hour Cap" per IP to prevent scraping/abuse.
+### 6. [x] **Refine Watch Limits (Tiered)**  ✅ Completed
+   - **Goal**: Prevent scraping without hurting UX.
+   - **Status**: Done (200 Anon / 400 Auth / Unlimited Admin + Free Previews).r IP to prevent scraping/abuse.
 - **Solution**: Enhance `MuxVideoService` logic.
 - **Details**: Track total seconds watched (or tokens issued) per IP and enforce a strict daily cap.
 

@@ -188,7 +188,7 @@
 
     private async Task<(string type, string token)> GetSpecificTokenAsync(string playbackId, string type)
     {
-        var token = await VideoService.GetPlaybackToken(playbackId, type, "480p");
+        var token = await VideoService.GetPlaybackToken(playbackId, type, "540p");
         return (type, token);
     }
 

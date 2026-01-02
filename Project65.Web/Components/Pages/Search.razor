@@ -71,7 +71,7 @@
                                     }
                                     <div class="mt-2">
                                          <span class="badge bg-white text-dark bg-opacity-75 backdrop-blur">
-                                            @evt.Clips.Count Clips
+                                            @(evt.Clips?.Count ?? 0) Clips
                                          </span>
                                     </div>
                                 </div>
