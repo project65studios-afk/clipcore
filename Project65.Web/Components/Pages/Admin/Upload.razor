@@ -9,7 +9,10 @@
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
 @inject IAuditService AuditService
-@rendermode RenderMode.InteractiveServer
+@using Microsoft.AspNetCore.SignalR
+@inject IHubContext<Project65.Web.Hubs.ProcessingHub> HubContext
+
+
 
 <h1>Upload Clips</h1>
 
@@ -271,6 +274,10 @@
                 }
 
                 await ClipRepository.UpdateAsync(clip);
+
+                // Notify clients via SignalR that specific clip is updated
+                await HubContext.Clients.All.SendAsync("ClipStatusUpdated", clip.Id, "Ready");
+
                 return;
             }
 

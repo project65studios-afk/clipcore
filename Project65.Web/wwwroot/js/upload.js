@@ -43,12 +43,22 @@ window.muxUpload = {
                 // Get event and price from Blazor component
                 const uploadInfo = await dotNetHelper.invokeMethodAsync('GetUploadInfo');
 
-                for (const id of fileIDs) {
+                // Concurrency control
+                const MAX_CONCURRENT_UPLOADS = 6;
+                let activeUploads = 0;
+                const queue = [...fileIDs]; // Clone array to manage queue
+
+                // Process queue
+                const processNext = async () => {
+                    if (queue.length === 0) return;
+
+                    const id = queue.shift();
                     const file = uppy.getFile(id);
+                    activeUploads++;
 
                     try {
+                        // --- Upload Logic Start ---
                         uppy.info(`Uploading ${file.name} to server...`, 'info', 0);
-
                         const startTime = performance.now();
 
                         // Create FormData
@@ -63,103 +73,101 @@ window.muxUpload = {
                         formData.append('priceCents', uploadInfo.priceCents);
                         formData.append('userId', uploadInfo.userId);
 
-                        // Capture Modified Date (Browser only exposes lastModified)
-                        // Use this as fallback if Mux fails to read date from file metadata
+                        // Capture Modified Date
                         if (file.data.lastModified) {
                             const modifiedDate = new Date(file.data.lastModified).toISOString();
                             formData.append('lastModified', modifiedDate);
                         }
 
                         // Upload to server with progress tracking
-                        const xhr = new XMLHttpRequest();
+                        await new Promise((resolve, reject) => {
+                            const xhr = new XMLHttpRequest();
 
-                        // Mark file as uploading
-                        uppy.setFileState(id, {
-                            progress: {
-                                uploadStarted: Date.now(),
-                                uploadComplete: false,
-                                percentage: 0,
-                                bytesUploaded: 0,
-                                bytesTotal: file.size
-                            }
-                        });
+                            // Mark file as uploading
+                            uppy.setFileState(id, {
+                                progress: {
+                                    uploadStarted: Date.now(),
+                                    uploadComplete: false,
+                                    percentage: 0,
+                                    bytesUploaded: 0,
+                                    bytesTotal: file.size
+                                }
+                            });
 
-                        uppy.emit('upload-started', file);
+                            uppy.emit('upload-started', file);
 
-                        xhr.upload.addEventListener('progress', (e) => {
-                            if (e.lengthComputable) {
-                                const percentage = Math.round((e.loaded / e.total) * 100);
-
-                                // Update file state for Uppy Dashboard to show progress
-                                uppy.setFileState(id, {
-                                    progress: {
-                                        uploadStarted: startTime,
-                                        uploadComplete: false,
-                                        percentage: percentage,
+                            xhr.upload.addEventListener('progress', (e) => {
+                                if (e.lengthComputable) {
+                                    const percentage = Math.round((e.loaded / e.total) * 100);
+                                    uppy.setFileState(id, {
+                                        progress: {
+                                            uploadStarted: startTime,
+                                            uploadComplete: false,
+                                            percentage: percentage,
+                                            bytesUploaded: e.loaded,
+                                            bytesTotal: e.total
+                                        }
+                                    });
+                                    uppy.emit('upload-progress', file, {
+                                        uploader: this,
                                         bytesUploaded: e.loaded,
                                         bytesTotal: e.total
-                                    }
-                                });
+                                    });
+                                }
+                            });
 
-                                uppy.emit('upload-progress', file, {
-                                    uploader: this,
-                                    bytesUploaded: e.loaded,
-                                    bytesTotal: e.total
-                                });
-                                uppy.info(`Uploading ${file.name}: ${percentage}% (${(e.loaded / 1024 / 1024).toFixed(1)}MB / ${(e.total / 1024 / 1024).toFixed(1)}MB)`, 'info', 1000);
-                            }
-                        });
-
-                        const uploadPromise = new Promise((resolve, reject) => {
                             xhr.addEventListener('load', () => {
                                 if (xhr.status >= 200 && xhr.status < 300) {
                                     const response = JSON.parse(xhr.responseText);
-                                    const totalTime = ((performance.now() - startTime) / 1000).toFixed(1);
-
-                                    // Update file state to show 100% complete
                                     uppy.setFileState(id, {
-                                        progress: { uploadComplete: true, uploadStarted: Date.now() }
+                                        progress: { uploadComplete: true, uploadStarted: Date.now(), percentage: 100 }
                                     });
-
                                     uppy.emit('upload-success', file, {
                                         clipId: response.clipId,
                                         fileName: file.name
                                     });
-
-                                    // Show success notification
-                                    uppy.info(`✓ ${file.name} uploaded and compressed successfully!`, 'success', 5000);
-
+                                    uppy.info(`✓ ${file.name} uploaded!`, 'success', 3000);
                                     resolve(response);
                                 } else {
                                     reject(new Error(`Server returned ${xhr.status}: ${xhr.responseText}`));
                                 }
                             });
 
-                            xhr.addEventListener('error', () => {
-                                reject(new Error('Network error'));
-                            });
-
+                            xhr.addEventListener('error', () => reject(new Error('Network error')));
                             xhr.open('POST', '/api/admin/VideoCompression/compress-and-upload');
 
                             // Add CSRF Token
-                            const token = document.cookie
-                                .split('; ')
-                                .find(row => row.startsWith('XSRF-TOKEN='))
-                                ?.split('=')[1];
-                            if (token) {
-                                xhr.setRequestHeader('X-XSRF-TOKEN', decodeURIComponent(token));
-                            }
+                            const token = document.cookie.split('; ').find(row => row.startsWith('XSRF-TOKEN='))?.split('=')[1];
+                            if (token) xhr.setRequestHeader('X-XSRF-TOKEN', decodeURIComponent(token));
 
                             xhr.send(formData);
                         });
-
-                        await uploadPromise;
+                        // --- Upload Logic End ---
 
                     } catch (err) {
                         console.error(`[Server] Failed ${file.name}:`, err);
                         uppy.emit('upload-error', file, err);
+                        uppy.info(`Failed to upload ${file.name}`, 'error', 5000);
+                    } finally {
+                        activeUploads--;
+                        // If there are more items in queue, start next one
+                        if (queue.length > 0) {
+                            await processNext();
+                        }
                     }
+                };
+
+                // Start initial batch of uploads
+                const initialBatch = [];
+                const batchSize = Math.min(fileIDs.length, MAX_CONCURRENT_UPLOADS);
+
+                for (let i = 0; i < batchSize; i++) {
+                    initialBatch.push(processNext());
                 }
+
+                // Wait for all initial threads (which will recursively process the rest) to finish
+                // Note: This logic waits for the 'chains' to complete.
+                await Promise.all(initialBatch);
             };
         }
 

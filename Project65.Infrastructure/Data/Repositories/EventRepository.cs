@@ -99,9 +99,12 @@ public class EventRepository : IEventRepository
             
         if (evt != null)
         {
-            // Note: DB will cascade delete clips if foreign keys are setup that way.
-            // But we should return the assets to the caller or handle it here?
-            // The plan said the UI will handle Mux deletion. 
+            // Explicitly remove clips to ensure EF tracks the deletion
+            if (evt.Clips.Any())
+            {
+                _context.Clips.RemoveRange(evt.Clips);
+            }
+            
             _context.Events.Remove(evt);
             await _context.SaveChangesAsync();
         }

@@ -42,7 +42,7 @@ These items address potential failure points in a production environment.
 
 Enhancements to increase user engagement and perceived performance.
 
-### 7. Skeleton Loading Screens
+### 7. Skeleton Loading Screens - ✅ Completed
 - **Problem**: Users see simple text "Loading..." or empty space while waiting for data.
 - **Solution**: Implement "Skeleton" UI components (pulsing gray placeholders).
 - **Details**: Create a `<SkeletonCard />` component to mimic the layout of `ClipCard` during `OnInitializedAsync`.
@@ -56,6 +56,7 @@ Enhancements to increase user engagement and perceived performance.
 - **Problem**: Progress bars in the Admin Upload event don't accurately reflect individual clip progress vs. overall bulk upload progress.
 - **Solution**: Refactor `Uppy` or upload logic.
 - **Details**: Ensure granular progress events are effectively bubbled up and visualized for each file in the queue.
+- also after event upload, thumbnails do not instantly show up and hover previews do not work. i have to refresh the page to see the changes.
 
 ### 10. Advanced Search (Fuzzy Matching)
 - **Problem**: Search requires exact substrings. A typo like "weedding" returns zero results for "wedding".

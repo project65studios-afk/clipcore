@@ -143,18 +143,7 @@
                                         <button class="btn btn-sm btn-outline-primary border-0 fw-bold" @onclick="() => OpenEditModal(evt)">
                                             Edit
                                         </button>
-                                        <div class="dropdown d-inline-block">
-                                            <button class="btn btn-sm btn-link text-secondary p-0 px-2" type="button" data-bs-toggle="dropdown">
-                                                <i class="bi bi-three-dots-vertical"></i>
-                                            </button>
-                                            <ul class="dropdown-menu dropdown-menu-end shadow">
-                                                <li>
-                                                    <button class="dropdown-item text-danger small" @onclick="() => ConfirmDelete(evt)">
-                                                        <i class="bi bi-trash me-2"></i>Delete Event
-                                                    </button>
-                                                </li>
-                                            </ul>
-                                        </div>
+
                                     </div>
                                 </td>
                             </tr>
@@ -315,8 +304,10 @@
                     </div>
                 </div>
                 <div class="modal-footer justify-content-between">
-                    <div class="text-muted small">
-                        <i class="bi bi-info-circle me-1"></i> Changes to products are saved immediately upon "Save Changes".
+                    <div>
+                         <button class="btn btn-outline-danger px-3" @onclick="() => InitiateDeleteFromEdit(_eventToEdit)">
+                            <i class="bi bi-trash me-2"></i>Delete Event
+                         </button>
                     </div>
                     <div class="d-flex gap-2">
                         <button class="btn btn-outline-secondary" @onclick="CancelEdit" disabled="@_isProcessing">Cancel</button>
@@ -501,6 +492,20 @@
         {
             _isProcessing = false;
         }
+    }
+
+    private void InitiateDeleteFromEdit(Event evt)
+    {
+        // Close the edit modal
+        _isEditing = false;
+        
+        // Open the delete confirmation modal
+        // We need to find the original event object from the list to pass to ConfirmDelete
+        // because ConfirmDelete expects an object that might be used for display or reference.
+        // However, since we have the ID, we can just use the cloned one or look up.
+        // Simpler: Just pass the cloned one, as ConfirmDelete mainly needs the ID and Name for display.
+        
+        ConfirmDelete(evt);
     }
 
     private void ConfirmDelete(Event evt)

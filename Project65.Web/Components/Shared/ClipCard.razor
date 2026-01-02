@@ -124,13 +124,23 @@
         }
     }
 
+    private string? _lastLoadedPreviewId;
+
     protected override async Task OnInitializedAsync()
     {
         CartService.OnChange += StateHasChanged;
-        
+        // Logic moved to OnParametersSetAsync to handle updates
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
         if (!string.IsNullOrEmpty(PreviewId) && !PreviewId.StartsWith("mock"))
         {
-            await LoadTokensForClip(PreviewId);
+            if (_lastLoadedPreviewId != PreviewId)
+            {
+                _lastLoadedPreviewId = PreviewId;
+                await LoadTokensForClip(PreviewId);
+            }
         }
     }
 
