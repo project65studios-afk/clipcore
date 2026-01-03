@@ -4,12 +4,17 @@
 @using Microsoft.AspNetCore.Components.Forms
 @using Microsoft.AspNetCore.Hosting
 @using ClipCore.Core.Interfaces
+@inject NavigationManager Navigation
 @attribute [Authorize(Roles = "Admin")]
 @inject ISettingsRepository SettingsRepository
-@inject IWebHostEnvironment Environment
 @inject IAuditService AuditService
 @inject IStorageService StorageService
+@inject ITenantRepository TenantRepository
 @inject ClipCore.Web.Services.StoreSettingsService StoreSettingsService
+@inject ClipCore.Infrastructure.Services.TenantContext TenantContext
+@inject IPaymentService MainPaymentService
+@inject IConfiguration Configuration
+@inject AuthenticationStateProvider AuthProvider
 
 <div class="admin-container" style="max-width: 1200px; margin: 2rem auto; padding: 0 1rem;">
     <!-- Header -->
@@ -202,6 +207,46 @@
                     </div>
 
                 </div>
+                
+                <!-- Payment Settings -->
+                <div class="card shadow-sm mt-4" style="background: var(--bg-surface); border: 1px solid var(--border-color);">
+                    <div class="card-header bg-transparent py-3" style="border-bottom: 1px solid var(--border-color);">
+                        <h5 class="mb-0" style="color: var(--text-main);"><i class="bi bi-credit-card me-2 text-success"></i>Payment Settings</h5>
+                    </div>
+                    <div class="card-body">
+                     <div class="mb-3">
+                            <label class="form-label" style="color: var(--text-main);">Stripe Connectivity</label>
+                            
+                            @if (!string.IsNullOrEmpty(_stripeConnectAccountId))
+                            {
+                                <div class="alert alert-success d-flex align-items-center mb-3 px-3 py-2">
+                                    <i class="bi bi-check-circle-fill me-2"></i> 
+                                    <div>
+                                        <strong>Payments Enabled</strong><br/>
+                                        <small>Connected Account: @_stripeConnectAccountId</small>
+                                    </div>
+                                    <button class="btn btn-sm btn-outline-danger ms-auto" @onclick="DisconnectStripe">Disconnect</button>
+                                </div>
+                            }
+                            else
+                            {
+                                <div class="alert alert-warning mb-3 px-3 py-2">
+                                    <div class="d-flex align-items-center">
+                                        <i class="bi bi-exclamation-triangle-fill me-2"></i> <span>Payments Disabled</span>
+                                    </div>
+                                    <div class="small mt-1">You must connect a Stripe account to accept payments.</div>
+                                </div>
+                                
+                                <button class="btn btn-primary w-100 py-2 d-flex align-items-center justify-content-center gap-2" @onclick="ConnectStripe" disabled="@_isSaving">
+                                    <span>Connect with Stripe</span>
+                                    <i class="bi bi-arrow-right"></i>
+                                </button>
+                                <div class="form-text text-muted text-center mt-2">You will be redirected to Stripe to complete setup.</div>
+                            }
+                        </div>
+                    </div>
+                </div>
+
                 <div class="card-footer bg-transparent p-4" style="border-top: 1px solid var(--border-color);">
                     <div class="d-flex justify-content-between align-items-center">
                         <div class="small">
@@ -246,6 +291,7 @@
     private string? _baseSiteUrl;
     private double _defaultPrice = 10.00;
     private bool _maintenanceMode;
+    private string? _stripeConnectAccountId;
     
     private bool _isSaving;
     private bool _showSuccess;
@@ -287,6 +333,10 @@
 
         var maintenanceStr = await SettingsRepository.GetValueAsync("MaintenanceMode");
         _maintenanceMode = maintenanceStr == "true";
+        
+        // Load Stripe Connect ID explicitly from TenantContext
+        // We do not load this from SettingsRepository because it's a core Tenant property
+        _stripeConnectAccountId = TenantContext.CurrentTenant.StripeConnectAccountId;
     }
 
     private async Task HandleLogoSelected(InputFileChangeEventArgs e)
@@ -366,7 +416,53 @@
             await SettingsRepository.SetValueAsync("SupportEmail", _supportEmail ?? "");
             await SettingsRepository.SetValueAsync("BaseSiteUrl", _baseSiteUrl ?? "");
             await SettingsRepository.SetValueAsync("DefaultPrice", _defaultPrice.ToString());
+            await SettingsRepository.SetValueAsync("DefaultPrice", _defaultPrice.ToString());
             await SettingsRepository.SetValueAsync("MaintenanceMode", _maintenanceMode ? "true" : "false");
+
+            // Save Stripe Connect ID to Tenant
+            // This requires modifying the Tenant entity itself in the database
+            // Ideally we'd have a TenantRepository.UpdateAsync, but for now we might use ITenantProvider or similar?
+            // Wait, we can use SettingsRepository if we mapped it, OR more correctly:
+            // update the ACTUAL tenant record.
+            // Since TenantContext is scoped, let's see if we have a way to save.
+            // Actually, best practice here is to use a TenantService or Repository.
+            // But for speed, let's inject ITenantProvider or Repository? 
+            // NOTE: SettingsRepository is for K/V pairs. Connect ID is on the Entity.
+            // Let's use the DB Context via a repository if available.
+            // Wait, we don't have ITenantRepository injected here.
+            // Let's cheat slightly and use SettingsRepository ONLY IF we change the architecture, 
+            // BUT correct way is:
+            
+            // We need to persist this change. 
+            // Let's assume we can add a method to SettingsRepository or similar, OR inject the DbContext (bad practice in checking).
+            // Let's add ITenantRepository injection!
+            
+            // For now, I will use a direct update strategy assuming there is a repository available.
+            // I'll check available services first.
+            // Ah, I'll inject ITenantProvider? No that's read only.
+            // I need to update the tenant.
+            
+            // Temporary: I will assume I can update it via a repository.
+            // I'll add @inject ITenantRepository at the top next step if it fails.
+            
+            // Wait - I can't just write comments. I need to IMPLEMENT.
+            // I'll add the saving logic in the next tool call because I need to check if ITenantRepository exists.
+            
+            // RE-READING CODE: TenantContext.CurrentTenant is the object. 
+            // I need to save it. 
+            // Let's assume for this step I am just adding the UI and binding.
+            // I will fix the persistence in the next step.
+            
+            // ACTUALLY, I will add the logic to update TenantContext.CurrentTenant object
+            // and then I need to save it.
+            if (TenantContext.CurrentTenant.StripeConnectAccountId != _stripeConnectAccountId)
+            {
+                 // Update the local context
+                 TenantContext.CurrentTenant.StripeConnectAccountId = _stripeConnectAccountId;
+                 
+                 // Persist to database
+                 await TenantRepository.UpdateAsync(TenantContext.CurrentTenant);
+            }
             
             // Notify local service for immediate UI updates
             StoreSettingsService.NotifySettingChanged("StoreName", _storeName ?? "ClipCore Studios");
@@ -393,6 +489,50 @@
         finally 
         {
             _isSaving = false;
+        }
+    }
+    private async Task ConnectStripe()
+    {
+        _isSaving = true;
+        try 
+        {
+            // Use Centralized Redirect URI from Configuration
+            // This URI is whitelisted in Stripe, allowing all subdomains to use it.
+            var redirectUri = Configuration["Stripe:RedirectUri"];
+            
+            if (string.IsNullOrEmpty(redirectUri))
+            {
+                 // Fallback if not configured
+                 redirectUri = Navigation.BaseUri.TrimEnd('/') + "/api/stripe/connect/callback";
+            }
+            
+            var state = TenantContext.CurrentTenant.Id.ToString();
+            var suggestedUrl = Navigation.BaseUri;
+            var businessName = TenantContext.CurrentTenant.Name;
+            var productDescription = $"Selling professional video clips and photography services via {TenantContext.CurrentTenant.Name} on the ClipCore platform.";
+            
+            // Try to get user email if available
+            var authState = await AuthProvider.GetAuthenticationStateAsync();
+            var email = authState.User.Identity?.Name;
+
+            var url = await MainPaymentService.GetConnectOAuthUrlAsync(redirectUri, state, suggestedUrl, businessName, productDescription, email);
+            Navigation.NavigateTo(url);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Connect Error: {ex.Message}");
+            _isSaving = false;
+        }
+    }
+
+    private async Task DisconnectStripe()
+    {
+        if (TenantContext.CurrentTenant.StripeConnectAccountId != null)
+        {
+            TenantContext.CurrentTenant.StripeConnectAccountId = null;
+            await TenantRepository.UpdateAsync(TenantContext.CurrentTenant);
+            _stripeConnectAccountId = null;
+            StoreSettingsService.NotifySettingChanged("StripeConnect", "disconnected");
         }
     }
 }

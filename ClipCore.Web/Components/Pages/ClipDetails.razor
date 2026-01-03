@@ -17,7 +17,9 @@
 @inject IStorageService StorageService
 @inject ClipCore.Web.Services.VideoHealingService VideoHealingService
 @inject IAuditService AuditService
+@inject IAuditService AuditService
 @using Microsoft.AspNetCore.SignalR.Client
+@inject ClipCore.Infrastructure.Services.TenantContext TenantContext
 @implements IAsyncDisposable
 @implements IDisposable
 
@@ -300,43 +302,60 @@ else
                     <span style="float: right;">@(_clip?.DurationSec.HasValue == true ? TimeSpan.FromSeconds(_clip.DurationSec.Value).ToString(@"mm\:ss") : "--:--")</span>
                 </div>
                 
-                @{
-                    var status = _selectedLicense == LicenseType.Personal ? _hasPurchasedPersonal : _hasPurchasedCommercial;
-                }
-
-                @if (status)
+                @if (string.IsNullOrEmpty(TenantContext.CurrentTenant.StripeConnectAccountId))
                 {
-                    <div style="background: var(--status-success-dim); border: 1px solid var(--status-success); color: var(--status-success); padding: 1.25rem; border-radius: var(--radius-md); text-align: center; margin-bottom: 2rem;">
-                        <i class="bi bi-check2-circle fs-3 mb-2 d-block"></i>
-                        <div class="fw-bold">Owned License: @(_selectedLicense)</div>
-                        <div class="small mt-1 opacity-75">Available in your dashboard.</div>
+                    <AuthorizeView Roles="Admin">
+                         <div class="alert alert-danger" style="font-size: 0.9rem;">
+                             <strong><i class="bi bi-exclamation-octagon-fill me-1"></i> Payments Disabled</strong>
+                             <p class="mb-0 mt-1">You must connect a Stripe account in settings to accept payments.</p>
+                             <a href="/admin/settings" class="btn btn-sm btn-outline-danger mt-2 w-100">Connect Stripe</a>
+                         </div>
+                    </AuthorizeView>
+
+                    <div style="background: var(--bg-surface); padding: 1.5rem; text-align: center; border-radius: var(--radius-md); border: 1px dashed var(--text-muted);">
+                        <i class="bi bi-shop text-muted fs-2 mb-2"></i>
+                        <h5 class="text-secondary">Purchasing Unavailable</h5>
+                        <p class="text-muted small mb-0">This store is currently in maintenance mode.</p>
                     </div>
                 }
                 else
                 {
-                    <button type="button" class="btn-primary w-100 mb-3" style="padding: 1rem; font-size: 1.1rem;" @onclick="@(() => PrepareAction("Buy"))">
-                        <i class="bi bi-lightning-fill me-2"></i> Buy Now
-                    </button>
+                    var status = _selectedLicense == LicenseType.Personal ? _hasPurchasedPersonal : _hasPurchasedCommercial;
                     
-                    @if (_isInCart)
+                    if (status)
                     {
-                        <a href="/cart" class="cart-btn w-100" style="padding: 1rem; width: 100%; text-decoration: none; display: flex; align-items: center; justify-content: center; font-size: 1.1rem;">
-                            <i class="bi bi-cart-check-fill me-2"></i> <span>View in Cart</span>
-                        </a>
+                        <div style="background: var(--status-success-dim); border: 1px solid var(--status-success); color: var(--status-success); padding: 1.25rem; border-radius: var(--radius-md); text-align: center; margin-bottom: 2rem;">
+                            <i class="bi bi-check2-circle fs-3 mb-2 d-block"></i>
+                            <div class="fw-bold">Owned License: @(_selectedLicense)</div>
+                            <div class="small mt-1 opacity-75">Available in your dashboard.</div>
+                        </div>
                     }
                     else
                     {
-                        <button type="button" class="cart-btn w-100" style="padding: 1rem; font-size: 1.1rem;" @onclick="@(() => PrepareAction("Add"))" disabled="@_isAddingToCart">
-                            @if (_isAddingToCart)
-                            {
-                                <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true" style="margin-right: 0.5rem;"></span>
-                                <span>Adding...</span>
-                            }
-                            else
-                            {
-                                <i class="bi bi-cart-plus me-2"></i> <span>Add to Cart</span>
-                            }
+                        <button type="button" class="btn-primary w-100 mb-3" style="padding: 1rem; font-size: 1.1rem;" @onclick="@(() => PrepareAction("Buy"))">
+                            <i class="bi bi-lightning-fill me-2"></i> Buy Now
                         </button>
+                        
+                        @if (_isInCart)
+                        {
+                            <a href="/cart" class="cart-btn w-100" style="padding: 1rem; width: 100%; text-decoration: none; display: flex; align-items: center; justify-content: center; font-size: 1.1rem;">
+                                <i class="bi bi-cart-check-fill me-2"></i> <span>View in Cart</span>
+                            </a>
+                        }
+                        else
+                        {
+                            <button type="button" class="cart-btn w-100" style="padding: 1rem; font-size: 1.1rem;" @onclick="@(() => PrepareAction("Add"))" disabled="@_isAddingToCart">
+                                @if (_isAddingToCart)
+                                {
+                                    <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true" style="margin-right: 0.5rem;"></span>
+                                    <span>Adding...</span>
+                                }
+                                else
+                                {
+                                    <i class="bi bi-cart-plus me-2"></i> <span>Add to Cart</span>
+                                }
+                            </button>
+                        }
                     }
                 }
 
@@ -844,7 +863,7 @@ else
             PriceCents = _selectedLicense == LicenseType.Commercial ? _clip.PriceCommercialCents : _clip.PriceCents,
             LicenseType = _selectedLicense
         };
-        var url = await PaymentService.CreateCheckoutSessionAsync(new[] { checkoutItem }, successUrl, cancelUrl, userEmail, _userId);
+        var url = await PaymentService.CreateCheckoutSessionAsync(new[] { checkoutItem }, successUrl, cancelUrl, userEmail, _userId, null, TenantContext.CurrentTenant.Id, TenantContext.CurrentTenant.StripeConnectAccountId);
         Navigation.NavigateTo(url);
     }
 

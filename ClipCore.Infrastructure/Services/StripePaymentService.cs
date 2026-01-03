@@ -12,11 +12,13 @@ namespace ClipCore.Infrastructure.Services;
 public class StripePaymentService : IPaymentService
 {
     private readonly string _apiKey;
+    private readonly string _clientId;
     private readonly Polly.ResiliencePipeline _resiliencePipeline;
 
     public StripePaymentService(IConfiguration configuration)
     {
         _apiKey = configuration["Stripe:SecretKey"] ?? throw new ArgumentNullException("Stripe:SecretKey");
+        _clientId = configuration["Stripe:ClientId"] ?? "ca_TEST_CLIENT_ID_MISSING"; // Fallback for dev safety
         StripeConfiguration.ApiKey = _apiKey; // Global setting, simpler for MVP
         
         // Define Polly Resilience Pipeline for Stripe
@@ -36,7 +38,7 @@ public class StripePaymentService : IPaymentService
             .Build();
     }
 
-    public async Task<string> CreateCheckoutSessionAsync(IEnumerable<CheckoutItem> items, string successUrl, string cancelUrl, string? userEmail = null, string? userId = null, int? promoCodeId = null)
+    public async Task<string> CreateCheckoutSessionAsync(IEnumerable<CheckoutItem> items, string successUrl, string cancelUrl, string? userEmail = null, string? userId = null, int? promoCodeId = null, Guid? tenantId = null, string? connectedAccountId = null)
     {
         var itemsList = items.ToList();
         Console.WriteLine($"[STRIPE] Creating Session for {itemsList.Count} items.");
@@ -78,6 +80,11 @@ public class StripePaymentService : IPaymentService
         {
             { "ClipIds", string.Join(",", clipIds) }
         };
+
+        if (tenantId.HasValue)
+        {
+            sessionMetadata["TenantId"] = tenantId.Value.ToString();
+        }
 
         if (promoCodeId.HasValue)
         {
@@ -139,6 +146,25 @@ public class StripePaymentService : IPaymentService
         
         // Collect Billing Address (auto-enabled by default usually, but we can enforce it)
         options.BillingAddressCollection = "required";
+
+        // Handle Stripe Connect (Split Payments)
+        if (!string.IsNullOrEmpty(connectedAccountId))
+        {
+            // Calculate application fee (e.g., 10%)
+            // Note: Stripe requires the integer fee amount.
+            // Sum of all items * 0.10
+            long totalAmount = itemsList.Sum(i => i.PriceCents);
+            long appFee = (long)(totalAmount * 0.10); 
+
+            options.PaymentIntentData = new SessionPaymentIntentDataOptions
+            {
+                ApplicationFeeAmount = appFee,
+                TransferData = new SessionPaymentIntentDataTransferDataOptions
+                {
+                    Destination = connectedAccountId,
+                },
+            };
+        }
 
         var service = new SessionService();
         try 
@@ -263,10 +289,18 @@ public class StripePaymentService : IPaymentService
                     var licenseType = LicenseType.Personal;
                     if (Enum.TryParse<LicenseType>(licenseTypeStr, out var lt)) licenseType = lt;
                     
+                    // Extract TenantId from Session Metadata
+                    Guid tenantId = Guid.Empty; // Default fallback
+                    if (session.Metadata.TryGetValue("TenantId", out var tidStr) && Guid.TryParse(tidStr, out var tid))
+                    {
+                        tenantId = tid;
+                    }
+
                     if (!string.IsNullOrEmpty(clipId))
                     {
                         var purchase = new Purchase
                         {
+                            TenantId = tenantId,
                             ClipId = clipId,
                             UserId = userId,
                             StripeSessionId = session.Id,
@@ -324,7 +358,8 @@ public class StripePaymentService : IPaymentService
                         CustomerPhone = phone,
                         // Fallback Price: Average of total
                         PricePaidCents = (int)((session.AmountTotal ?? 0) / (expectedClipIds.Count > 0 ? expectedClipIds.Count : 1)),
-                        LicenseType = Enum.TryParse<LicenseType>(session.Metadata.GetValueOrDefault($"c{foundClipIds.Count}_li"), out var lt) ? lt : LicenseType.Personal
+                        LicenseType = Enum.TryParse<LicenseType>(session.Metadata.GetValueOrDefault($"c{foundClipIds.Count}_li"), out var lt) ? lt : LicenseType.Personal,
+                        TenantId = session.Metadata.TryGetValue("TenantId", out var tidFallback) && Guid.TryParse(tidFallback, out var tf) ? tf : Guid.Empty
                     });
                     foundClipIds.Add(expectedId);
                 }
@@ -351,5 +386,56 @@ public class StripePaymentService : IPaymentService
             return promoId;
         }
         return null;
+    }
+
+    public Task<string> GetConnectOAuthUrlAsync(string redirectUri, string state, string? suggestedUrl = null, string? businessName = null, string? productDescription = null, string? email = null)
+    {
+        // Manual construction to avoid missing SDK helper issues
+        // https://docs.stripe.com/connect/oauth-reference
+        var clientId = _clientId;
+        var url = $"https://connect.stripe.com/oauth/authorize?response_type=code&client_id={clientId}&scope=read_write&state={state}&redirect_uri={System.Net.WebUtility.UrlEncode(redirectUri)}";
+        
+        if (!string.IsNullOrEmpty(suggestedUrl))
+        {
+            url += $"&stripe_user[url]={System.Net.WebUtility.UrlEncode(suggestedUrl)}";
+        }
+
+        if (!string.IsNullOrEmpty(businessName))
+        {
+            url += $"&stripe_user[business_name]={System.Net.WebUtility.UrlEncode(businessName)}";
+        }
+
+        if (!string.IsNullOrEmpty(productDescription))
+        {
+            url += $"&stripe_user[product_description]={System.Net.WebUtility.UrlEncode(productDescription)}";
+        }
+
+        if (!string.IsNullOrEmpty(email))
+        {
+            url += $"&stripe_user[email]={System.Net.WebUtility.UrlEncode(email)}";
+        }
+        
+        return Task.FromResult(url);
+    }
+    
+    public async Task<string> OnboardTenantAsync(string authorizationCode)
+    {
+        var service = new OAuthTokenService();
+        var options = new OAuthTokenCreateOptions
+        {
+            GrantType = "authorization_code",
+            Code = authorizationCode,
+        };
+
+        try 
+        {
+            var response = await _resiliencePipeline.ExecuteAsync(async ct => await service.CreateAsync(options, cancellationToken: ct));
+            return response.StripeUserId; // This is the 'acct_...' ID
+        }
+        catch(StripeException ex)
+        {
+            Console.WriteLine($"[STRIPE OAUTH ERROR] {ex.Message}");
+            throw;
+        }
     }
 }

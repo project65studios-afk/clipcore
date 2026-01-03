@@ -10,6 +10,8 @@
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject IPromoCodeRepository PromoCodeRepository
 @inject IJSRuntime JS
+
+@inject ClipCore.Infrastructure.Services.TenantContext TenantContext
 @rendermode RenderMode.InteractiveServer
 
 <PageTitle>Shopping Cart - @(_storeName ?? "ClipCore Studios")</PageTitle>
@@ -123,9 +125,22 @@
                 <span>$@((CartService.TotalPriceCents / 100.00).ToString("N2"))</span>
             </div>
             
-            <button class="btn-primary" style="width: 100%; font-size: 1.1rem; padding: 0.75rem;" @onclick="CheckoutAsync">
-                Checkout
-            </button>
+            @if (string.IsNullOrEmpty(TenantContext.CurrentTenant.StripeConnectAccountId))
+            {
+                <div class="alert alert-warning" style="border-left: 4px solid #f59e0b; background-color: rgba(245, 158, 11, 0.1);">
+                    <h5 style="color: #f59e0b; margin-bottom: 0.5rem;"><i class="bi bi-exclamation-triangle-fill me-2"></i> Checkout Unavailable</h5>
+                    <p class="mb-0" style="font-size: 0.9rem;">This store is currently not accepting payments. Please check back later.</p>
+                </div>
+                <button class="btn-primary" style="width: 100%; font-size: 1.1rem; padding: 0.75rem; opacity: 0.5; cursor: not-allowed;" disabled>
+                    Checkout Unavailable
+                </button>
+            }
+            else
+            {
+                <button class="btn-primary" style="width: 100%; font-size: 1.1rem; padding: 0.75rem;" @onclick="CheckoutAsync">
+                    Checkout
+                </button>
+            }
         </div>
     }
 </div>
@@ -294,7 +309,7 @@
             ThumbnailFileName = i.ThumbnailFileName
         });
 
-        var url = await PaymentService.CreateCheckoutSessionAsync(checkoutItems, successUrl, cancelUrl, userEmail, null, CartService.AppliedPromoCode?.Id);
+        var url = await PaymentService.CreateCheckoutSessionAsync(checkoutItems, successUrl, cancelUrl, userEmail, null, CartService.AppliedPromoCode?.Id, TenantContext.CurrentTenant.Id, TenantContext.CurrentTenant.StripeConnectAccountId);
         Navigation.NavigateTo(url);
     }
 

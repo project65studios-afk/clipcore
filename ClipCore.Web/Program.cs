@@ -45,7 +45,14 @@ builder.Services.ConfigureApplicationCookie(options =>
     options.AccessDeniedPath = "/Account/AccessDenied";
     options.Cookie.HttpOnly = true;
     options.Cookie.SecurePolicy = builder.Environment.IsDevelopment() ? CookieSecurePolicy.SameAsRequest : CookieSecurePolicy.Always;
-    options.Cookie.SameSite = SameSiteMode.Strict;
+    options.Cookie.SameSite = SameSiteMode.Lax; // Required for OAuth redirects
+    
+    // Support wildcard subdomains for session persistence
+    var baseDomain = builder.Configuration["CookieDomain"];
+    if (!string.IsNullOrEmpty(baseDomain))
+    {
+        options.Cookie.Domain = baseDomain;
+    }
     options.ExpireTimeSpan = TimeSpan.FromHours(2); // Shorter expiration for security
     options.SlidingExpiration = true;
 });
@@ -102,6 +109,7 @@ builder.Services.AddScoped<ISettingsRepository, SettingsRepository>();
 builder.Services.AddScoped<IExternalProductRepository, ExternalProductRepository>();
 builder.Services.AddScoped<IAuditRepository, AuditRepository>();
 builder.Services.AddScoped<IPromoCodeRepository, PromoCodeRepository>();
+builder.Services.AddScoped<ITenantRepository, TenantRepository>();
 builder.Services.AddScoped<IAuditService, AuditService>();
 if (builder.Environment.IsEnvironment("Testing") || builder.Configuration["USE_FAKE_VIDEO"] == "true")
 {
