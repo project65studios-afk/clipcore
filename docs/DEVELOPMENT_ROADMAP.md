@@ -66,9 +66,28 @@ Instead of a generic "Demo Store", we will seed two distinct tenants to verify i
 
 ---
 
-## 4. Summary of "Next Actions"
-1.  **Update Seeder**: Replace "Demo" with "Project65" and "Racing".
-2.  **Verify UI**: Change the App Header to show `Tenant.Name`.
-3.  **Verify Data**: Check the Home Page listings.
+---
 
-This approach lets you test "Little by Little". You don't need to build the "Create Store" Admin UI yet. We act as the Admin by seeding the database directly.
+## 4. Phase 4: Scaling to a Platform ("The PhotoReflect Path")
+
+Once the "Shop Flow" is verified, we move from a multi-store engine to a scalable platform.
+
+### Step 5: The Ingestion Engine (Bulk Uploads)
+**Goal**: Help sellers manage 1,000+ clips per weekend.
+*   **Bulk Ingestion**: Dedicated parallel uploader to R2 and Mux.
+*   **AI Auto-Tagging**: Using AI Vision to automatically read car/bib numbers from clips for instant categorization.
+
+### Step 6: Marketplace & Discovery
+**Goal**: Create a central hub for all events.
+*   **Global Search**: A landing page at `clipcore.com` to search for events/tags across all tenants.
+*   **Universal Accounts**: A customer portal to view all purchased videos from different sellers in one library.
+
+### Step 7: Revenue Maximization (Bundling)
+**Goal**: Increase Average Order Value (AOV).
+*   **"Buy All" Packages**: One-click purchase for all clips in an event or all clips matching a specific tag (e.g., "All my Track Day clips" for $49).
+*   **Dynamic Discounts**: Merchant-defined bundles (e.g., 3 clips for 20% off).
+
+### Step 8: Self-Service Scale
+**Goal**: Grow to 1,000+ sellers without manual intervention.
+*   **Merchant Sign-up**: Public registration flow that auto-provisions subdomains.
+*   **Onboarding Checklist**: Guiding sellers through Stripe Connect and Store Customization.
