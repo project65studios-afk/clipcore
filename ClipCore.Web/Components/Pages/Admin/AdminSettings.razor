@@ -336,7 +336,7 @@
             var maintenanceStr = await SettingsRepository.GetValueAsync("MaintenanceMode");
             _maintenanceMode = maintenanceStr == "true";
             
-            _stripeConnectAccountId = TenantContext.CurrentTenant.StripeConnectAccountId;
+            _stripeConnectAccountId = TenantContext.CurrentTenant?.StripeConnectAccountId;
             StateHasChanged();
         });
     }
@@ -419,19 +419,19 @@
             await SettingsRepository.SetValueAsync("MaintenanceMode", _maintenanceMode ? "true" : "false");
 
             // Save Stripe Connect ID to Tenant
-            if (TenantContext.CurrentTenant.StripeConnectAccountId != _stripeConnectAccountId)
+            if (TenantContext.CurrentTenant!.StripeConnectAccountId != _stripeConnectAccountId)
             {
-                 TenantContext.CurrentTenant.StripeConnectAccountId = _stripeConnectAccountId;
+                 TenantContext.CurrentTenant!.StripeConnectAccountId = _stripeConnectAccountId;
             }
 
             // Update Theme JSON with Logo and Watermark
             var theme = TenantContext.Theme;
             theme.LogoUrl = _brandLogoUrl;
             theme.WatermarkUrl = _watermarkUrl;
-            TenantContext.CurrentTenant.ThemeSettingsJson = System.Text.Json.JsonSerializer.Serialize(theme);
+            TenantContext.CurrentTenant!.ThemeSettingsJson = System.Text.Json.JsonSerializer.Serialize(theme);
 
             // Persist Tenant changes
-            await TenantRepository.UpdateAsync(TenantContext.CurrentTenant);
+            await TenantRepository.UpdateAsync(TenantContext.CurrentTenant!);
             
             // Notify local service for immediate UI updates
             StoreSettingsService.NotifySettingChanged("StoreName", _storeName ?? "ClipCore Studios");
@@ -475,10 +475,10 @@
                  redirectUri = Navigation.BaseUri.TrimEnd('/') + "/api/stripe/connect/callback";
             }
             
-            var state = TenantContext.CurrentTenant.Id.ToString();
+            var state = TenantContext.CurrentTenant!.Id.ToString();
             var suggestedUrl = Navigation.BaseUri;
-            var businessName = TenantContext.CurrentTenant.Name;
-            var productDescription = $"Selling professional video clips and photography services via {TenantContext.CurrentTenant.Name} on the ClipCore platform.";
+            var businessName = TenantContext.CurrentTenant!.Name;
+            var productDescription = $"Selling professional video clips and photography services via {TenantContext.CurrentTenant!.Name} on the ClipCore platform.";
             
             // Try to get user email if available
             var authState = await AuthProvider.GetAuthenticationStateAsync();
@@ -496,10 +496,10 @@
 
     private async Task DisconnectStripe()
     {
-        if (TenantContext.CurrentTenant.StripeConnectAccountId != null)
+        if (TenantContext.CurrentTenant?.StripeConnectAccountId != null)
         {
-            TenantContext.CurrentTenant.StripeConnectAccountId = null;
-            await TenantRepository.UpdateAsync(TenantContext.CurrentTenant);
+            TenantContext.CurrentTenant!.StripeConnectAccountId = null;
+            await TenantRepository.UpdateAsync(TenantContext.CurrentTenant!);
             _stripeConnectAccountId = null;
             StoreSettingsService.NotifySettingChanged("StripeConnect", "disconnected");
         }

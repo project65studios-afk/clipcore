@@ -125,7 +125,7 @@
                 <span>$@((CartService.TotalPriceCents / 100.00).ToString("N2"))</span>
             </div>
             
-            @if (string.IsNullOrEmpty(TenantContext.CurrentTenant.StripeConnectAccountId))
+            @if (string.IsNullOrEmpty(TenantContext.CurrentTenant?.StripeConnectAccountId))
             {
                 <div class="alert alert-warning" style="border-left: 4px solid #f59e0b; background-color: rgba(245, 158, 11, 0.1);">
                     <h5 style="color: #f59e0b; margin-bottom: 0.5rem;"><i class="bi bi-exclamation-triangle-fill me-2"></i> Checkout Unavailable</h5>
@@ -309,7 +309,7 @@
             ThumbnailFileName = i.ThumbnailFileName
         });
 
-        var url = await PaymentService.CreateCheckoutSessionAsync(checkoutItems, successUrl, cancelUrl, userEmail, null, CartService.AppliedPromoCode?.Id, TenantContext.CurrentTenant.Id, TenantContext.CurrentTenant.StripeConnectAccountId);
+        var url = await PaymentService.CreateCheckoutSessionAsync(checkoutItems, successUrl, cancelUrl, userEmail, null, CartService.AppliedPromoCode?.Id, TenantContext.CurrentTenant!.Id, TenantContext.CurrentTenant!.StripeConnectAccountId);
         Navigation.NavigateTo(url);
     }
 

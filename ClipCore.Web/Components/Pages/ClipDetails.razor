@@ -302,7 +302,7 @@ else
                     <span style="float: right;">@(_clip?.DurationSec.HasValue == true ? TimeSpan.FromSeconds(_clip.DurationSec.Value).ToString(@"mm\:ss") : "--:--")</span>
                 </div>
                 
-                @if (string.IsNullOrEmpty(TenantContext.CurrentTenant.StripeConnectAccountId))
+                @if (string.IsNullOrEmpty(TenantContext.CurrentTenant?.StripeConnectAccountId))
                 {
                     <AuthorizeView Roles="Admin">
                          <div class="alert alert-danger" style="font-size: 0.9rem;">
@@ -863,7 +863,7 @@ else
             PriceCents = _selectedLicense == LicenseType.Commercial ? _clip.PriceCommercialCents : _clip.PriceCents,
             LicenseType = _selectedLicense
         };
-        var url = await PaymentService.CreateCheckoutSessionAsync(new[] { checkoutItem }, successUrl, cancelUrl, userEmail, _userId, null, TenantContext.CurrentTenant.Id, TenantContext.CurrentTenant.StripeConnectAccountId);
+        var url = await PaymentService.CreateCheckoutSessionAsync(new[] { checkoutItem }, successUrl, cancelUrl, userEmail, _userId, null, TenantContext.CurrentTenant!.Id, TenantContext.CurrentTenant!.StripeConnectAccountId);
         Navigation.NavigateTo(url);
     }
 
