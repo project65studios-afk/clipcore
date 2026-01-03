@@ -13,10 +13,12 @@ public class StripePaymentService : IPaymentService
 {
     private readonly string _apiKey;
     private readonly string _clientId;
+    private readonly IConfiguration _configuration;
     private readonly Polly.ResiliencePipeline _resiliencePipeline;
 
     public StripePaymentService(IConfiguration configuration)
     {
+        _configuration = configuration;
         _apiKey = configuration["Stripe:SecretKey"] ?? throw new ArgumentNullException("Stripe:SecretKey");
         _clientId = configuration["Stripe:ClientId"] ?? "ca_TEST_CLIENT_ID_MISSING"; // Fallback for dev safety
         StripeConfiguration.ApiKey = _apiKey; // Global setting, simpler for MVP
@@ -150,11 +152,11 @@ public class StripePaymentService : IPaymentService
         // Handle Stripe Connect (Split Payments)
         if (!string.IsNullOrEmpty(connectedAccountId))
         {
-            // Calculate application fee (e.g., 10%)
-            // Note: Stripe requires the integer fee amount.
-            // Sum of all items * 0.10
+            // Calculate application fee based on configuration (default to 15% if not found)
+            var feePercent = _configuration.GetValue<double?>("Stripe:PlatformFeePercent") ?? 15.0;
+            
             long totalAmount = itemsList.Sum(i => i.PriceCents);
-            long appFee = (long)(totalAmount * 0.10); 
+            long appFee = (long)(totalAmount * (feePercent / 100.0)); 
 
             options.PaymentIntentData = new SessionPaymentIntentDataOptions
             {
