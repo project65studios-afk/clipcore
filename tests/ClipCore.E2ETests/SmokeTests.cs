@@ -6,7 +6,7 @@ namespace ClipCore.E2ETests;
 
 public class SmokeTests : PageTest
 {
-    private readonly string _baseUrl = "http://localhost:5094";
+    private readonly string _baseUrl = "http://project65.clipcore.test:5094";
 
     [Fact]
     public async Task HomePage_Loads_WithTitle()
@@ -20,13 +20,10 @@ public class SmokeTests : PageTest
         // Check Page Title - verify it matches the dynamic brand text in the header
         // Check Page Title - verify it matches the dynamic brand text in the header
         var brandText = (await Page.Locator(".brand").InnerTextAsync()).Trim();
-        var pageTitle = await Page.TitleAsync();
-        
-        // Normalize whitespace for comparison
         var normalizedBrand = System.Text.RegularExpressions.Regex.Replace(brandText, @"\s+", " ");
-        var normalizedTitle = System.Text.RegularExpressions.Regex.Replace(pageTitle.ToUpper(), @"\s+", " ");
         
-        Assert.Contains(normalizedBrand, normalizedTitle);
+        // Use standard assertion to avoid CSP unsafe-eval issues with WaitForFunction
+        await Expect(Page).ToHaveTitleAsync(new System.Text.RegularExpressions.Regex(normalizedBrand, System.Text.RegularExpressions.RegexOptions.IgnoreCase));
     }
 
     [Fact]
@@ -236,10 +233,12 @@ public class SmokeTests : PageTest
         var src = await thumbnails.First.GetAttributeAsync("src");
         Assert.NotNull(src);
         
-        // Check for common R2/S3 signed URL indicators
+        // Check for common R2/S3 signed URL indicators OR seeded placeholders OR Mux thumbnails
         bool isR2 = src.Contains("r2.cloudflarestorage.com") || src.Contains("X-Amz-Signature");
-        // If it's a relative path from static assets, that might be okay too if it's the fallback
-        Assert.True(isR2 || src.Contains("thumbnails/"), "Thumbnail URL should be an R2 signed URL or a valid relative path.");
+        bool isMux = src.Contains("image.mux.com");
+        bool isPlaceholder = src.Contains("images/") || src.Contains("thumbnails/");
+        
+        Assert.True(isR2 || isMux || isPlaceholder, $"Thumbnail URL '{src}' should be an R2, Mux, or seeded path.");
     }
 
     [Fact]
@@ -271,14 +270,16 @@ public class SmokeTests : PageTest
         // or if we see the upload button.
         if (Page.Url.Contains("/Account/Login"))
         {
-            // Identity pages might have different structures, check for the login button or main heading
-            var loginBtn = Page.Locator("#login-submit").Or(Page.Locator("button:has-text('Sign in')")).Or(Page.Locator("button:has-text('Log in')"));
-            await Expect(loginBtn.First).ToBeVisibleAsync();
+            // Update to use the standard Input.Email and Input.Password from our Identity implementation
+            var emailInput = Page.Locator("input[name='Input.Email']");
+            var passwordInput = Page.Locator("input[name='Input.Password']");
+            await Expect(emailInput).ToBeVisibleAsync();
+            await Expect(passwordInput).ToBeVisibleAsync();
         }
         else
         {
             // If we are already logged in as admin in the test context
-            var uploadBtn = Page.Locator("button:has-text('Upload')").Or(Page.Locator("input[type='file']"));
+            var uploadBtn = Page.Locator("button:has-text('New Event')").Or(Page.Locator("input[type='file']"));
             await Expect(uploadBtn.First).ToBeVisibleAsync();
         }
     }

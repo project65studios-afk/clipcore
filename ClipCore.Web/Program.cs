@@ -300,10 +300,14 @@ app.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages:
 app.UseHttpsRedirection();
 app.UseCors("ProductionOrigins");
 app.UseRateLimiter();
+
+// Tenant resolution must happen BEFORE Authentication/Authorization
+// so that policies can use the resolved TenantContext.
+app.UseMiddleware<ClipCore.Web.Middleware.TenantResolutionMiddleware>();
+
 app.UseAuthentication();
 app.UseAuthorization();
 app.UseAntiforgery();
-app.UseMiddleware<ClipCore.Web.Middleware.TenantResolutionMiddleware>();
 
 
 app.MapStaticAssets();

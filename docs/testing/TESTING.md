@@ -1,6 +1,6 @@
 # Testing & Environment Guide
 
-This document explains how to switch between Development and Testing modes, and how to perform manual or automated verification of ClipCore.
+This document explains how to switch between Development and Testing modes, and how to verify the **Multi-Tenant** architecture of ClipCore.
 
 ## 🏁 Environment Switching
 
@@ -12,51 +12,45 @@ Used for your active work with real data and real API keys.
 - **Config**: Reads `appsettings.Development.json`
 - **Database**: `project65.db`
 - **Services**: Uses real `MuxVideoService` and `StripePaymentService`.
+- **Tenants**:
+  - `http://project65.clipcore.test:5094`
+  - `http://racing.clipcore.test:5094`
 
 ### 2. Testing Mode
-Used for automated E2E tests or "safe" manual verification where you don't want to spend real Mux credits or process real payments.
-- **Command**: `ASPNETCORE_ENVIRONMENT=Testing dotnet run --project ClipCore.Web/ClipCore.Web.csproj`
+Used for automated E2E tests.
 - **Config**: Reads `appsettings.Testing.json`
 - **Database**: `project65_test.db` (Clean isolation)
 - **Services**: Uses `FakeVideoService` (signed IDs start with `fake_`) and `FakePaymentService`.
 
 ---
 
-## 🧪 Testing Strategies
+## 🧪 Automated Testing Strategy
 
-### Automated Smoke Tests (Playwright)
-Run the full automated suite to protect the "Money Path."
+We use **Playwright** to verify the critical "Money Path" and Tenant Isolation.
+
+### Running the Suite
 ```bash
 dotnet test tests/ClipCore.E2ETests/ClipCore.E2ETests.csproj
 ```
-Tests included:
-- **Discovery**: Home page loads, search works, and media elements appear.
-- **Revenue**: Cart persistence, Promo codes, and Volume Discounts (25% off 3+ items).
-- **Checkout**: Stripe redirection pulse.
-- **Integrity**: R2 signed thumbnail URLs and Mux hover previews.
 
-### Manual "Money Path" Verification
-To test yourself as a user:
-1. Start the app in **Testing** mode (see command above).
-2. Open `http://localhost:5094`.
-3. Select an Event and use the **Quick Add** buttons on clips.
-4. Verify the **Cart** updates in the top navigation.
-5. In the Cart page:
-    - Add 3 items to see the **Volume Discount Unlocked** message.
-    - Check the subtotal math.
-6. Click **Checkout** and verify you are redirected (in Testing mode, it will typically simulate the redirect).
+### Test Categories
+
+#### 1. Tenant Isolation (`TenantIsolationTests.cs`)
+Verifies that the multi-tenant architecture is secure.
+- **Data Isolation**: Ensures events from the "Racing" tenant do not appear on the "Project65" tenant.
+- **Admin Security**: Verifies that an admin of Tenant A receives "Access Denied" when trying to access Tenant B's admin portal.
+- **Legacy/SSO**: *Currently skipped locally* due to browser security restrictions on `.test` domains without HTTPS/DNS. Can be verified manually by modifying `Program.cs` or deploying to staging.
+
+#### 2. Smoke Tests (`SmokeTests.cs`)
+Verifies the core e-commerce flow on the `project65` subdomain.
+- **Discovery**: Home page loads with correct branding ("PROJECT65 STUDIOS").
+- **Revenue**: Cart persistence, Promo codes, and Volume Discounts.
+- **Integrity**: Validates R2/Mux thumbnail URLs.
 
 ---
 
 ## 🛠 Troubleshooting
-- **Port Conflicts**: Ensure only one instance of the app is running (check for existing `dotnet run` processes).
-- **Database Sync**: If `project65_test.db` gets corrupted, simply delete it and the app will re-create/re-seed it on the next run in Testing mode.
 
-### Summary Table
-Goal	        Command	                  Database	            Services
--------------------------------------------------------------------------
-Normal Dev	    dotnet run	              project65.db          Real Mux 
-Safe Testing	ASPNETCORE_ENVIRONMENT
-                =Testing dotnet run	      project65_test.db     Fake Mux
-Auto Suite	    dotnet test	              project65_test.db    Playwright
--------------------------------------------------------------------------
+- **"Access Denied" on Admin**: Ensure you are logged in with the correct tenant owner email (e.g., `owner@project65.com` vs `owner@racing.com`).
+- **Empty Page Title**: Ensure the `<PageTitle>` component is present in the layout or page.
+- **Cookie/SSO Failures**: Cross-subdomain cookies require a valid top-level domain. Localhost subdomains often fail in browsers. We use `.clipcore.test` in `/etc/hosts` for simulation, but it has limits.
