@@ -14,6 +14,7 @@ public class VideoCompressionController : ControllerBase
 {
     private readonly IVideoService _videoService;
     private readonly IClipRepository _clipRepository;
+    private readonly IEventRepository _eventRepository;
     private readonly IStorageService _storageService;
     private readonly IVisionService _visionService;
     private readonly ILogger<VideoCompressionController> _logger;
@@ -21,12 +22,14 @@ public class VideoCompressionController : ControllerBase
     public VideoCompressionController(
         IVideoService videoService,
         IClipRepository clipRepository,
+        IEventRepository eventRepository,
         IStorageService storageService,
         IVisionService visionService,
         ILogger<VideoCompressionController> logger)
     {
         _videoService = videoService;
         _clipRepository = clipRepository;
+        _eventRepository = eventRepository;
         _storageService = storageService;
         _visionService = visionService;
         _logger = logger;
@@ -199,11 +202,19 @@ public class VideoCompressionController : ControllerBase
 
                 _logger.LogInformation($"[Compression] Uploaded to Mux successfully");
 
+                // Validate Event and Get TenantId
+                var evt = await _eventRepository.GetByIdAsync(eventId);
+                if (evt == null)
+                {
+                    return BadRequest(new { error = "Event not found" });
+                }
+
                 // Create Clip entity
                 var clip = new Clip
                 {
                     Id = clipId,
                     EventId = eventId,
+                    TenantId = evt.TenantId,
                     Title = file.FileName,
                     PriceCents = priceCents,
                     MuxUploadId = uploadId,
