@@ -23,15 +23,13 @@ We need a name that implies infrastructure, speed, or motion.
 ## 3. Monetization Models
 How this business makes money.
 
-### A. The Transaction Fee ("Stripe Model") - *Recommended for Launch*
-*   **Fee**: 5-10% of every sale.
-*   **Pros**: Low friction. Sellers only pay when they succeed.
-*   **Cons**: Revenue depends entirely on seller volume.
+### A. The Transaction Fee ("Stripe Model") - *Active*
+*   **Fee**: **15%** of every sale (Matches PhotoReflect/Competitors).
+*   **Status**: Implemented and configurable in `appsettings.json`.
 
-### B. The SaaS Subscription ("Shopify Model")
-*   **Cost**: $29-$79/month.
-*   **Pros**: Predictable MRR (Monthly Recurring Revenue).
-*   **Cons**: Harder to sell to new users.
+### B. The SaaS Subscription ("Shopify Model") - *Postponed*
+*   **Cost**: $9/month (Target).
+*   **Details**: See [ONBOARDING_WORKFLOWS.md](file:///Users/carlosr/.gemini/antigravity/scratch/ClipCore/docs/ONBOARDING_WORKFLOWS.md) for proposed models.
 
 ### C. Cloud Usage Fee ("AWS Model")
 *   **Cost**: Small markup on GB storage or Mux encoding minutes.
