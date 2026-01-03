@@ -1,0 +1,364 @@
+@page "/admin/upload"
+@using Project65.Core.Entities
+@using Project65.Core.Interfaces
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize(Roles = "Admin")]
+@inject IVideoService VideoService
+@inject IEventRepository EventRepository
+@inject IClipRepository ClipRepository
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+@inject IAuditService AuditService
+@using Microsoft.AspNetCore.SignalR
+@inject IHubContext<Project65.Web.Hubs.ProcessingHub> HubContext
+
+
+
+<h1>Upload Clips</h1>
+
+<div style="max-width: 800px;">
+    @if (!string.IsNullOrEmpty(_errorMessage))
+    {
+        <div class="alert alert-danger">@_errorMessage</div>
+    }
+    
+    <div class="mb-3">
+        <label class="form-label" style="color: var(--text-secondary); font-weight: 600;">1. Choose or Create Event</label>
+        <div class="d-flex gap-2 upload-step-row">
+            <select class="form-control" @bind="_selectedEventId">
+                <option value="">-- Select Event --</option>
+                @if (_events != null)
+                {
+                    @foreach (var evt in _events)
+                    {
+                        <option value="@evt.Id">@evt.Name (@evt.Date)</option>
+                    }
+                }
+            </select>
+            <button class="btn btn-outline-info" type="button" @onclick="CreateNewEvent">New Event</button>
+        </div>
+    </div>
+
+    @if (_isCreatingEvent)
+    {
+        <div class="card p-4 mb-4" style="background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: var(--radius-lg);">
+             <h5 class="mb-3">New Event</h5>
+             <div class="mb-3">
+                 <label class="form-label" style="color: var(--text-secondary); font-size: 0.85rem;">Event Name</label>
+                 <input class="form-control" placeholder="e.g. Midnight Run 2025" @bind="_newEvent.Name" />
+             </div>
+             <div class="mb-3">
+                 <label class="form-label" style="color: var(--text-secondary); font-size: 0.85rem;">Event Date</label>
+                 <input class="form-control" type="date" @bind="_newEvent.Date" />
+             </div>
+             <div class="mb-3">
+                 <label class="form-label" style="color: var(--text-secondary); font-size: 0.85rem;">Event Location</label>
+                 <input class="form-control" placeholder="e.g. Los Angeles, CA" @bind="_newEvent.Location" />
+             </div>
+             <div class="mb-3">
+                 <label class="form-label" style="color: var(--text-secondary); font-size: 0.85rem;">Summary</label>
+                 <textarea class="form-control" placeholder="Brief description of the event..." @bind="_newEvent.Summary" rows="3"></textarea>
+             </div>
+             <div class="d-flex gap-2 align-items:center upload-step-row">
+                <button class="btn-primary" type="button" @onclick="SaveEventAsync" style="padding: 0.5rem 1.5rem;">Save Event</button>
+                <button class="btn-secondary" type="button" @onclick="@(() => _isCreatingEvent = false)" style="padding: 0.5rem 1.5rem;">Cancel</button>
+             </div>
+        </div>
+    }
+
+    <div class="mb-3 d-flex gap-4">
+        <div>
+            <label class="form-label" style="color: var(--text-secondary); font-weight: 600;">2a. Default Personal Price</label>
+            <div style="position: relative; display: flex; align-items: center; max-width: 200px;">
+                <span style="position: absolute; left: 1rem; color: var(--text-muted);">$</span>
+                <input class="form-control" style="padding-left: 2rem;" type="number" @bind="_priceDollars" step="0.01" />
+            </div>
+        </div>
+        <div>
+            <label class="form-label" style="color: var(--text-secondary); font-weight: 600;">2b. Default Commercial Price</label>
+            <div style="position: relative; display: flex; align-items: center; max-width: 200px;">
+                <span style="position: absolute; left: 1rem; color: var(--text-muted);">$</span>
+                <input class="form-control" style="padding-left: 2rem;" type="number" @bind="_priceCommercialDollars" step="0.01" />
+            </div>
+        </div>
+    </div>
+
+    <div class="mb-4">
+        <label class="form-label" style="color: var(--text-secondary); font-weight: 600;">3. Add Videos (Processed sequentially)</label>
+        <div id="uppy-dashboard" style="border-radius: 8px; overflow: hidden; border: 1px solid var(--border-color); box-shadow: 0 4px 12px var(--glass-shadow);"></div>
+    </div>
+
+    @if (!string.IsNullOrEmpty(_selectedEventId))
+    {
+        <div class="mt-4 pt-4 border-top" style="border-color: var(--border-color) !important;">
+            <button class="btn-primary" @onclick="NavigateToEvent" style="padding: 0.75rem 2rem;">
+                Done (Go to Event)
+            </button>
+            <p class="text-muted mt-2" style="font-size: 0.85rem;">Click here once you have finished uploading all clips for this event.</p>
+        </div>
+    }
+
+    <div class="alert alert-info d-flex align-items-center mt-3" role="alert">
+        <i class="bi bi-info-circle-fill me-2 fs-5"></i>
+        <div>
+            <strong>Tip:</strong> You can choose a specific "Hero" thumbnail for this event in the <a href="/admin" class="alert-link">Admin Portal</a> by clicking the star icon next to a clip.
+        </div>
+    </div>
+</div>
+
+@code {
+    private List<Event>? _events;
+    private string _selectedEventId = "";
+    private Event _newEvent = new() { Id = Guid.NewGuid().ToString(), Date = DateOnly.FromDateTime(DateTime.Now) };
+    private double _priceDollars = 10.00;
+    private double _priceCommercialDollars = 49.00;
+    private DotNetObjectReference<Upload>? _dotNetHelper;
+    private string? _userId;
+    private string _errorMessage = "";
+    private bool _isCreatingEvent = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _events = await EventRepository.ListAsync();
+        _dotNetHelper = DotNetObjectReference.Create(this);
+        
+        if (AuthenticationStateTask != null)
+        {
+            var authState = await AuthenticationStateTask;
+            _userId = authState.User?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "Admin";
+        }
+        else
+        {
+            _userId = "Admin";
+        }
+    }
+
+    [CascadingParameter]
+    private Task<AuthenticationState> AuthenticationStateTask { get; set; } = null!;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await JS.InvokeVoidAsync("muxUpload.initUppy", _dotNetHelper, "uppy-dashboard", _userId);
+        }
+    }
+
+    public class MuxUploadRequest
+    {
+        public string FileName { get; set; } = "";
+        public long FileSize { get; set; }
+        public string MasterFileName { get; set; } = "";
+    }
+
+    public class MuxUploadResult
+    {
+        public string Url { get; set; } = "";
+        public string UploadId { get; set; } = "";
+        public string ClipId { get; set; } = "";
+    }
+
+    [JSInvokable]
+    public Task<UploadInfo> GetUploadInfo()
+    {
+        return Task.FromResult(new UploadInfo
+        {
+            EventId = _selectedEventId,
+            PriceCents = (int)(_priceDollars * 100),
+            PriceCommercialCents = (int)(_priceCommercialDollars * 100),
+            UserId = _userId ?? "Admin"
+        });
+    }
+
+    public class UploadInfo
+    {
+        public string EventId { get; set; } = "";
+        public int PriceCents { get; set; }
+        public int PriceCommercialCents { get; set; }
+        public string UserId { get; set; } = "";
+    }
+
+    [JSInvokable]
+    public async Task<MuxUploadResult> GetMuxUploadUrl(MuxUploadRequest request)
+    {
+        if (string.IsNullOrEmpty(_selectedEventId))
+        {
+            throw new Exception("Please select an event first.");
+        }
+
+        var clipId = Guid.NewGuid().ToString();
+        var (url, uploadId) = await VideoService.CreateUploadUrlAsync(
+            clipId: clipId,
+            title: request.FileName,
+            creatorId: _userId
+        );
+
+        return new MuxUploadResult { Url = url, UploadId = uploadId, ClipId = clipId };
+    }
+
+    public class UploadSuccessData
+    {
+        public string FileName { get; set; } = "";
+        public string MuxUploadId { get; set; } = "";
+        public string ClipId { get; set; } = "";
+        public string RecordingDate { get; set; } = "";
+        public string MasterFileName { get; set; } = "";
+    }
+
+    [JSInvokable]
+    public async Task OnUppyUploadSuccess(UploadSuccessData data)
+    {
+        var clip = new Clip
+        {
+            Id = data.ClipId,
+            EventId = _selectedEventId,
+            Title = data.FileName,
+            PriceCents = (int)(_priceDollars * 100),
+            PriceCommercialCents = (int)(_priceCommercialDollars * 100),
+            MuxUploadId = data.MuxUploadId,
+            MasterFileName = data.MasterFileName,
+            RecordingStartedAt = DateTime.TryParse(data.RecordingDate, out var dt) ? dt : null
+        };
+
+        await ClipRepository.AddAsync(clip);
+        
+        // Log the action
+        var authState = await AuthenticationStateTask;
+        var user = authState.User;
+        var userId = user.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        var userEmail = user.Identity?.Name;
+
+        await AuditService.LogActionAsync(
+            userId, 
+            userEmail, 
+            "Upload Clip", 
+            "Clip", 
+            clip.Id, 
+            $"New clip uploaded: {clip.Title} for Event ID: {clip.EventId}");
+
+        // Start background polling to resolve Asset ID and Playback ID for thumbnails
+        _ = ResolveMuxDetailsAsync(clip);
+    }
+
+    private async Task ResolveMuxDetailsAsync(Clip clip)
+    {
+        if (string.IsNullOrEmpty(clip.MuxUploadId)) return;
+
+        
+        // 1. Poll for AssetId (up to 30 seconds)
+        string? assetId = null;
+        for (int i = 0; i < 15; i++)
+        {
+            await Task.Delay(2000);
+            assetId = await VideoService.GetAssetIdFromUploadAsync(clip.MuxUploadId);
+            if (!string.IsNullOrEmpty(assetId)) break;
+        }
+
+        if (string.IsNullOrEmpty(assetId))
+        {
+            return;
+        }
+
+        clip.MuxAssetId = assetId;
+
+        // 2. Poll for Duration and PlaybackId (up to 60 seconds)
+        // Mux takes extra time to analyze duration after the asset is "ready"
+        for (int i = 0; i < 20; i++)
+        {
+            var (duration, startedAt) = await VideoService.GetAssetDetailsAsync(assetId);
+            
+            if (duration.HasValue && duration.Value > 0)
+            {
+                clip.DurationSec = duration;
+                if (startedAt.HasValue && !clip.RecordingStartedAt.HasValue) 
+                    clip.RecordingStartedAt = startedAt;
+                
+                // Ensure we have a Playback ID for the thumbnail
+                var playbackId = await VideoService.EnsurePlaybackIdAsync(assetId);
+                if (!string.IsNullOrEmpty(playbackId))
+                {
+                    clip.PlaybackIdSigned = playbackId;
+                }
+
+                await ClipRepository.UpdateAsync(clip);
+
+                // Notify clients via SignalR that specific clip is updated
+                await HubContext.Clients.All.SendAsync("ClipStatusUpdated", clip.Id, "Ready");
+
+                return;
+            }
+
+            await Task.Delay(3000);
+        }
+
+        // Final save even if duration is still missing (fallback)
+        await ClipRepository.UpdateAsync(clip);
+    }
+
+    private async Task NavigateToEvent()
+    {
+        var targetId = _selectedEventId;
+        
+        if (!string.IsNullOrEmpty(targetId))
+        {
+            try 
+            {
+                // Fallback: Try Blazor navigation first
+                Navigation.NavigateTo($"/events/{targetId}", forceLoad: true);
+            }
+            catch (Exception)
+            {
+                // Ultimate Fallback: Direct JS Redirect
+                await JS.InvokeVoidAsync("location.assign", $"/events/{targetId}");
+            }
+        }
+        else 
+        {
+            // If ID is missing, just go home as a safety net
+            Navigation.NavigateTo("/", forceLoad: true);
+        }
+    }
+
+    private void CreateNewEvent()
+    {
+        _isCreatingEvent = true;
+        _selectedEventId = "";
+        StateHasChanged();
+    }
+
+    private async Task SaveEventAsync()
+    {
+        _errorMessage = "";
+        try
+        {
+            if (string.IsNullOrEmpty(_newEvent.Id)) _newEvent.Id = Guid.NewGuid().ToString();
+            await EventRepository.AddAsync(_newEvent);
+            _events = await EventRepository.ListAsync();
+            _selectedEventId = _newEvent.Id;
+            
+            // Log the action
+            var authState = await AuthenticationStateTask;
+            var user = authState.User;
+            var userId = user.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            var userEmail = user.Identity?.Name;
+
+            await AuditService.LogActionAsync(
+                userId, 
+                userEmail, 
+                "Create Event", 
+                "Event", 
+                _selectedEventId, 
+                $"New event created: {_newEvent.Name} ({_newEvent.Date.ToShortDateString()})");
+
+            _isCreatingEvent = false;
+            _newEvent = new() { Id = Guid.NewGuid().ToString(), Date = DateOnly.FromDateTime(DateTime.Now) };
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = $"Error saving event: {ex.Message}";
+        }
+    }
+
+    public void Dispose() => _dotNetHelper?.Dispose();
+}
+

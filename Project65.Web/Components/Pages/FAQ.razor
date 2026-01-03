@@ -1,0 +1,105 @@
+@page "/faq"
+@inject ISettingsRepository SettingsRepository
+@inject Project65.Web.Services.StoreSettingsService StoreSettingsService
+@implements IDisposable
+
+<PageTitle>FAQ - @(_storeName ?? "Project65 Studios")</PageTitle>
+
+<div style="max-width: 800px; margin: 4rem auto; padding: 2rem;">
+    <h1 class="h3 mb-5 text-center">Frequently Asked Questions</h1>
+
+    <div style="display: flex; flex-direction: column; gap: 3rem;">
+        
+        <!-- Quality Question -->
+        <div class="faq-item">
+            <h3 style="color: var(--accent-primary); margin-bottom: 1rem;">
+                <i class="bi bi-question-circle-fill me-2"></i> Why is the preview video quality low?
+            </h3>
+            <div style="background: var(--bg-surface); padding: 1.5rem; border-radius: var(--radius-lg); border: 1px solid var(--border-color); color: var(--text-secondary); line-height: 1.6;">
+                <p class="mb-3">
+                    Our website serves <strong>lightweight 540p previews</strong> for immediate browsing. This ensures that you can quickly scan through hundreds of clips from an event without waiting for massive 4K files to buffer.
+                </p>
+                <p class="mb-0">
+                    <strong>Don't worry!</strong> When you purchase a clip, you receive the raw <strong>4K Ultra-HD Master File</strong>. This is the original, full-quality footage direct from our cameras, perfect for editing or archiving.
+                </p>
+            </div>
+        </div>
+
+        <!-- Delivery Question -->
+        <div class="faq-item">
+            <h3 style="color: var(--accent-primary); margin-bottom: 1rem;">
+                <i class="bi bi-box-seam-fill me-2"></i> How do I receive my video after purchase?
+            </h3>
+            <div style="background: var(--bg-surface); padding: 1.5rem; border-radius: var(--radius-lg); border: 1px solid var(--border-color); color: var(--text-secondary); line-height: 1.6;">
+                <p class="mb-3">
+                    We use a secure, direct delivery system:
+                </p>
+                <ol style="margin-bottom: 1rem; padding-left: 1.5rem;">
+                    <li class="mb-2"><strong>Checkout securely</strong> using your credit card or digital wallet.</li>
+                    <li class="mb-2">Our team will <strong>process and fulfill</strong> your order (preparing your unique files).</li>
+                    <li class="mb-2">Once ready, you will receive an email containing a unique <strong>"Magic Link."</strong></li>
+                    <li class="mb-2">Clicking this link opens your personal <strong>Order Delivery Page</strong>.</li>
+                    <li class="mb-0">From there, you can download your <strong>4K Master Files</strong> directly to your computer or phone.</li>
+                </ol>
+                <p class="mb-0 text-muted small">
+                    <em>Note: Your download links are permanent and do not expire.</em>
+                </p>
+            </div>
+        </div>
+
+        <!-- Mobile Question -->
+        <div class="faq-item">
+            <h3 style="color: var(--accent-primary); margin-bottom: 1rem;">
+                <i class="bi bi-phone-fill me-2"></i> Can I download to my phone?
+            </h3>
+            <div style="background: var(--bg-surface); padding: 1.5rem; border-radius: var(--radius-lg); border: 1px solid var(--border-color); color: var(--text-secondary); line-height: 1.6;">
+                <p class="mb-0">
+                    <strong>Yes!</strong> Our delivery pages are mobile-friendly. You can tap "Download" on your iPhone or Android device, and the video will be saved to your Files app or Gallery (depending on your device settings).
+                </p>
+            </div>
+        </div>
+
+           <!-- Lost Order Question -->
+        <div class="faq-item">
+            <h3 style="color: var(--accent-primary); margin-bottom: 1rem;">
+                <i class="bi bi-envelope-exclamation-fill me-2"></i> I lost my email! How do I find my order?
+            </h3>
+            <div style="background: var(--bg-surface); padding: 1.5rem; border-radius: var(--radius-lg); border: 1px solid var(--border-color); color: var(--text-secondary); line-height: 1.6;">
+                <p class="mb-0">
+                   You can always recover your past orders using our <a href="/order-lookup" style="color: var(--accent-secondary); text-decoration: underline;">Order Lookup</a> tool. Simply enter the email address you used at checkout, and we will show you your purchase history instantly.
+                </p>
+            </div>
+        </div>
+
+    </div>
+    
+    <div class="text-center mt-5 pt-4 border-top border-secondary opacity-50">
+        <a href="/" class="btn btn-secondary">
+            ← Return to Home
+        </a>
+    </div>
+</div>
+
+@code {
+    private string? _storeName;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _storeName = await StoreSettingsService.GetStoreNameAsync();
+        StoreSettingsService.OnChange += HandleSettingsChange;
+    }
+
+    private void HandleSettingsChange()
+    {
+        InvokeAsync(async () => 
+        {
+            _storeName = await StoreSettingsService.GetStoreNameAsync();
+            StateHasChanged();
+        });
+    }
+
+    public void Dispose()
+    {
+        StoreSettingsService.OnChange -= HandleSettingsChange;
+    }
+}

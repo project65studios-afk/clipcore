@@ -1,0 +1,167 @@
+@page "/admin/sales"
+@using Project65.Core.Entities
+@using Project65.Core.Interfaces
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize(Roles = "Admin")]
+@inject IPurchaseRepository PurchaseRepository
+@inject IJSRuntime JS
+@rendermode RenderMode.InteractiveServer
+
+<div class="admin-container" style="max-width: 1200px; margin: 2rem auto; padding: 0 1rem;">
+    <div class="admin-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+        <h1 style="font-size: 2rem; margin: 0;">Sales Analytics</h1>
+        <div class="admin-actions" style="display: flex; gap: 1rem;">
+            <a href="/admin" class="btn-secondary" style="text-decoration: none;">Dashboard</a>
+            <a href="/admin/settings" class="btn-secondary" style="text-decoration: none;">⚙️ Settings</a>
+        </div>
+    </div>
+
+    @if (_isLoading)
+    {
+        <div style="display: flex; justify-content: center; padding: 4rem;">
+            <div class="spinner-border text-primary" role="status"></div>
+        </div>
+    }
+    else
+    {
+        <!-- Main Analytics Grid -->
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem; margin-bottom: 2rem;">
+            <!-- Metrics Tiles -->
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                <div style="background: var(--bg-surface); padding: 1.5rem; border-radius: var(--radius-lg); border: 1px solid var(--border-color); display: flex; flex-direction: column; justify-content: center;">
+                    <div style="color: var(--text-secondary); font-size: 0.8rem; margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 1px;">Total Revenue</div>
+                    <div style="font-size: 1.75rem; font-weight: 700; color: var(--status-success);">$@(_totalRevenue / 100.00)</div>
+                </div>
+                <div style="background: var(--bg-surface); padding: 1.5rem; border-radius: var(--radius-lg); border: 1px solid var(--border-color); display: flex; flex-direction: column; justify-content: center;">
+                    <div style="color: var(--text-secondary); font-size: 0.8rem; margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 1px;">Total Orders</div>
+                    <div style="font-size: 1.75rem; font-weight: 700;">@_totalSalesCount</div>
+                </div>
+                <div style="background: var(--bg-surface); padding: 1.5rem; border-radius: var(--radius-lg); border: 1px solid var(--border-color); grid-column: span 2;">
+                    <div style="color: var(--text-secondary); font-size: 0.8rem; margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 1px;">Avg. Order Value</div>
+                    <div style="font-size: 1.75rem; font-weight: 700; color: var(--accent-primary);">
+                        $@(_totalSalesCount > 0 ? (_totalRevenue / 100.00 / _totalSalesCount).ToString("F2") : "0.00")
+                    </div>
+                </div>
+            </div>
+
+            <!-- Revenue Chart -->
+            <div style="background: var(--bg-surface); padding: 1.5rem; border-radius: var(--radius-lg); border: 1px solid var(--border-color); min-height: 250px; position: relative;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                    <h3 style="margin: 0; font-size: 1rem; color: var(--text-secondary);">7-Day Revenue Trend</h3>
+                    <div style="font-size: 0.75rem; color: var(--text-muted);">Daily Totals ($)</div>
+                </div>
+                <div style="height: 180px; width: 100%;">
+                    <canvas id="salesChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 2rem;">
+            <!-- Recent Transactions Table -->
+            <div style="background: var(--bg-surface); border-radius: var(--radius-lg); border: 1px solid var(--border-color); overflow: hidden;">
+                <div style="padding: 1.5rem; border-bottom: 1px solid var(--border-color);">
+                    <h3 style="margin: 0;">Recent Transactions</h3>
+                </div>
+                <table class="responsive-table mobile-card-view" style="width: 100%; border-collapse: collapse;">
+                    <thead>
+                        <tr style="background: var(--bg-subtle); border-bottom: 1px solid var(--border-color);">
+                            <th style="padding: 1rem; text-align: left; color: var(--text-secondary); font-weight: 500;">Date</th>
+                            <th style="padding: 1rem; text-align: left; color: var(--text-secondary); font-weight: 500;">Customer</th>
+                            <th style="padding: 1rem; text-align: left; color: var(--text-secondary); font-weight: 500;">Clip</th>
+                            <th style="padding: 1rem; text-align: right; color: var(--text-secondary); font-weight: 500;">Amount</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var purchase in _recentPurchases)
+                        {
+                            <tr style="border-bottom: 1px solid var(--border-color);">
+                                <td data-label="Date" style="padding: 1rem; color: var(--text-secondary);">@purchase.CreatedAt.ToString("MM/dd/yy hh:mm tt")</td>
+                                <td data-label="Customer" style="padding: 1rem;">
+                                    <div>@(purchase.CustomerName ?? "Guest")</div>
+                                    <div style="font-size: 0.8rem; color: var(--text-muted);">@purchase.CustomerEmail</div>
+                                </td>
+                                <td data-label="Clip" style="padding: 1rem;">@(purchase.Clip?.Title ?? purchase.ClipTitle ?? "Deleted Clip")</td>
+                                <td data-label="Amount" style="padding: 1rem; text-align: right; font-weight: 600;">$@(purchase.PricePaidCents / 100.00)</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+                 @if (!_recentPurchases.Any())
+                {
+                    <div style="padding: 2rem; text-align: center; color: var(--text-muted);">No transactions found.</div>
+                }
+            </div>
+
+            <!-- 7-Day Trend (Simple List for now) -->
+             <div style="background: var(--bg-surface); border-radius: var(--radius-lg); border: 1px solid var(--border-color); overflow: hidden; height: fit-content;">
+                <div style="padding: 1.5rem; border-bottom: 1px solid var(--border-color);">
+                    <h3 style="margin: 0;">Last 7 Days</h3>
+                </div>
+                <div style="display: flex; flex-direction: column;">
+                    @foreach (var day in GetLast7Days())
+                    {
+                        var revenue = _dailyRevenue.ContainsKey(day) ? _dailyRevenue[day] : 0;
+                        <div style="display: flex; justify-content: space-between; padding: 1rem; border-bottom: 1px solid var(--border-color);">
+                            <span style="color: var(--text-secondary);">@day.ToString("MMM dd")</span>
+                            <span style="font-weight: 600; color: @(revenue > 0 ? "#10b981" : "var(--text-muted)")">$@(revenue / 100.00)</span>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private bool _isLoading = true;
+    private long _totalRevenue;
+    private int _totalSalesCount;
+    private List<Purchase> _recentPurchases = new();
+    private Dictionary<DateOnly, long> _dailyRevenue = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            await LoadDataAsync();
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!_isLoading && _dailyRevenue.Any())
+        {
+            await UpdateChartAsync();
+        }
+    }
+
+    private async Task UpdateChartAsync()
+    {
+        var days = GetLast7Days().Reverse().ToList();
+        var labels = days.Select(d => d.ToString("MMM dd")).ToArray();
+        var data = days.Select(d => _dailyRevenue.ContainsKey(d) ? _dailyRevenue[d] / 100.0 : 0.0).ToArray();
+
+        await JS.InvokeVoidAsync("renderSalesChart", "salesChart", labels, data);
+    }
+
+    private async Task LoadDataAsync()
+    {
+        _totalRevenue = await PurchaseRepository.GetTotalRevenueAsync();
+        _totalSalesCount = await PurchaseRepository.GetTotalSalesCountAsync();
+        _recentPurchases = await PurchaseRepository.GetRecentSalesAsync(20);
+        _dailyRevenue = await PurchaseRepository.GetDailyRevenueAsync(7);
+    }
+
+    private IEnumerable<DateOnly> GetLast7Days()
+    {
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        for (int i = 0; i < 7; i++)
+        {
+            yield return today.AddDays(-i);
+        }
+    }
+}

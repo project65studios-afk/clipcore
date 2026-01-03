@@ -1,0 +1,287 @@
+@page "/search"
+@using Project65.Core.Entities
+@using Project65.Core.Interfaces
+@inject IEventRepository EventRepository
+@inject IClipRepository ClipRepository
+@inject ISearchService SearchService
+@inject IVideoService VideoService
+@inject ISettingsRepository SettingsRepository
+@inject Project65.Web.Services.StoreSettingsService StoreSettingsService
+@inject IStorageService StorageService
+@inject NavigationManager Navigation
+@inject IJSRuntime JSRuntime
+@inject Project65.Web.Services.CartService CartService
+@inject IWebHostEnvironment Environment
+@inject IPurchaseRepository PurchaseRepository
+@using System.IO
+@inject Project65.Web.Services.VideoHealingService VideoHealingService
+@using Microsoft.AspNetCore.SignalR.Client
+@implements IAsyncDisposable
+@implements IDisposable
+@rendermode RenderMode.InteractiveServer
+
+<PageTitle>Search Results - @(_storeName ?? "Project65 Studios")</PageTitle>
+
+<div class="content-container" style="max-width: 1200px; margin: 0 auto; padding: 2rem 1rem;">
+    <div class="mb-4">
+        <h1 class="h2">Search Results</h1>
+        @if (!string.IsNullOrWhiteSpace(Query))
+        {
+            <p class="text-muted">Showing results for <span class="text-white fw-bold">"@Query"</span></p>
+        }
+    </div>
+
+    @if (_isSearching)
+    {
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary" role="status"></div>
+            <p class="mt-2 text-muted">Searching...</p>
+        </div>
+    }
+    else if (_events.Count == 0 && _clips.Count == 0)
+    {
+        <div class="text-center py-5" style="background: var(--bg-surface); border-radius: var(--radius-lg); border: 1px dashed var(--border-color);">
+            <i class="bi bi-search display-1 text-muted opacity-25"></i>
+            <h3 class="mt-3 text-white">No results found</h3>
+            <p class="text-secondary">Try adjusting your search terms or check your spelling.</p>
+            <a href="/" class="btn btn-outline-primary mt-2">Browse All Events</a>
+        </div>
+    }
+    else
+    {
+        @if (_events.Any())
+        {
+            <div class="mb-5">
+                <h3 class="h4 mb-3 border-bottom border-secondary pb-2">Events (@_events.Count)</h3>
+                <div class="row g-4">
+                    @foreach (var evt in _events)
+                    {
+                        var firstClip = evt.Clips?.OrderBy(c => c.RecordingStartedAt ?? DateTime.MaxValue).FirstOrDefault();
+                        var thumbUrl = GetThumbnailUrl(firstClip);
+                        string bgStyle = !string.IsNullOrEmpty(thumbUrl) 
+                            ? $"background: linear-gradient(to bottom, rgba(0,0,0,0.2), rgba(0,0,0,0.9)), url('{thumbUrl}') center/cover no-repeat; border: 1px solid var(--border-color);" 
+                            : "background: var(--bg-surface); border: 1px solid var(--border-color);";
+
+                        <div class="col-md-6 col-lg-4">
+                            <a href="/events/@evt.Id" class="card h-100 text-decoration-none border-0 shadow-sm event-card" style="@bgStyle transition: transform 0.2s;">
+                                <div class="card-body d-flex flex-column justify-content-end" style="min-height: 220px;">
+                                    <h5 class="card-title text-white mb-1" style="text-shadow: 0 2px 4px rgba(0,0,0,0.8);">@evt.Name</h5>
+                                    <div class="text-light small mb-2" style="opacity: 0.9; text-shadow: 0 1px 2px rgba(0,0,0,0.8);">@evt.Date.ToString("MMMM dd, yyyy")</div>
+                                    @if (!string.IsNullOrEmpty(evt.Summary))
+                                    {
+                                        <div class="text-light small text-truncate" style="opacity: 0.8; text-shadow: 0 1px 2px rgba(0,0,0,0.8);">@evt.Summary</div>
+                                    }
+                                    <div class="mt-2">
+                                         <span class="badge bg-white text-dark bg-opacity-75 backdrop-blur">
+                                            @(evt.Clips?.Count ?? 0) Clips
+                                         </span>
+                                    </div>
+                                </div>
+                            </a>
+                        </div>
+                    }
+                </div>
+            </div>
+        }
+
+        @if (_clips.Any())
+        {
+            <div>
+                <h3 class="h4 mb-3 border-bottom border-secondary pb-2">Clips (@_clips.Count)</h3>
+                <div class="video-grid">
+                    @foreach (var clip in _clips)
+                    {
+                        <ClipCard Clip="clip" IsPurchased="_purchasedClipIds.Contains(clip.Id)" WatermarkUrl="@_watermarkUrl" />
+                    }
+                </div>
+            </div>
+        }
+    }
+</div>
+
+@code {
+    [SupplyParameterFromQuery(Name = "q")]
+    public string? Query { get; set; }
+
+    private List<Event> _events = new();
+    private List<Clip> _clips = new();
+    private bool _isSearching = false;
+    private string? _watermarkUrl;
+    private string? _storeName;
+    private HashSet<string> _purchasedClipIds = new();
+
+    [CascadingParameter]
+    private Task<AuthenticationState> AuthenticationStateTask { get; set; } = null!;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _storeName = await StoreSettingsService.GetStoreNameAsync();
+        StoreSettingsService.OnChange += HandleSettingsChange;
+        _watermarkUrl = await SettingsRepository.GetValueAsync("WatermarkUrl");
+        
+        await LoadPurchasedClipsAsync();
+        VideoHealingService.OnClipHealed += HandleClipHealed;
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (string.IsNullOrWhiteSpace(Query))
+        {
+            _events.Clear();
+            _clips.Clear();
+            return;
+        }
+
+        _isSearching = true;
+        StateHasChanged();
+
+        try
+        {
+            var eventsTask = EventRepository.SearchAsync(Query);
+            var clipsTask = SearchService.SearchAsync(Query);
+
+            await Task.WhenAll(eventsTask, clipsTask);
+
+            _events = await eventsTask;
+            _clips = await clipsTask;
+
+            if (_clips != null)
+            {
+                // Start background healing for any processing clips
+                VideoHealingService.StartHealingForClips(_clips);
+            }
+
+            if (AuthenticationStateTask != null)
+            {
+                var authState = await AuthenticationStateTask;
+                var user = authState.User;
+                if (user.Identity?.IsAuthenticated == true)
+                {
+                    var userId = user.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+                    var purchases = await PurchaseRepository.GetByUserIdAsync(userId);
+                    _purchasedClipIds = purchases
+                        .Where(p => !string.IsNullOrEmpty(p.ClipId))
+                        .Select(p => p.ClipId!)
+                        .ToHashSet();
+                }
+            }
+        }
+        catch (Exception)
+        {
+            _clips = new List<Clip>();
+        }
+        finally
+        {
+            _isSearching = false;
+        }
+    }
+
+    private async Task LoadPurchasedClipsAsync()
+    {
+        if (AuthenticationStateTask != null)
+        {
+            var authState = await AuthenticationStateTask;
+            var user = authState.User;
+            if (user.Identity?.IsAuthenticated == true)
+            {
+                var userId = user.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+                var purchases = await PurchaseRepository.GetByUserIdAsync(userId);
+                _purchasedClipIds = purchases
+                    .Where(p => !string.IsNullOrEmpty(p.ClipId))
+                    .Select(p => p.ClipId!)
+                    .ToHashSet();
+            }
+        }
+    }
+
+    private void HandleClipHealed(Clip healedClip)
+    {
+        if (_clips == null) return;
+        
+        var existing = _clips.FirstOrDefault(c => c.Id == healedClip.Id);
+        if (existing != null)
+        {
+            existing.PlaybackIdSigned = healedClip.PlaybackIdSigned;
+            existing.DurationSec = healedClip.DurationSec;
+            existing.RecordingStartedAt = healedClip.RecordingStartedAt;
+            existing.MuxAssetId = healedClip.MuxAssetId;
+            
+            InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private HubConnection? _hubConnection;
+
+    private void HandleSettingsChange()
+    {
+        InvokeAsync(async () => {
+            _storeName = await StoreSettingsService.GetStoreNameAsync();
+            StateHasChanged();
+        });
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        VideoHealingService.OnClipHealed -= HandleClipHealed;
+        if (_hubConnection is not null)
+        {
+            await _hubConnection.DisposeAsync();
+        }
+    }
+
+    public void Dispose()
+    {
+        StoreSettingsService.OnChange -= HandleSettingsChange;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await CartService.InitializeAsync();
+             // SignalR Connection
+            _hubConnection = new HubConnectionBuilder()
+                .WithUrl(Navigation.ToAbsoluteUri("/processingHub"))
+                .WithAutomaticReconnect()
+                .Build();
+
+            _hubConnection.On<string, string>("ClipStatusUpdated", (clipId, status) =>
+            {
+                var clip = _clips.FirstOrDefault(c => c.Id == clipId);
+                if (clip != null)
+                {
+                    InvokeAsync(async () => {
+                         var freshClip = await ClipRepository.GetByIdAsync(clipId);
+                         if (freshClip != null)
+                         {
+                             clip.PlaybackIdSigned = freshClip.PlaybackIdSigned;
+                             clip.DurationSec = freshClip.DurationSec;
+                             clip.RecordingStartedAt = freshClip.RecordingStartedAt;
+                             clip.MuxAssetId = freshClip.MuxAssetId;
+                             StateHasChanged();
+                         }
+                    });
+                }
+            });
+
+            await _hubConnection.StartAsync();
+            StateHasChanged();
+        }
+    }
+
+    private string? GetThumbnailUrl(Clip? clip)
+    {
+        if (clip == null) return null;
+        
+        if (!string.IsNullOrEmpty(clip.ThumbnailFileName))
+        {
+            var storageKey = clip.ThumbnailFileName.Contains("/") 
+                ? clip.ThumbnailFileName 
+                : $"thumbnails/{clip.ThumbnailFileName}";
+                
+            return StorageService.GetPresignedDownloadUrl(storageKey);
+        }
+        
+        return null;
+    }
+}

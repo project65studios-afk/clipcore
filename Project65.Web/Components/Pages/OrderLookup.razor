@@ -1,0 +1,259 @@
+@page "/order-lookup"
+@using Project65.Core.Entities
+@using Project65.Core.Interfaces
+@using System.IO
+@inject IPurchaseRepository PurchaseRepository
+@inject IEmailService EmailService
+@inject NavigationManager Navigation
+@inject IStorageService StorageService
+@inject IVideoService VideoService
+@inject IWebHostEnvironment Environment
+@rendermode RenderMode.InteractiveServer
+@inject ISettingsRepository SettingsRepository
+@inject Project65.Web.Services.StoreSettingsService StoreSettingsService
+@implements IDisposable
+
+<PageTitle>Find My Order - @(_storeName ?? "Project65 Studios")</PageTitle>
+
+<div style="max-width: 800px; margin: 4rem auto; padding: 2rem;">
+    <h1 class="h3 mb-3 text-center">Find My Order</h1>
+    <p class="text-muted text-center mb-4">
+        Enter the email address you used during checkout to view your order history.
+    </p>
+
+    @if (!_hasSearched)
+    {
+        <div style="max-width: 500px; margin: 0 auto; background: var(--bg-surface); padding: 2rem; border-radius: var(--radius-lg); border: 1px solid var(--border-color);">
+            <EditForm Model="this" OnValidSubmit="HandleSubmit">
+                <div class="mb-3">
+                    <label class="form-label">Email Address</label>
+                    <InputText @bind-Value="_email" class="form-control" placeholder="you@example.com" />
+                </div>
+                
+                <div class="mb-4">
+                    <label class="form-label">Order Number (Last 8 Characters)</label>
+                    <InputText @bind-Value="_orderNumber" class="form-control" placeholder="e.g. A1B2C3D4" />
+                    <div class="form-text text-muted" style="font-size: 0.8rem;">You can find this on your email receipt (e.g. Order #A1B2C3D4).</div>
+                </div>
+
+                <button type="submit" class="btn btn-primary w-100" disabled="@_isProcessing">
+                    @if (_isProcessing)
+                    {
+                        <span class="spinner-border spinner-border-sm me-2"></span>
+                    }
+                    Find Order
+                </button>
+            </EditForm>
+        </div>
+    }
+    else
+    {
+            @if (_foundOrders.Any())
+            {
+                 <div class="alert alert-success text-center mb-4" style="background: rgba(16, 185, 129, 0.1); border-color: rgba(16, 185, 129, 0.2); color: #10b981;">
+                    <i class="bi bi-check-circle-fill me-2"></i> Order Found!
+                </div>
+
+            <div class="d-flex flex-column gap-4">
+                @foreach (var order in _foundOrders)
+                {
+                    <div class="order-card" style="background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: var(--radius-lg); overflow: hidden;">
+                         <div class="p-3 border-bottom border-secondary d-flex justify-content-between align-items-center" style="background: rgba(255,255,255,0.03);">
+                            <div>
+                                <h5 class="m-0">Order #@order.OrderIdDisplay</h5>
+                                <small class="text-muted">@order.Date.ToLocalTime().ToString("MMM dd, yyyy • h:mm tt")</small>
+                            </div>
+                            <a href="@order.Link" class="btn btn-success btn-sm fw-bold">
+                                View Downloads <i class="bi bi-arrow-right ml-1"></i>
+                            </a>
+                        </div>
+                        
+                        <div class="d-flex flex-column">
+                            @foreach(var item in order.Items)
+                            {
+                                <div class="p-3 border-bottom border-secondary d-flex gap-3 align-items-center" style="border-color: rgba(255,255,255,0.05) !important;">
+                                    <div style="width: 120px; aspect-ratio: 16/9; background: #000; border-radius: 4px; overflow: hidden; flex-shrink: 0;">
+                                        @if (!string.IsNullOrEmpty(item.ThumbnailUrl))
+                                        {
+                                            <img src="@item.ThumbnailUrl" alt="@item.Title" style="width: 100%; height: 100%; object-fit: cover;" />
+                                        }
+                                    </div>
+                                    <div style="flex-grow: 1;">
+                                        <div style="font-weight: 600; font-size: 1.05rem;">@item.Title</div>
+                                        @if (!string.IsNullOrEmpty(item.EventName))
+                                        {
+                                            <div class="text-muted small">
+                                                <a href="/events/@item.EventId" class="text-decoration-none text-info">@item.EventName</a>
+                                                <span class="mx-1">•</span>
+                                                @item.EventDate?.ToString("MMM dd, yyyy")
+                                            </div>
+                                        }
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+        else
+        {
+            <div class="alert alert-warning text-center" style="max-width: 600px; margin: 0 auto; background: rgba(245, 158, 11, 0.1); border-color: rgba(245, 158, 11, 0.2); color: #f59e0b;">
+                <strong>Order Not Found</strong>
+                <br/><div class="mt-2" style="font-size: 0.9rem;">Please check that your Email and Order Number match exactly.<br/>The Order Number is the last 8 characters from your receipt (e.g. A1B2C3D4).</div>
+            </div>
+        }
+        
+        <div class="text-center mt-4">
+             <button class="btn btn-outline-secondary" @onclick="() => { _hasSearched = false; _email = string.Empty; }">Search Again</button>
+             <a href="/" class="btn btn-link text-decoration-none ms-2">Return Home</a>
+        </div>
+    }
+</div>
+
+@code {
+    private string _email = "";
+    private string _orderNumber = "";
+    private string? _storeName;
+    private bool _isProcessing = false;
+    private bool _hasSearched = false;
+    private List<OrderViewModel> _foundOrders = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        _storeName = await StoreSettingsService.GetStoreNameAsync();
+        StoreSettingsService.OnChange += HandleSettingsChange;
+    }
+
+    private void HandleSettingsChange()
+    {
+        InvokeAsync(async () =>
+        {
+            _storeName = await StoreSettingsService.GetStoreNameAsync();
+            StateHasChanged();
+        });
+    }
+
+    public void Dispose()
+    {
+        StoreSettingsService.OnChange -= HandleSettingsChange;
+    }
+
+    private class OrderViewModel
+    {
+        public string SessionId { get; set; } = "";
+        public DateTime Date { get; set; }
+        public int Count { get; set; }
+        public string Link { get; set; } = "";
+        public List<ItemViewModel> Items { get; set; } = new();
+        public string OrderIdDisplay => !string.IsNullOrEmpty(SessionId) && SessionId.Length > 8 
+            ? SessionId.Substring(SessionId.Length - 8).ToUpper() 
+            : "LEGACY";
+    }
+
+    private class ItemViewModel
+    {
+        public string Title { get; set; } = "";
+        public string EventName { get; set; } = "";
+        public DateOnly? EventDate { get; set; }
+        public string EventId { get; set; } = "";
+        public string ThumbnailUrl { get; set; } = "";
+    }
+
+    private async Task HandleSubmit()
+    {
+        if (string.IsNullOrWhiteSpace(_email) || string.IsNullOrWhiteSpace(_orderNumber)) return;
+
+        _isProcessing = true;
+        _hasSearched = false;
+        _foundOrders.Clear();
+        await Task.Delay(500); // UI feel
+
+        try
+        {
+            // 1. Find Purchases (Exact Credential Match)
+            // Sanitize Input: Remove "ORD-" prefix if user pasted it
+            var cleanOrderNum = _orderNumber.Trim().ToUpper().Replace("ORD-", "");
+
+            var purchases = await PurchaseRepository.GetByOrderNumberAsync(_email.Trim(), cleanOrderNum);
+
+            if (purchases.Any())
+            {
+                // 2. Group (Should be single order, but handle list just in case of match)
+                var groups = purchases
+                    .GroupBy(p => p.StripeSessionId)
+                    .OrderByDescending(g => g.First().CreatedAt);
+
+                foreach (var g in groups)
+                {
+                    var orderVM = new OrderViewModel
+                    { 
+                        SessionId = g.Key, 
+                        Date = g.First().CreatedAt,
+                        Count = g.Count(),
+                        Link = $"{Navigation.BaseUri}delivery/{g.Key}"
+                    };
+
+                    foreach (var p in g)
+                    {
+                        var itemVM = new ItemViewModel
+                        {
+                            Title = p.Clip?.Title ?? "Unknown Clip",
+                            EventName = p.Clip?.Event?.Name ?? "",
+                            EventDate = p.Clip?.Event?.Date,
+                            EventId = p.Clip?.EventId ?? ""
+                        };
+                        
+                        if (p.Clip != null)
+                        {
+                            itemVM.ThumbnailUrl = await GetThumbnailUrlAsync(p.Clip);
+                        }
+
+                        orderVM.Items.Add(itemVM);
+                    }
+                    _foundOrders.Add(orderVM);
+                }
+            }
+        }
+        catch (Exception)
+        {
+            // Error lookup
+        }
+
+        _hasSearched = true;
+        _isProcessing = false;
+    }
+
+    // Helper for Hybrid Thumbnail Logic (R2 -> Local -> Mux)
+    private async Task<string> GetThumbnailUrlAsync(Clip clip)
+    {
+        // 1. Try R2/Local Thumbnail
+        if (!string.IsNullOrEmpty(clip.ThumbnailFileName))
+        {
+            var localPath = Path.Combine(Environment.WebRootPath, "thumbnails", clip.ThumbnailFileName);
+            if (File.Exists(localPath))
+            {
+                return $"/thumbnails/{clip.ThumbnailFileName}";
+            }
+            else 
+            {
+                // Assuming R2 presigned URL or public URL. 
+                // For simplicity in this view, we use the storage service generator.
+                return StorageService.GetPresignedDownloadUrl($"thumbnails/{clip.ThumbnailFileName}");
+            }
+        }
+
+        // 2. Fallback to Mux
+        var id = clip.PlaybackIdTeaser;
+        if (string.IsNullOrEmpty(id) || id.StartsWith("mock")) 
+            id = clip.PlaybackIdSigned;
+        
+        if (!string.IsNullOrEmpty(id) && !id.StartsWith("mock"))
+        {
+            var token = await VideoService.GetPlaybackToken(id, "t", "480p");
+            return $"https://image.mux.com/{id}/thumbnail.jpg?token={token}&width=400";
+        }
+
+        return ""; // No thumbnail
+    }
+}

@@ -1,0 +1,314 @@
+@page "/my-purchases"
+@using Project65.Core.Entities
+@using Project65.Core.Interfaces
+@using Project65.Infrastructure.Data.Repositories
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize]
+@inject IPurchaseRepository PurchaseRepository
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject IVideoService VideoService
+@inject IJSRuntime JSRuntime
+@inject IStorageService StorageService
+@inject IWebHostEnvironment Environment
+@using System.IO
+@inject ISettingsRepository SettingsRepository
+@inject Project65.Web.Services.StoreSettingsService StoreSettingsService
+@implements IDisposable
+@rendermode RenderMode.InteractiveServer
+
+
+
+<PageTitle>My Purchases - @(_storeName ?? "Project65 Studios")</PageTitle>
+
+<div class="content-container" style="max-width: 1000px; margin: 0 auto; padding: 2rem 1rem;">
+    <h1 style="margin-bottom: 2rem;">My Purchases</h1>
+
+    @if (_isLoading)
+    {
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary" role="status"></div>
+        </div>
+    }
+    else if (_purchases.Count == 0)
+    {
+        <div style="text-align: center; padding: 4rem 1rem; background: var(--bg-surface); border-radius: var(--radius-lg); border: 1px dashed var(--border-color);">
+            <p style="color: var(--text-secondary); margin-bottom: 1.5rem; font-size: 1.1rem;">You haven't purchased any clips yet.</p>
+            <a href="/" class="btn-primary">Browse Events</a>
+        </div>
+    }
+    else
+    {
+        <div style="display: flex; flex-direction: column; gap: 2rem;">
+            @foreach (var orderGroup in _purchases.GroupBy(p => p.StripeSessionId).OrderByDescending(g => g.First().CreatedAt))
+            {
+                var firstItem = orderGroup.First();
+                var orderId = !string.IsNullOrEmpty(firstItem.StripeSessionId) 
+                    ? "ORD-" + firstItem.StripeSessionId.Substring(firstItem.StripeSessionId.Length - 8).ToUpper() 
+                    : "LEGACY-" + firstItem.Id;
+
+                <div class="order-group" style="background: var(--bg-surface); border-radius: var(--radius-lg); border: 1px solid var(--border-color); overflow: hidden;">
+                    <!-- Order Header -->
+                    <div class="order-header" style="background: rgba(255, 255, 255, 0.05); padding: 1rem 1.5rem; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <div style="font-weight: 700; color: var(--text-main);">@orderId</div>
+                            <div style="font-size: 0.85rem; color: var(--text-muted);">
+                                						Purchased on @firstItem.CreatedAt.ToLocalTime().ToString("MMMM dd, yyyy") at @firstItem.CreatedAt.ToLocalTime().ToString("t")
+					</div>
+					@if (!string.IsNullOrEmpty(firstItem.CustomerAddress) || !string.IsNullOrEmpty(firstItem.CustomerPhone))
+					{
+						<div class="mt-2 pt-2 border-top border-secondary" style="font-size: 0.8rem; border-color: rgba(255,255,255,0.1) !important;">
+							@if (!string.IsNullOrEmpty(firstItem.CustomerAddress))
+							{
+								<div class="text-muted" style="line-height: 1.4;">
+									<i class="bi bi-geo-alt me-1"></i>
+                                    @{
+                                        var parts = firstItem.CustomerAddress.Split(new[] { ", " }, StringSplitOptions.RemoveEmptyEntries);
+                                        if (parts.Length >= 3)
+                                        {
+                                            <div class="fw-bold text-primary d-inline-block">@parts[0]</div><br/>
+                                            <span>@string.Join(", ", parts.Skip(1).Take(parts.Length - 2))</span><br/>
+                                            
+                                            
+                                                var country = parts.Last();
+                                                if (country.Trim().Equals("US", StringComparison.OrdinalIgnoreCase)) country = "USA";
+                                            
+                                            <span class="text-uppercase" style="font-size: 0.8em;">@country</span>
+                                        }
+                                        else
+                                        {
+                                            @firstItem.CustomerAddress
+                                        }
+                                    }
+								</div>
+							}
+                            <div class="mt-2">
+                                <a href="/api/invoices/@firstItem.OrderId" target="_blank" class="text-primary text-decoration-none" style="font-size: 0.85rem;">
+                                    <i class="bi bi-file-earmark-pdf me-1"></i> Download Invoice
+                                </a>
+                            </div>
+						</div>
+					}
+                            </div>
+                    
+                    <div style="display: flex; align-items: center; gap: 1rem;">
+                        <div class="badge bg-secondary text-white" style="font-size: 0.8rem;">
+                            @orderGroup.Count() Item@(orderGroup.Count() > 1 ? "s" : "")
+                        </div>
+                        
+                        @if (orderGroup.All(p => p.FulfillmentStatus == FulfillmentStatus.Fulfilled))
+                        {
+                            <a href="/delivery/@firstItem.StripeSessionId" target="_blank" class="btn btn-success btn-sm fw-bold d-flex align-items-center gap-2 shadow-sm"
+                               style="padding: 0.4rem 1rem; border-radius: 20px;">
+                                <span>View Your Files</span>
+                                <i class="bi bi-arrow-right-circle-fill"></i>
+                            </a>
+                        }
+                    </div>
+                </div>
+
+                    <!-- Items -->
+                    <div class="order-items" style="display: flex; flex-direction: column;">
+                        @foreach (var purchase in orderGroup)
+                        {
+                            <div class="purchase-item" style="display: flex; gap: 1rem; padding: 1.5rem; border-bottom: 1px solid rgba(255,255,255,0.05);">
+                                <div class="purchase-thumbnail" style="width: 140px; aspect-ratio: 16/9; background: #000; border-radius: 4px; overflow: hidden; flex-shrink: 0;">
+                                     @{
+                                         var clipId = purchase.ClipId ?? purchase.Id.ToString();
+                                     }
+                                     @if (_thumbnailUrls.TryGetValue(clipId, out var thumbUrl)) 
+                                     {
+                                         <img src="@thumbUrl" alt="@(purchase.Clip?.Title ?? purchase.ClipTitle)" style="width: 100%; height: 100%; object-fit: cover;" />
+                                     }
+                                </div>
+                                
+                                <div class="purchase-info" style="flex-grow: 1;">
+                                    <h4 class="purchase-title" style="margin: 0 0 0.5rem 0; font-size: 1.1rem;">@(purchase.Clip?.Title ?? purchase.ClipTitle ?? "Deleted Clip")</h4>
+                                    @if (purchase.Clip?.Event != null)
+                                    {
+                                        <div style="font-size: 0.9rem; margin-bottom: 0.5rem;">
+                                            <a href="/events/@purchase.Clip.EventId" style="color: var(--accent-primary); text-decoration: none;">
+                                                @purchase.Clip.Event.Name
+                                            </a>
+                                            <span style="color: var(--text-muted); margin-left: 0.5rem;">
+                                                • @purchase.Clip.Event.Date.ToString("MMM dd, yyyy")
+                                            </span>
+                                            @{
+                                                var startTime = purchase.Clip?.RecordingStartedAt ?? purchase.ClipRecordingStartedAt;
+                                            }
+                                            @if (startTime.HasValue)
+                                            {
+                                                <span style="color: var(--text-muted); margin-left: 0.5rem;">
+                                                    • @startTime.Value.ToLocalTime().ToString("t")
+                                                </span>
+                                            }
+                                        </div>
+                                    }
+                                    else if (!string.IsNullOrEmpty(purchase.EventName))
+                                    {
+                                        <div style="font-size: 0.9rem; margin-bottom: 0.5rem; color: var(--text-muted); display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+                                            <span>@purchase.EventName</span>
+                                            @if (purchase.EventDate.HasValue)
+                                            {
+                                                <span>• @purchase.EventDate.Value.ToString("MMM dd, yyyy")</span>
+                                            }
+                                            @{
+                                                var startTimeDisplay = purchase.Clip?.RecordingStartedAt ?? purchase.ClipRecordingStartedAt;
+                                            }
+                                            @if (startTimeDisplay.HasValue)
+                                            {
+                                                <span>• @startTimeDisplay.Value.ToLocalTime().ToString("t")</span>
+                                            }
+                                            <span class="badge" style="background: @(purchase.LicenseType == LicenseType.Commercial ? "var(--accent-purple-dim)" : "var(--accent-primary-dim)"); color: @(purchase.LicenseType == LicenseType.Commercial ? "var(--accent-purple)" : "var(--accent-primary)"); border: 1px solid currentColor; font-size: 0.7rem; text-transform: uppercase; font-weight: 600; padding: 0.2rem 0.5rem;">
+                                                @purchase.LicenseType License
+                                            </span>
+                                        </div>
+                                    }
+                                </div>
+
+                                <div class="purchase-actions" style="display: flex; flex-direction: column; gap: 0.5rem; min-width: 200px; justify-content: center;">
+                                    @if (purchase.ClipId != null)
+                                    {
+                                        <a href="/clips/@purchase.ClipId" class="btn btn-outline-info w-100" style="font-size: 0.85rem; padding: 0.4rem;">
+                                            Preview / Details
+                                        </a>
+                                    }
+                                    
+                                    @if (purchase.FulfillmentStatus == FulfillmentStatus.Fulfilled)
+                                    {
+                                        <div class="text-success small fw-bold">
+                                            <i class="bi bi-check-circle-fill me-1"></i> Ready
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        <div class="text-center py-1 px-2 rounded" style="background: rgba(255, 193, 7, 0.1); border: 1px solid rgba(255, 193, 7, 0.2); color: #ffc107; font-size: 0.8rem;">
+                                            <i class="bi bi-hourglass-split me-1"></i> Awaiting Order Fulfillment
+                                        </div>
+                                    }
+                                </div>
+                            </div>
+                        }
+                    </div>
+                </div>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    private List<Purchase> _purchases = new();
+    private bool _isLoading = true;
+
+    private Dictionary<string, string> _thumbnailUrls = new();
+    private string? _storeName;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _storeName = await StoreSettingsService.GetStoreNameAsync();
+        StoreSettingsService.OnChange += HandleSettingsChange;
+        
+        await LoadPurchases();
+    }
+
+    private async Task LoadPurchases()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+
+        if (user.Identity != null && user.Identity.IsAuthenticated)
+        {
+             var userId = user.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+             _purchases = await PurchaseRepository.GetByUserIdAsync(userId);
+             await LoadThumbnailsAsync();
+        }
+        _isLoading = false;
+    }
+
+    private async Task LoadThumbnailsAsync()
+    {
+        foreach (var purchase in _purchases)
+        {
+            var thumbFileName = purchase.Clip?.ThumbnailFileName ?? purchase.ClipThumbnailFileName;
+            var clipId = purchase.ClipId ?? purchase.Id.ToString();
+            
+            // 1. High Res Thumbnail (R2)
+            if (!string.IsNullOrEmpty(thumbFileName))
+            {
+                // Fix: Correctly handle folder prefixes in ThumbnailFileName
+                var storageKey = thumbFileName.Contains("/") 
+                    ? thumbFileName 
+                    : $"thumbnails/{thumbFileName}";
+                    
+                _thumbnailUrls[clipId] = StorageService.GetPresignedDownloadUrl(storageKey);
+                continue;
+            }
+
+            // 2. Fallback to Mux
+            // Priority: Signed Playback ID for "regular" look
+            var id = !string.IsNullOrEmpty(purchase.Clip?.PlaybackIdSigned) ? purchase.Clip.PlaybackIdSigned : purchase.Clip?.PlaybackIdTeaser;
+            
+            if (!string.IsNullOrEmpty(id) && !id.StartsWith("mock"))
+            {
+                var token = await VideoService.GetPlaybackToken(id, "t", "480p");
+                _thumbnailUrls[clipId] = $"https://image.mux.com/{id}/thumbnail.jpg?token={token}&width=400";
+            }
+        }
+    }
+
+    private async Task DownloadHighResAsync(Purchase purchase)
+    {
+        // 1. Try R2 Master (Direct Storage Flow)
+        if (!string.IsNullOrEmpty(purchase.Clip?.MasterFileName))
+        {
+             var url = StorageService.GetPresignedDownloadUrl(purchase.Clip.MasterFileName);
+             if (!string.IsNullOrEmpty(url))
+             {
+                 await JSRuntime.InvokeVoidAsync("open", url, "_blank");
+                 return;
+             }
+        }
+
+        // 2. Try Mux Asset (Mid-Generation Flow)
+        if (!string.IsNullOrEmpty(purchase.FulfillmentMuxAssetId))
+        {
+             // Use JS to show "Preparing..." if needed, but for now just open the link.
+             // We need to fetch the signed URL from the server.
+             var clipTitle = purchase.Clip?.Title ?? "Video";
+             var cleanTitle = string.Join("_", clipTitle.Split(Path.GetInvalidFileNameChars()));
+             var url = await VideoService.GetDownloadUrlAsync(purchase.FulfillmentMuxAssetId, $"{cleanTitle}_MASTER.mp4");
+             
+             if (!string.IsNullOrEmpty(url))
+             {
+                 await JSRuntime.InvokeVoidAsync("open", url, "_blank");
+                 return;
+             }
+             else
+             {
+                 await JSRuntime.InvokeVoidAsync("alert", "Master file is verifying. Please try again in 1 minute.");
+                 return;
+             }
+        }
+
+        // 2. Legacy Fallback (Text URL)
+        if (!string.IsNullOrEmpty(purchase.HighResDownloadUrl))
+        {
+            await JSRuntime.InvokeVoidAsync("open", purchase.HighResDownloadUrl, "_blank");
+            return;
+        }
+        
+        await JSRuntime.InvokeVoidAsync("alert", "High-res version is not available yet.");
+    }
+    private void HandleSettingsChange()
+    {
+        InvokeAsync(async () =>
+        {
+            _storeName = await StoreSettingsService.GetStoreNameAsync();
+            StateHasChanged();
+        });
+    }
+
+    public void Dispose()
+    {
+        StoreSettingsService.OnChange -= HandleSettingsChange;
+    }
+}

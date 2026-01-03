@@ -1,0 +1,397 @@
+@page "/admin/products"
+@rendermode RenderMode.InteractiveServer
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Forms
+@using Project65.Core.Entities
+@using Project65.Core.Interfaces
+@attribute [Authorize(Roles = "Admin")]
+@inject IExternalProductRepository ProductRepository
+@inject IStorageService StorageService
+@inject IAuditService AuditService
+@inject NavigationManager Navigation
+
+<div class="container-fluid py-4" style="max-width: 1400px;">
+    <!-- Header -->
+    <div class="row mb-5 align-items-end">
+        <div class="col-md-6">
+            <h1 class="display-5 fw-bold text-body mb-2">Products</h1>
+            <p class="text-body opacity-75 lead mb-0">Manage external merchandise inventory.</p>
+        </div>
+        <div class="col-md-6 d-flex justify-content-md-end gap-2 mt-3 mt-md-0">
+             <a href="/admin" class="btn btn-outline-secondary d-flex align-items-center gap-2">
+                <i class="bi bi-arrow-left"></i> Back to Portal
+            </a>
+            <button class="btn btn-primary d-flex align-items-center gap-2 shadow-sm" @onclick="OpenCreateModal">
+                <i class="bi bi-plus-lg"></i> Add Product
+            </button>
+        </div>
+    </div>
+
+    <!-- Products Grid -->
+    @if (_isLoading)
+    {
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary" role="status"></div>
+            <p class="text-muted mt-3">Loading products...</p>
+        </div>
+    }
+    else if (_products.Count == 0)
+    {
+        <div class="text-center py-5 border border-dashed rounded-3">
+            <i class="bi bi-bag-x display-4 text-muted mb-3 d-block"></i>
+            <h3 class="text-body h5">No products found</h3>
+            <p class="text-secondary mb-4">Add your first product to get started.</p>
+            <button class="btn btn-primary" @onclick="OpenCreateModal">Add Product</button>
+        </div>
+    }
+    else
+    {
+        <div class="row g-4">
+            @foreach (var p in _products)
+            {
+                <div class="col-12 col-md-6 col-lg-4 col-xl-3">
+                    <div class="card h-100 border-0 shadow-sm product-card overflow-hidden">
+                        <!-- Image Area -->
+                        <div class="card-img-top bg-light position-relative overflow-hidden group" style="height: 250px;">
+                            @if (!string.IsNullOrEmpty(p.ImageUrl))
+                            {
+                                <img src="@GetImageUrl(p.ImageUrl)" style="width: 100%; height: 100%; object-fit: cover; transition: transform 0.5s;" class="product-img" />
+                            }
+                            else
+                            {
+                                <div class="d-flex justify-content-center align-items-center h-100 bg-secondary bg-opacity-10">
+                                    <i class="bi bi-image text-muted fs-1 opacity-50"></i>
+                                </div>
+                            }
+                            
+                            <!-- Badges Overlay -->
+                            <div class="position-absolute top-0 start-0 w-100 p-3 d-flex justify-content-between pointer-events-none">
+                                @if (!string.IsNullOrEmpty(p.BadgeText))
+                                {
+                                     <span class="badge bg-white text-dark border border-light text-uppercase shadow-sm">@p.BadgeText</span>
+                                }
+                                else { <span></span> }
+                                
+                                @if (p.IsSoldOut)
+                                {
+                                    <span class="badge bg-danger text-uppercase shadow-sm">Sold Out</span>
+                                }
+                            </div>
+                        </div>
+                        
+                        <div class="card-body d-flex flex-column">
+                            <h5 class="card-title text-body fw-bold mb-1">@p.Title</h5>
+                            <div class="mb-3">
+                                @if (!string.IsNullOrEmpty(p.CompareAtPriceDisplay))
+                                {
+                                    <span class="text-decoration-line-through text-muted me-2 small">@p.CompareAtPriceDisplay</span>
+                                }
+                                <span class="text-primary fw-bold fs-5">@p.PriceDisplay</span>
+                            </div>
+                            
+                            <div class="mt-auto pt-3 border-top d-flex gap-2">
+                                <button class="btn btn-sm btn-outline-secondary flex-grow-1" @onclick="() => OpenEditModal(p)">
+                                    <i class="bi bi-pencil me-1"></i>Edit
+                                </button>
+                                <button class="btn btn-sm btn-outline-danger" @onclick="() => ConfirmDelete(p)">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </div>
+                             <div class="mt-2 text-center text-truncate small">
+                                <a href="@p.ProductUrl" target="_blank" class="text-secondary text-decoration-none">
+                                    <i class="bi bi-link-45deg"></i> Open Link
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+</div>
+
+<!-- Edit/Create Modal -->
+@if (_showModal)
+{
+    <div class="modal fade show d-block" style="background: rgba(0,0,0,0.5); backdrop-filter: blur(5px);">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content shadow-lg border-0">
+                <div class="modal-header">
+                    <h5 class="modal-title fw-bold">@(_isEditing ? "Edit Product" : "New Product")</h5>
+                    <button type="button" class="btn-close" @onclick="CloseModal"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <EditForm Model="_model" OnValidSubmit="SaveProduct" FormName="AdminProductForm">
+                        <DataAnnotationsValidator />
+                        
+                        <div class="row g-4">
+                            <!-- Image Upload Column -->
+                            <div class="col-md-5 order-md-2">
+                                <label class="form-label small text-uppercase fw-bold text-secondary">Product Image</label>
+                                <div class="position-relative">
+                                    <div class="ratio ratio-1x1 border rounded bg-secondary bg-opacity-10 d-flex justify-content-center align-items-center overflow-hidden mb-2">
+                                        @if (_uploadingImage)
+                                        {
+                                            <div class="spinner-border text-primary" role="status"></div>
+                                        }
+                                        else if (!string.IsNullOrEmpty(_model.ImageUrl))
+                                        {
+                                            <img src="@GetImageUrl(_model.ImageUrl)" style="object-fit: cover;" />
+                                        }
+                                        else
+                                        {
+                                            <div class="text-center text-muted">
+                                                <i class="bi bi-cloud-arrow-up fs-1"></i>
+                                                <div class="small mt-2">Upload Image</div>
+                                            </div>
+                                        }
+                                    </div>
+                                    <InputFile OnChange="HandleImageSelected" class="form-control form-control-sm position-absolute top-0 start-0 w-100 h-100 opacity-0" style="cursor: pointer;" accept=".jpg,.jpeg,.png,.webp" />
+                                </div>
+                                <div class="text-center small text-muted">Click image area to upload (Square/1:1 recommended)</div>
+                            </div>
+
+                            <!-- Form Fields Column -->
+                            <div class="col-md-7 order-md-1">
+                                <div class="mb-3">
+                                    <label class="form-label">Title</label>
+                                    <InputText @bind-Value="_model.Title" class="form-control" placeholder="Product Name" />
+                                </div>
+                                <div class="row">
+                                    <div class="col-6 mb-3">
+                                        <label class="form-label">Price</label>
+                                        <InputText @bind-Value="_model.PriceDisplay" class="form-control" placeholder="$39.99" />
+                                    </div>
+                                    <div class="col-6 mb-3">
+                                        <label class="form-label">Compare At</label>
+                                        <InputText @bind-Value="_model.CompareAtPriceDisplay" class="form-control" placeholder="$49.99" />
+                                    </div>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Product URL (Webflow)</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text bg-light text-secondary"><i class="bi bi-link"></i></span>
+                                        <InputText @bind-Value="_model.ProductUrl" class="form-control" placeholder="https://store.com/product/..." />
+                                    </div>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Badge Text</label>
+                                    <InputText @bind-Value="_model.BadgeText" class="form-control" placeholder="e.g. New Arrival, Limited" />
+                                </div>
+                                
+                                <div class="mt-4 p-3 rounded bg-light border">
+                                    <div class="form-check form-switch">
+                                        <InputCheckbox @bind-Value="_model.IsSoldOut" class="form-check-input" role="switch" id="soldOutSwitch" />
+                                        <label class="form-check-label fw-bold text-body" for="soldOutSwitch">Mark as Sold Out</label>
+                                    </div>
+                                    <div class="form-text text-muted small mt-1">This will display a "Sold Out" overlay and disable purchasing intent.</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mt-4 d-flex justify-content-end gap-2 pt-3 border-top">
+                            <button type="button" class="btn btn-outline-secondary px-4" @onclick="CloseModal">Cancel</button>
+                            <button type="submit" class="btn btn-primary px-4" disabled="@_isSaving">
+                                @(_isSaving ? "Saving..." : "Save Product")
+                            </button>
+                        </div>
+                    </EditForm>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- Delete Confirmation Modal -->
+@if (_showDeleteModal)
+{
+     <div class="modal fade show d-block" style="background: rgba(0,0,0,0.5); backdrop-filter: blur(5px);">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content shadow-lg">
+                <div class="modal-header border-danger text-danger">
+                    <h5 class="modal-title fw-bold"><i class="bi bi-exclamation-triangle-fill me-2"></i>Confirm Delete</h5>
+                    <button type="button" class="btn-close" @onclick="() => _showDeleteModal = false"></button>
+                </div>
+                <div class="modal-body text-center py-4">
+                     <p class="lead mb-1 text-body">Delete <strong>@_productToDelete?.Title</strong>?</p>
+                     <p class="text-muted small">This action cannot be undone.</p>
+                </div>
+                <div class="modal-footer justify-content-center border-0 pb-4">
+                     <button type="button" class="btn btn-outline-secondary px-4" @onclick="() => _showDeleteModal = false">Cancel</button>
+                     <button type="button" class="btn btn-danger px-4" @onclick="ExecuteDelete">Delete Product</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<style>
+    .product-card {
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .product-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 20px rgba(0,0,0,0.1) !important;
+        border-color: var(--bs-primary) !important;
+    }
+    .product-card:hover .product-img {
+        transform: scale(1.05);
+    }
+</style>
+
+@code {
+    private List<ExternalProduct> _products = new();
+    private bool _isLoading = true;
+    private bool _showModal = false;
+    private bool _showDeleteModal = false;
+    private bool _isEditing = false;
+    private bool _isSaving = false;
+    private bool _uploadingImage = false;
+    
+    private ExternalProduct _model = new();
+    private ExternalProduct? _productToDelete;
+    
+    [CascadingParameter]
+    private Task<AuthenticationState> AuthenticationStateTask { get; set; } = null!;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadProducts();
+    }
+
+    private async Task LoadProducts()
+    {
+        _isLoading = true;
+        _products = await ProductRepository.GetAllAsync();
+        _isLoading = false;
+    }
+
+    private void OpenCreateModal()
+    {
+        _model = new ExternalProduct();
+        _isEditing = false;
+        _showModal = true;
+    }
+
+    private void OpenEditModal(ExternalProduct product)
+    {
+        _model = new ExternalProduct
+        {
+            Id = product.Id,
+            Title = product.Title,
+            ImageUrl = product.ImageUrl,
+            StorageKey = product.StorageKey,
+            PriceDisplay = product.PriceDisplay,
+            CompareAtPriceDisplay = product.CompareAtPriceDisplay,
+            ProductUrl = product.ProductUrl,
+            BadgeText = product.BadgeText,
+            IsSoldOut = product.IsSoldOut,
+            CreatedAt = product.CreatedAt
+        };
+        _isEditing = true;
+        _showModal = true;
+    }
+
+    private void CloseModal()
+    {
+        _showModal = false;
+    }
+
+    private void ConfirmDelete(ExternalProduct product)
+    {
+        _productToDelete = product;
+        _showDeleteModal = true;
+    }
+
+    private async Task ExecuteDelete()
+    {
+        if (_productToDelete != null)
+        {
+            await ProductRepository.DeleteAsync(_productToDelete.Id);
+            
+            // Delete image from R2 if it exists
+            if (!string.IsNullOrEmpty(_productToDelete.StorageKey))
+            {
+                await StorageService.DeleteAsync(_productToDelete.StorageKey);
+            }
+
+            // Audit
+            await LogAudit("Delete Product", $"Deleted product {_productToDelete.Title}");
+            
+            _productToDelete = null;
+            _showDeleteModal = false;
+            await LoadProducts();
+        }
+    }
+
+    private async Task HandleImageSelected(InputFileChangeEventArgs e)
+    {
+        var file = e.File;
+        if (file != null)
+        {
+            _uploadingImage = true;
+            try
+            {
+                var ext = System.IO.Path.GetExtension(file.Name);
+                var key = $"products/{Guid.NewGuid()}{ext}";
+                
+                using var stream = file.OpenReadStream(maxAllowedSize: 5 * 1024 * 1024); // 5MB
+                await StorageService.UploadAsync(stream, key, file.ContentType);
+                
+                _model.StorageKey = key;
+                _model.ImageUrl = key;
+            }
+            catch (Exception ex)
+            {
+                // Handle error
+                Console.WriteLine($"Upload error: {ex.Message}");
+            }
+            finally
+            {
+                _uploadingImage = false;
+            }
+        }
+    }
+
+    private async Task SaveProduct()
+    {
+        _isSaving = true;
+        try
+        {
+            if (_isEditing)
+            {
+                await ProductRepository.UpdateAsync(_model);
+                await LogAudit("Update Product", $"Updated product {_model.Title}");
+            }
+            else
+            {
+                await ProductRepository.AddAsync(_model);
+                await LogAudit("Create Product", $"Created product {_model.Title}");
+            }
+            
+            _showModal = false;
+            await LoadProducts();
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+    
+    private string GetImageUrl(string urlOrKey)
+    {
+        if (string.IsNullOrEmpty(urlOrKey)) return "";
+        if (urlOrKey.StartsWith("http") || urlOrKey.StartsWith("/")) return urlOrKey;
+        return StorageService.GetPresignedDownloadUrl(urlOrKey);
+    }
+
+    private async Task LogAudit(string action, string details)
+    {
+        var authState = await AuthenticationStateTask;
+        var user = authState.User;
+        var userId = user.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        var userEmail = user.Identity?.Name;
+        
+        await AuditService.LogActionAsync(userId, userEmail, action, "Product", _model.Id, details);
+    }
+}

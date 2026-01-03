@@ -1,0 +1,27 @@
+<div class="mb-3">
+    <label class="form-label small text-uppercase fw-bold" style="color: var(--text-secondary); margin-bottom: 0.25rem; display: block;">@Label</label>
+    <div class="d-flex gap-2">
+        <input type="color" class="form-control form-control-color bg-transparent border-0" 
+               value="@Value" 
+               @onchange="@(e => ValueChanged.InvokeAsync(e.Value?.ToString()))"
+               style="width: 45px; height: 45px; padding: 0; cursor: pointer; border-radius: 8px;" />
+        <div class="input-group">
+            <span class="input-group-text" style="background: var(--bg-subtle); border-color: var(--border-color); color: var(--text-muted);">#</span>
+            <input type="text" class="form-control" 
+                   value="@(Value?.TrimStart('#'))" 
+                   @onchange="@(e => ValueChanged.InvokeAsync("#" + e.Value?.ToString()?.TrimStart('#')))"
+                   style="background: var(--bg-subtle); border-color: var(--border-color); color: var(--text-main);" />
+        </div>
+    </div>
+    @if (!string.IsNullOrEmpty(HelpText))
+    {
+        <div class="form-text small opacity-50 mt-1" style="color: var(--text-secondary); line-height: 1.2;">@HelpText</div>
+    }
+</div>
+
+@code {
+    [Parameter] public string? Label { get; set; }
+    [Parameter] public string? HelpText { get; set; }
+    [Parameter] public string? Value { get; set; }
+    [Parameter] public EventCallback<string?> ValueChanged { get; set; }
+}

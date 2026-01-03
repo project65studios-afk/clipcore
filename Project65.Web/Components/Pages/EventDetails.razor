@@ -1,0 +1,438 @@
+@page "/events/{Id}"
+@using Project65.Core.Interfaces
+@using Project65.Core.Entities
+@inject IEventRepository EventRepository
+@inject IVideoService VideoService
+@inject ISettingsRepository SettingsRepository
+@inject Project65.Web.Services.StoreSettingsService StoreSettingsService
+@inject IStorageService StorageService
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+@inject Project65.Web.Services.CartService CartService
+@inject IPurchaseRepository PurchaseRepository
+@using System.IO
+@inject Project65.Web.Services.VideoHealingService VideoHealingService
+@inject Project65.Web.Services.SummaryGenerationService SummaryGenerationService
+@using Microsoft.AspNetCore.SignalR.Client
+@implements IAsyncDisposable
+@implements IDisposable
+
+<PageTitle>@_event?.Name - @(_storeName ?? "Project65 Studios")</PageTitle>
+<HeadContent>
+    @if (_event != null)
+    {
+        <meta property="og:title" content="@_event.Name | @(_storeName ?? "Project65 Studios")" />
+        <meta property="og:description" content="@_event.Summary" />
+        <meta property="og:type" content="website" />
+        <meta property="og:url" content="@Navigation.Uri" />
+        @if (_event.Clips.Any() && !string.IsNullOrEmpty(_event.Clips.First().ThumbnailFileName))
+        {
+             var firstClip = _event.Clips.First();
+             var thumbKey = firstClip.ThumbnailFileName!.Contains("/") 
+                ? firstClip.ThumbnailFileName 
+                : $"thumbnails/{firstClip.ThumbnailFileName}";
+             <meta property="og:image" content="@($"{Navigation.BaseUri}{thumbKey}")" />
+        }
+    }
+</HeadContent>
+
+@if (_loading)
+{
+    <div class="mb-4">
+        <div class="skeleton-text" style="width: 120px;"></div>
+    </div>
+
+    <div class="premium-card">
+        <div class="row g-4">
+            <!-- Left Column: Skeleton Details -->
+            <div class="col-lg-7 col-xl-8">
+                <div class="skeleton-text" style="width: 60%; height: 3rem; margin-bottom: 1rem;"></div> <!-- Title -->
+                <div class="event-meta">
+                    <div class="skeleton-text" style="width: 100px;"></div>
+                    <span class="meta-dot">•</span>
+                    <div class="skeleton-text" style="width: 120px;"></div>
+                </div>
+                <!-- Summary Lines -->
+                <div class="skeleton-text" style="width: 90%; height: 1rem; margin-bottom: 0.5rem;"></div>
+                <div class="skeleton-text" style="width: 80%; height: 1rem; margin-bottom: 0.5rem;"></div>
+                <div class="skeleton-text" style="width: 50%; height: 1rem;"></div>
+                
+                <div class="event-header-actions" style="margin-top: 1.5rem; display: flex; gap: 0.5rem;">
+                     <!-- Skeleton Buttons -->
+                    <div class="skeleton" style="width: 120px; height: 45px; border-radius: 12px;"></div>
+                    <div class="skeleton" style="width: 120px; height: 45px; border-radius: 12px;"></div>
+                </div>
+            </div>
+            <!-- Right Column: Skeleton Featured -->
+            <div class="col-lg-5 col-xl-4">
+                 <div class="skeleton" style="width: 100%; height: 200px; border-radius: 12px;"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="mb-4 event-details-header" style="display: flex; justify-content: space-between; align-items: center;">
+        <h3 class="section-title">All Clips</h3>
+        <div class="skeleton" style="width: 200px; height: 38px; border-radius: 12px;"></div>
+    </div>
+
+    <div class="video-grid">
+        @for (int i = 0; i < 8; i++)
+        {
+            <SkeletonCard />
+        }
+    </div>
+}
+else if (_event == null)
+{
+    <p>Event not found.</p>
+}
+else
+{
+    <div class="mb-4">
+        <a href="/" class="text-decoration-none text-secondary small">← Back to Events</a>
+    </div>
+
+    <div class="premium-card">
+        <div class="row g-4">
+            <!-- Left Column: Event Details -->
+            <div class="@(_event.FeaturedProducts.Any() ? "col-lg-7 col-xl-8" : "col-12")">
+                <h1 class="display-4 fw-bold mb-2">@_event.Name</h1>
+                <div class="event-meta">
+                    <div class="meta-item">
+                        <i class="bi bi-calendar3"></i>
+                        @_event.Date.ToString("MMMM dd, yyyy")
+                    </div>
+                    @if (!string.IsNullOrEmpty(_event.Location))
+                    {
+                        <span class="meta-dot">•</span>
+                        <div class="meta-item">
+                            <i class="bi bi-geo-alt"></i>
+                            @_event.Location
+                        </div>
+                    }
+                    <span class="meta-dot">•</span>
+                    <div class="meta-item">
+                        <i class="bi bi-film"></i>
+                        @_event.Clips.Count clips
+                    </div>
+                </div>
+                <p class="lead text-secondary" style="max-width: 600px;">@_event.Summary</p>
+                
+                <div class="event-header-actions" style="margin-top: 1.5rem; display: flex; gap: 0.5rem; align-items: center;">
+                    <div class="event-actions">
+                        <button class="btn-primary" @onclick="ShareEventAsync">Share Event</button>
+                        <button class="btn-secondary" @onclick="CopyLinkAsync">
+                            @(_showCopiedMessage ? "Link Copied!" : "Copy Link")
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Column: Featured Products -->
+            @if (_event.FeaturedProducts.Any())
+            {
+                <div class="col-lg-5 col-xl-4">
+                    <div class="h-100 p-3 p-xl-4 rounded bg-dark bg-opacity-25 border border-secondary border-opacity-25">
+                        <h5 class="text-secondary text-uppercase small fw-bold mb-3" style="letter-spacing: 1px;">Featured Collection</h5>
+                        <div class="row g-3">
+                            @foreach (var p in _event.FeaturedProducts)
+                            {
+                                <div class="col-12 col-sm-6">
+                                    <a href="@p.ProductUrl" target="_blank" class="card h-100 shadow-sm border-secondary text-decoration-none product-card" style="background: var(--bg-surface); transition: transform 0.2s;">
+                                        <div class="card-img-top bg-black d-flex justify-content-center align-items-center position-relative overflow-hidden" style="height: 160px;">
+                                            @if (!string.IsNullOrEmpty(p.ImageUrl))
+                                            {
+                                                <img src="@GetImageUrl(p.ImageUrl)" style="max-height: 100%; max-width: 100%; object-fit: contain;" />
+                                            }
+                                            
+                                            @if (p.IsSoldOut)
+                                            {
+                                                <div class="position-absolute d-flex justify-content-center align-items-center w-100" style="top:50%; transform:translateY(-50%); z-index: 2;">
+                                                    <div class="bg-danger text-white fs-6 fw-bold px-3 py-1 text-uppercase shadow" style="transform: rotate(-12deg); border: 2px solid white; letter-spacing: 1px;">Sold Out</div>
+                                                </div>
+                                                <div class="position-absolute w-100 h-100 bg-dark" style="opacity: 0.4; top:0; left:0;"></div>
+                                            }
+                                            
+                                            @if (!string.IsNullOrEmpty(p.BadgeText) && !p.IsSoldOut)
+                                            {
+                                                <span class="position-absolute top-0 start-0 m-2 badge text-white border border-light px-2 py-1 text-uppercase" style="font-size: 0.65rem; letter-spacing: 1px; background-color: #0f172a;">@p.BadgeText</span>
+                                            }
+                                        </div>
+                                        <div class="card-body p-2">
+                                            <h6 class="card-title fw-bold text-body mb-1 text-truncate" title="@p.Title">@p.Title</h6>
+                                            <div class="mt-1 text-primary fw-bold small">
+                                                @if (!string.IsNullOrEmpty(p.CompareAtPriceDisplay))
+                                                {
+                                                    <span class="text-decoration-line-through text-muted me-1 small fw-normal">@p.CompareAtPriceDisplay</span>
+                                                }
+                                                @p.PriceDisplay
+                                            </div>
+                                        </div>
+                                    </a>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+        
+        <style>
+            .product-card:hover {
+                transform: translateY(-5px);
+                border-color: var(--accent-primary) !important;
+            }
+        </style>
+    </div>
+
+    @if (_event.Clips.Count >= 3)
+    {
+        <div class="bundle-banner" style="background: color-mix(in srgb, var(--accent-primary), transparent 90%); border: 1px solid var(--accent-primary-dim); border-radius: var(--radius-md); padding: 1rem; margin-bottom: 3rem; display: flex; align-items: center; gap: 1rem;">
+            <i class="bi bi-stars" style="font-size: 1.5rem; color: var(--accent-primary);"></i>
+            <div>
+                <div class="fw-bold text-body">Event Bundle Discount!</div>
+                <div style="font-size: 0.9rem;" class="text-secondary">Add 3 or more clips from this event to your cart and get <span style="color: var(--accent-primary); font-weight: 600;">25% OFF</span> your entire order.</div>
+            </div>
+        </div>
+    }
+    
+    <div class="mb-4 event-details-header" style="display: flex; justify-content: space-between; align-items: center;">
+        <h3 class="section-title">All Clips</h3>
+        <select class="form-control" style="width: auto;" @onchange="OnSortChanged" value="@_sortBy">
+            <option value="TimeUsedAsc">Time Used: Oldest First</option>
+            <option value="TimeUsedDesc">Time Used: Newest First</option>
+            <option value="PriceLowHigh">Price: Low to High</option>
+            <option value="PriceHighLow">Price: High to Low</option>
+            <option value="DurationShortLong">Duration: Shortest First</option>
+            <option value="DurationLongShort">Duration: Longest First</option>
+        </select>
+    </div>
+
+    @if (!_event.Clips.Any())
+    {
+        <p>No clips available yet.</p>
+    }
+    else
+    {
+        <div class="video-grid">
+            @foreach (var clip in _event.Clips)
+            {
+                <ClipCard Clip="clip" IsPurchased="_purchasedClipIds.Contains(clip.Id)" WatermarkUrl="@_watermarkUrl" />
+            }
+        </div>
+    }
+}
+
+@code {
+    [Parameter]
+    public string Id { get; set; } = string.Empty;
+
+    private Event? _event;
+    private bool _loading = true;
+    private string? _watermarkUrl;
+    private string _sortBy = "TimeUsedAsc"; // Default sort
+    private string? _userId;
+    private bool _isAuthenticated = false;
+    private bool _showCopiedMessage = false;
+    private HashSet<string> _purchasedClipIds = new();
+
+    [CascadingParameter]
+    private Task<AuthenticationState> AuthenticationStateTask { get; set; } = null!;
+
+    private async Task CopyLinkAsync()
+    {
+        var uri = Navigation.Uri;
+        await JS.InvokeVoidAsync("navigator.clipboard.writeText", uri);
+        _showCopiedMessage = true;
+        StateHasChanged();
+        await Task.Delay(2000);
+        _showCopiedMessage = false;
+        StateHasChanged();
+    }
+    
+    private async Task ShareEventAsync()
+    {
+        var uri = Navigation.Uri;
+        try 
+        {
+            await JS.InvokeVoidAsync("navigator.share", new { title = _event?.Name ?? (_storeName ?? "Project65") + " Event", url = uri });
+        }
+        catch 
+        {
+            await CopyLinkAsync();
+        }
+    }
+
+
+    private HubConnection? _hubConnection;
+    private string? _storeName;
+    [Inject] private IClipRepository ClipRepository { get; set; } = default!;
+
+
+    protected override async Task OnInitializedAsync()
+    {
+        _loading = true;
+        var storeNameTask = SettingsRepository.GetValueAsync("StoreName");
+        var watermarkTask = SettingsRepository.GetValueAsync("WatermarkUrl");
+        var eventTask = EventRepository.GetByIdAsync(Id);
+
+        await Task.WhenAll(watermarkTask, eventTask);
+        
+        _storeName = await StoreSettingsService.GetStoreNameAsync();
+        StoreSettingsService.OnChange += HandleSettingsChange;
+        _watermarkUrl = await watermarkTask;
+        _event = await eventTask;
+        
+        if (_event?.Clips != null)
+        {
+            SortClips(); 
+        }
+        
+        VideoHealingService.OnClipHealed += HandleClipHealed;
+        
+        if (AuthenticationStateTask != null)
+        {
+            var authState = await AuthenticationStateTask;
+            var user = authState.User;
+            _isAuthenticated = user.Identity?.IsAuthenticated == true;
+            
+            if (_isAuthenticated)
+            {
+                _userId = user.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+                var purchases = await PurchaseRepository.GetByUserIdAsync(_userId);
+                _purchasedClipIds = purchases
+                    .Where(p => !string.IsNullOrEmpty(p.ClipId))
+                    .Select(p => p.ClipId!)
+                    .ToHashSet();
+            }
+        }
+
+        _loading = false;
+    }
+
+    private void HandleClipHealed(Clip healedClip)
+    {
+        if (_event?.Clips == null) return;
+        
+        var existing = _event.Clips.FirstOrDefault(c => c.Id == healedClip.Id);
+        if (existing != null)
+        {
+            // Update the existing object in the list
+            existing.PlaybackIdSigned = healedClip.PlaybackIdSigned;
+            existing.DurationSec = healedClip.DurationSec;
+            existing.RecordingStartedAt = healedClip.RecordingStartedAt;
+            existing.MuxAssetId = healedClip.MuxAssetId;
+            
+            InvokeAsync(() => {
+                SortClips();
+                StateHasChanged();
+            });
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender && _event != null)
+        {
+            await CartService.InitializeAsync();
+             // Start background healing if needed
+            VideoHealingService.StartHealingForClips(_event.Clips);
+
+            StateHasChanged();
+
+            // SignalR Connection
+            _hubConnection = new HubConnectionBuilder()
+                .WithUrl(Navigation.ToAbsoluteUri("/processingHub"))
+                .WithAutomaticReconnect()
+                .Build();
+
+            _hubConnection.On<string, string>("ClipStatusUpdated", (clipId, status) =>
+            {
+                var clip = _event.Clips.FirstOrDefault(c => c.Id == clipId);
+                if (clip != null)
+                {
+                    InvokeAsync(async () => {
+                        var freshClip = await ClipRepository.GetByIdAsync(clipId);
+                        if (freshClip != null)
+                        {
+                            clip.PlaybackIdSigned = freshClip.PlaybackIdSigned;
+                            clip.DurationSec = freshClip.DurationSec;
+                            clip.RecordingStartedAt = freshClip.RecordingStartedAt;
+                            clip.MuxAssetId = freshClip.MuxAssetId;
+                            SortClips();
+                            StateHasChanged();
+                        }
+                    });
+                }
+            });
+
+            await _hubConnection.StartAsync();
+        }
+    }
+
+    private void HandleSettingsChange()
+    {
+        InvokeAsync(async () => {
+            _storeName = await StoreSettingsService.GetStoreNameAsync();
+            StateHasChanged();
+        });
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        VideoHealingService.OnClipHealed -= HandleClipHealed;
+        if (_hubConnection is not null)
+        {
+            await _hubConnection.DisposeAsync();
+        }
+    }
+
+    public void Dispose()
+    {
+        StoreSettingsService.OnChange -= HandleSettingsChange;
+    }
+
+    private void OnSortChanged(ChangeEventArgs e)
+    {
+        _sortBy = e.Value?.ToString() ?? "TimeUsedAsc";
+        SortClips();
+    }
+    
+    private string GetImageUrl(string urlOrKey)
+    {
+        if (string.IsNullOrEmpty(urlOrKey)) return "";
+        if (urlOrKey.StartsWith("http") || urlOrKey.StartsWith("/")) return urlOrKey;
+        return StorageService.GetPresignedDownloadUrl(urlOrKey);
+    }
+
+    private void SortClips()
+    {
+        if (_event?.Clips == null || !_event.Clips.Any()) return;
+
+        switch (_sortBy)
+        {
+            case "TimeUsedAsc": // Default: Least to greatest time used
+                _event.Clips = _event.Clips.OrderBy(c => c.RecordingStartedAt ?? DateTime.MaxValue).ToList();
+                break;
+            case "TimeUsedDesc":
+                _event.Clips = _event.Clips.OrderByDescending(c => c.RecordingStartedAt ?? DateTime.MinValue).ToList();
+                break;
+            case "PriceLowHigh":
+                _event.Clips = _event.Clips.OrderBy(c => c.PriceCents).ToList();
+                break;
+            case "PriceHighLow":
+                _event.Clips = _event.Clips.OrderByDescending(c => c.PriceCents).ToList();
+                break;
+            case "DurationShortLong":
+                _event.Clips = _event.Clips.OrderBy(c => c.DurationSec ?? double.MaxValue).ToList();
+                break;
+            case "DurationLongShort":
+                _event.Clips = _event.Clips.OrderByDescending(c => c.DurationSec ?? double.MinValue).ToList();
+                break;
+            default:
+                _event.Clips = _event.Clips.OrderBy(c => c.RecordingStartedAt ?? DateTime.MaxValue).ToList();
+                break;
+        }
+    }
+
+}

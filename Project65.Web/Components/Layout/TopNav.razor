@@ -1,0 +1,203 @@
+@inject NavigationManager Navigation
+@inject Project65.Web.Services.CartService CartService
+@inject ISettingsRepository SettingsRepository
+@inject Project65.Web.Services.StoreSettingsService StoreSettingsService
+@implements IDisposable
+@rendermode RenderMode.InteractiveServer
+
+@if (true)
+{
+    <header class="top-nav">
+        <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+            <a href="/" class="brand">
+                @if (!string.IsNullOrEmpty(_storeName))
+                {
+                    var parts = _storeName.Split(' ', 2, StringSplitOptions.RemoveEmptyEntries);
+                    if (parts.Length > 0)
+                    {
+                        <span class="brand-accent">@parts[0].ToUpper()</span>
+                        if (parts.Length > 1)
+                        {
+                            @(" " + parts[1].ToUpper())
+                        }
+                    }
+                }
+                else
+                {
+                    <text><span class="brand-accent">PROJECT</span><span>65</span> STUDIOS</text>
+                }
+            </a>
+            
+            <div class="desktop-nav-content">
+                @NavContent
+            </div>
+
+            <div style="display: flex; align-items: center; gap: 1rem;">
+                <div class="mobile-cart-only">
+                    @CartButton
+                </div>
+
+                @if (!_isNavOpen)
+                {
+                    <button class="nav-toggle" @onclick="ToggleNav" aria-label="Open Menu">
+                        <span class="bar"></span>
+                        <span class="bar"></span>
+                        <span class="bar"></span>
+                    </button>
+                }
+            </div>
+        </div>
+    </header>
+    
+    <div class="nav-overlay @NavOpenClass" @onclick="ToggleNav"></div>
+    
+    <div class="nav-menu @NavOpenClass">
+        <div class="nav-menu-header">
+            <span style="font-weight: 800; font-size: 1.25rem; letter-spacing: 1px;">MENU</span>
+            <button class="nav-close-btn" @onclick="ToggleNav">✕</button>
+        </div>
+
+        <div class="nav-menu-content">
+            @NavContent
+        </div>
+    </div>
+}
+
+@code {
+    private RenderFragment NavContent => __builder =>
+    {
+        <div class="search-wrapper" style="position: relative;">
+            <input type="text" class="search-bar" placeholder="Search events & clips..." 
+                   @bind="_searchQuery" 
+                   @bind:event="oninput" 
+                   @onkeyup="HandleSearchKeyUp" />
+            @if (!string.IsNullOrWhiteSpace(_searchQuery))
+            {
+                    <button class="search-btn" @onclick="Search" style="position: absolute; right: 8px; top: 50%; transform: translateY(-50%); background: none; border: none; color: var(--text-muted); cursor: pointer;">
+                    <i class="bi bi-search"></i>
+                    </button>
+            }
+        </div>
+        
+        <div class="nav-links">
+            <ThemeToggle />
+
+            <AuthorizeView>
+                <Authorized>
+                    <AuthorizeView Roles="Admin" Context="adminContext">
+                        <Authorized>
+                            <a href="/admin/upload" class="btn-secondary" style="padding: 0.5rem 1rem; font-size: 0.9rem;">Upload</a>
+                            <a href="/admin/fulfillment" class="btn-secondary" style="padding: 0.5rem 1rem; font-size: 0.9rem;">Fulfill</a>
+                            <a href="/admin" class="btn-secondary" style="padding: 0.5rem 1rem; font-size: 0.9rem;">Admin</a>
+                        </Authorized>
+                    </AuthorizeView>
+                    <a href="/my-purchases" class="btn-secondary" style="padding: 0.5rem 1rem; font-size: 0.9rem; white-space: nowrap;">My Purchases</a>
+                    <form action="/Account/Logout" method="post" style="display:inline; width: 100%;">
+                        <AntiforgeryToken />
+                        <input type="hidden" name="ReturnUrl" value="@("/" + Navigation.ToBaseRelativePath(Navigation.BaseUri))" />
+                        <button type="submit" class="btn-secondary" style="padding: 0.5rem 1rem; font-size: 0.9rem; width: 100%;">Logout</button>
+                    </form>
+                </Authorized>
+                <NotAuthorized>
+                        <a href="/faq" class="btn-secondary" style="padding: 0.5rem 1rem; font-size: 0.9rem; white-space: nowrap; margin-right: 0.5rem;" title="Frequently Asked Questions">FAQ</a>
+                        <a href="/order-lookup" class="btn-secondary" style="padding: 0.5rem 1rem; font-size: 0.9rem; white-space: nowrap; margin-right: 0.5rem;">Find Order</a>
+                        <a href="/Account/Login" class="btn-secondary" style="padding: 0.5rem 1rem; font-size: 0.9rem; white-space: nowrap;">Login</a>
+                </NotAuthorized>
+            </AuthorizeView>
+            @CartButton
+        </div>
+    };
+
+    private RenderFragment CartButton => __builder =>
+    {
+        <a href="/cart" class="cart-btn" style="text-decoration: none; position: relative; display: inline-flex; justify-content: center; align-items: center; gap: 0.5rem;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="9" cy="21" r="1"></circle>
+                <circle cx="20" cy="21" r="1"></circle>
+                <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path>
+            </svg>
+            <span class="cart-text">Cart</span>
+            @if (_cartCount > 0)
+            {
+                <span style="background: var(--accent-secondary); color: white; font-size: 0.7rem; padding: 2px 6px; border-radius: 10px; margin-left: 1px; font-weight: bold;">@_cartCount</span>
+            }
+        </a>
+    };
+
+    private bool _isNavOpen = false;
+    private string NavOpenClass => _isNavOpen ? "active" : "";
+    private string _searchQuery = "";
+    private string? _brandLogoUrl;
+    private int _cartCount = 0;
+    private string? _storeName;
+
+    private void HandleSearchKeyUp(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            Search();
+        }
+    }
+
+    private void Search()
+    {
+        if (!string.IsNullOrWhiteSpace(_searchQuery))
+        {
+            Navigation.NavigateTo($"/search?q={Uri.EscapeDataString(_searchQuery)}");
+            _isNavOpen = false; // Close mobile nav if open
+            _searchQuery = ""; // Optional: Clear after search? Or keep it? Usually good to keep, but here it's global nav. Let's clear to avoid stale state.
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        _brandLogoUrl = await StoreSettingsService.GetBrandLogoUrlAsync();
+        _storeName = await StoreSettingsService.GetStoreNameAsync();
+        
+        CartService.OnChange += HandleCartChange;
+        StoreSettingsService.OnChange += HandleSettingsChange;
+        
+        _cartCount = CartService.Count;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await CartService.InitializeAsync();
+            Navigation.LocationChanged += CloseNav;
+            StateHasChanged();
+        }
+    }
+
+    private void ToggleNav()
+    {
+        _isNavOpen = !_isNavOpen;
+    }
+
+    private void CloseNav(object? sender, LocationChangedEventArgs e)
+    {
+        _isNavOpen = false;
+        StateHasChanged();
+    }
+
+    private void HandleCartChange()
+    {
+        _cartCount = CartService.Count;
+        StateHasChanged();
+    }
+
+    private async void HandleSettingsChange()
+    {
+        _brandLogoUrl = await StoreSettingsService.GetBrandLogoUrlAsync();
+        _storeName = await StoreSettingsService.GetStoreNameAsync();
+        await InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose()
+    {
+        CartService.OnChange -= HandleCartChange;
+        StoreSettingsService.OnChange -= HandleSettingsChange;
+        Navigation.LocationChanged -= CloseNav;
+    }
+}

@@ -1,0 +1,398 @@
+@page "/admin/settings"
+@rendermode RenderMode.InteractiveServer
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Forms
+@using Microsoft.AspNetCore.Hosting
+@using Project65.Core.Interfaces
+@attribute [Authorize(Roles = "Admin")]
+@inject ISettingsRepository SettingsRepository
+@inject IWebHostEnvironment Environment
+@inject IAuditService AuditService
+@inject IStorageService StorageService
+@inject Project65.Web.Services.StoreSettingsService StoreSettingsService
+
+<div class="admin-container" style="max-width: 1200px; margin: 2rem auto; padding: 0 1rem;">
+    <!-- Header -->
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-5 gap-3">
+        <div>
+            <h1 class="fw-bold m-0" style="color: var(--text-main);">Store Settings</h1>
+            <p class="m-0 mt-1" style="color: var(--text-secondary);">Configure your storefront appearance and global options.</p>
+        </div>
+        <a href="/admin" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left me-2"></i>Back to Dashboard
+        </a>
+    </div>
+
+    <!-- Settings Grid -->
+    <div class="row g-4">
+        
+        <!-- Left Column: Branding -->
+        <div class="col-12 col-lg-6">
+            <div class="d-flex flex-column gap-4">
+                
+                <!-- Brand Logo Card -->
+                <div class="card shadow-sm" style="background: var(--bg-surface); border: 1px solid var(--border-color);">
+                    <div class="card-header bg-transparent py-3" style="border-bottom: 1px solid var(--border-color);">
+                        <h5 class="mb-0" style="color: var(--text-main);"><i class="bi bi-card-image me-2 text-primary"></i>Brand Logo</h5>
+                    </div>
+                    <div class="card-body">
+                         <div class="mb-4">
+                            <label class="form-label small text-uppercase fw-bold" style="color: var(--text-secondary);">Current Preview</label>
+                            <div class="p-4 rounded d-flex justify-content-center align-items-center" style="background: var(--bg-main); min-height: 120px; border: 1px solid var(--border-color);">
+                                @if (!string.IsNullOrEmpty(_brandLogoUrl))
+                                {
+                                    <img src="@ResolveStorageUrl(_brandLogoUrl)" style="max-height: 60px; max-width: 100%; object-fit: contain;" />
+                                }
+                                else
+                                {
+                                    <span class="text-muted fst-italic">No logo set</span>
+                                }
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label" style="color: var(--text-main);">Logo Source</label>
+                            <div class="btn-group w-100 mb-3" role="group">
+                                <button type="button" class="btn @(_useLogoUpload ? "btn-primary" : "btn-outline-secondary")" @onclick="() => _useLogoUpload = true">
+                                    <i class="bi bi-upload me-2"></i>Upload
+                                </button>
+                                <button type="button" class="btn @(!_useLogoUpload ? "btn-primary" : "btn-outline-secondary")" @onclick="() => _useLogoUpload = false">
+                                    <i class="bi bi-link me-2"></i>URL
+                                </button>
+                            </div>
+
+                            @if (_useLogoUpload)
+                            {
+                                <div class="input-group">
+                                    <InputFile OnChange="HandleLogoSelected" class="form-control" style="background: var(--bg-subtle); border-color: var(--border-color); color: var(--text-main);" />
+                                </div>
+                                <div class="form-text text-muted">Recommended: Transparent PNG, max height 80px.</div>
+                            }
+                            else
+                            {
+                                <div class="input-group">
+                                    <span class="input-group-text" style="background: var(--bg-subtle); border-color: var(--border-color); color: var(--text-secondary);"><i class="bi bi-link-45deg"></i></span>
+                                    <input type="text" class="form-control" @bind="_brandLogoUrl" placeholder="https://example.com/logo.png" style="background: var(--bg-subtle); border-color: var(--border-color); color: var(--text-main);" />
+                                </div>
+                            }
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Watermark Card -->
+                <div class="card shadow-sm" style="background: var(--bg-surface); border: 1px solid var(--border-color);">
+                    <div class="card-header bg-transparent py-3" style="border-bottom: 1px solid var(--border-color);">
+                        <h5 class="mb-0" style="color: var(--text-main);"><i class="bi bi-badge-ad me-2 text-info"></i>Video Watermark</h5>
+                    </div>
+                    <div class="card-body">
+                         <div class="mb-4">
+                            <label class="form-label small text-uppercase fw-bold" style="color: var(--text-secondary);">Overlay Preview</label>
+                            <div class="p-4 rounded d-flex justify-content-center align-items-center position-relative overflow-hidden" style="background: var(--bg-main); min-height: 120px; border: 1px solid var(--border-color);">
+                                <!-- Simulated video background -->
+                                <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: linear-gradient(45deg, var(--bg-surface) 25%, var(--bg-main) 25%, var(--bg-main) 50%, var(--bg-surface) 50%, var(--bg-surface) 75%, var(--bg-main) 75%, var(--bg-main) 100%); background-size: 20px 20px; opacity: 0.5;"></div>
+                                
+                                @if (!string.IsNullOrEmpty(_watermarkUrl))
+                                {
+                                    <img src="@ResolveStorageUrl(_watermarkUrl)" style="max-height: 40px; max-width: 100%; object-fit: contain; z-index: 2;" />
+                                }
+                                else
+                                {
+                                    <span class="text-muted fst-italic z-2">No watermark set</span>
+                                }
+                            </div>
+                        </div>
+
+                         <div class="mb-3">
+                            <label class="form-label" style="color: var(--text-main);">Watermark Source</label>
+                            <div class="btn-group w-100 mb-3" role="group">
+                                <button type="button" class="btn @(_useUpload ? "btn-primary" : "btn-outline-secondary")" @onclick="() => _useUpload = true">
+                                    <i class="bi bi-upload me-2"></i>Upload
+                                </button>
+                                <button type="button" class="btn @(!_useUpload ? "btn-primary" : "btn-outline-secondary")" @onclick="() => _useUpload = false">
+                                    <i class="bi bi-link me-2"></i>URL
+                                </button>
+                            </div>
+
+                            @if (_useUpload)
+                            {
+                                <div class="input-group">
+                                    <InputFile OnChange="HandleFileSelected" class="form-control" style="background: var(--bg-subtle); border-color: var(--border-color); color: var(--text-main);" />
+                                </div>
+                                <div class="form-text text-muted">Recommended: White transparent PNG, applied to all videos.</div>
+                            }
+                            else
+                            {
+                                <div class="input-group">
+                                    <span class="input-group-text" style="background: var(--bg-subtle); border-color: var(--border-color); color: var(--text-secondary);"><i class="bi bi-link-45deg"></i></span>
+                                    <input type="text" class="form-control" @bind="_watermarkUrl" placeholder="https://example.com/watermark.png" style="background: var(--bg-subtle); border-color: var(--border-color); color: var(--text-main);" />
+                                </div>
+                            }
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Appearance & Design Link Card -->
+                <div class="card shadow-sm" style="background: var(--bg-surface); border: 1px solid var(--border-color);">
+                    <div class="card-header bg-transparent py-3" style="border-bottom: 1px solid var(--border-color);">
+                        <h5 class="mb-0" style="color: var(--text-main);"><i class="bi bi-palette me-2 text-primary"></i>Design & Appearance</h5>
+                    </div>
+                    <div class="card-body">
+                        <p class="text-muted small">Customize your storefront's color scheme, button styles, and mode-specific themes.</p>
+                        <a href="/admin/theme" class="btn btn-outline-primary w-100 py-2">
+                            <i class="bi bi-pencil-square me-2"></i>Edit Theme & Colors
+                        </a>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- Right Column: Configuration -->
+        <div class="col-12 col-lg-6">
+            <div class="card shadow-sm h-100" style="background: var(--bg-surface); border: 1px solid var(--border-color);">
+                <div class="card-header bg-transparent py-3" style="border-bottom: 1px solid var(--border-color);">
+                    <h5 class="mb-0" style="color: var(--text-main);"><i class="bi bi-gear me-2 text-warning"></i>Store Configuration</h5>
+                </div>
+                <div class="card-body d-flex flex-column gap-3">
+                    
+                    <div>
+                        <label class="form-label" style="color: var(--text-main);">Store Name</label>
+                        <input type="text" class="form-control p-3" @bind="_storeName" placeholder="Project65 Studios" style="background: var(--bg-subtle); border-color: var(--border-color); color: var(--text-main);" />
+                        <div class="form-text text-muted">Displayed in browser title and emails.</div>
+                    </div>
+
+                    <div>
+                        <label class="form-label" style="color: var(--text-main);">Store Address (for Invoices)</label>
+                        <textarea class="form-control p-3" @bind="_storeAddress" placeholder="Project65 Studios&#10;123 Creative Blvd&#10;Los Angeles, CA 90001" style="background: var(--bg-subtle); border-color: var(--border-color); color: var(--text-main); min-height: 100px;"></textarea>
+                        <div class="form-text text-muted">Appears in the "From" section of PDF invoices.</div>
+                    </div>
+
+                    <div>
+                        <label class="form-label" style="color: var(--text-main);">Default Clip Price ($)</label>
+                        <div class="input-group">
+                            <span class="input-group-text" style="background: var(--bg-subtle); border-color: var(--border-color); color: var(--text-secondary);">$</span>
+                            <input type="number" step="0.01" class="form-control p-3" @bind="_defaultPrice" style="background: var(--bg-subtle); border-color: var(--border-color); color: var(--text-main);" />
+                        </div>
+                        <div class="form-text text-muted">Applied to new clips automatically.</div>
+                    </div>
+
+                    <div class="row g-3">
+                        <div class="col-12">
+                            <label class="form-label" style="color: var(--text-main);">Base Site URL</label>
+                            <input type="text" class="form-control p-3" @bind="_baseSiteUrl" placeholder="https://project65.com" style="background: var(--bg-subtle); border-color: var(--border-color); color: var(--text-main);" />
+                            <div class="form-text text-muted">Required for correct links in customer emails.</div>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label" style="color: var(--text-main);">Support Email</label>
+                            <input type="email" class="form-control p-3" @bind="_supportEmail" placeholder="support@project65.com" style="background: var(--bg-subtle); border-color: var(--border-color); color: var(--text-main);" />
+                            <div class="form-text text-muted">Where customers can reply to receipts.</div>
+                        </div>
+                    </div>
+
+                    <div class="mt-4 pt-4 border-top" style="border-color: var(--border-color) !important;"></div>
+
+                    <div class="p-3 rounded" style="background: var(--bg-subtle); border: 1px solid var(--border-color);">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="maintenanceToggle" @bind="_maintenanceMode" style="cursor: pointer; width: 3em; height: 1.5em;" />
+                            <label class="form-check-label ms-3 fw-bold pt-1" for="maintenanceToggle" style="color: var(--text-main);">Maintenance Mode</label>
+                        </div>
+                        <p class="small text-muted m-0 mt-2">
+                            When enabled, the storefront will be hidden from customers. Admins can still access everything.
+                        </p>
+                    </div>
+
+                </div>
+                <div class="card-footer bg-transparent p-4" style="border-top: 1px solid var(--border-color);">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div class="small">
+                            @if (_showSuccess)
+                            {
+                                <span class="text-success animate-fade-in"><i class="bi bi-check-circle-fill me-2"></i>Settings saved!</span>
+                            }
+                        </div>
+                        <button class="btn btn-primary px-4 py-2" @onclick="SaveSettings" disabled="@_isSaving">
+                            @if (_isSaving)
+                            {
+                                <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                                <span>Saving...</span>
+                            }
+                            else
+                            {
+                                <span>Save Changes</span>
+                            }
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .form-control:focus {
+        background-color: var(--bg-main);
+        color: var(--text-main);
+        border-color: var(--accent-primary);
+        box-shadow: 0 0 0 0.25rem var(--accent-primary-dim);
+    }
+</style>
+
+@code {
+    private string? _brandLogoUrl;
+    private string? _watermarkUrl;
+    private string? _storeName;
+    private string? _storeAddress;
+    private string? _supportEmail;
+    private string? _baseSiteUrl;
+    private double _defaultPrice = 10.00;
+    private bool _maintenanceMode;
+    
+    private bool _isSaving;
+    private bool _showSuccess;
+    private bool _useLogoUpload = true;
+    private bool _useUpload = true;
+
+    [CascadingParameter]
+    private Task<AuthenticationState> AuthenticationStateTask { get; set; } = null!;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _brandLogoUrl = await SettingsRepository.GetValueAsync("BrandLogoUrl");
+        if (!string.IsNullOrEmpty(_brandLogoUrl) && _brandLogoUrl.StartsWith("/uploads/brand/"))
+        {
+            _useLogoUpload = true;
+        }
+        else if (!string.IsNullOrEmpty(_brandLogoUrl))
+        {
+            _useLogoUpload = false;
+        }
+
+        _watermarkUrl = await SettingsRepository.GetValueAsync("WatermarkUrl");
+        if (!string.IsNullOrEmpty(_watermarkUrl) && _watermarkUrl.StartsWith("/uploads/"))
+        {
+            _useUpload = true;
+        }
+        else if (!string.IsNullOrEmpty(_watermarkUrl))
+        {
+            _useUpload = false;
+        }
+
+        _storeName = await SettingsRepository.GetValueAsync("StoreName") ?? "Project65 Studios";
+        _storeAddress = await SettingsRepository.GetValueAsync("StoreAddress") ?? "";
+        _supportEmail = await SettingsRepository.GetValueAsync("SupportEmail") ?? "";
+        _baseSiteUrl = await SettingsRepository.GetValueAsync("BaseSiteUrl") ?? "";
+        
+        var priceStr = await SettingsRepository.GetValueAsync("DefaultPrice");
+        if (double.TryParse(priceStr, out var p)) _defaultPrice = p;
+
+        var maintenanceStr = await SettingsRepository.GetValueAsync("MaintenanceMode");
+        _maintenanceMode = maintenanceStr == "true";
+    }
+
+    private async Task HandleLogoSelected(InputFileChangeEventArgs e)
+    {
+        var file = e.File;
+        if (file != null)
+        {
+            _isSaving = true;
+            try
+            {
+                var fileName = $"logo_{DateTime.UtcNow.Ticks}{Path.GetExtension(file.Name)}";
+                var r2Key = $"brand/{fileName}";
+
+                using var stream = file.OpenReadStream(maxAllowedSize: 1024 * 1024 * 5); // 5MB limit
+                await StorageService.UploadAsync(stream, r2Key, file.ContentType);
+
+                _brandLogoUrl = r2Key;
+            }
+            catch (Exception)
+            {
+                // Logo upload failed
+            }
+            finally
+            {
+                _isSaving = false;
+            }
+        }
+    }
+
+    private async Task HandleFileSelected(InputFileChangeEventArgs e)
+    {
+        var file = e.File;
+        if (file != null)
+        {
+            _isSaving = true;
+            try
+            {
+                var fileName = $"watermark_{DateTime.UtcNow.Ticks}{Path.GetExtension(file.Name)}";
+                var r2Key = $"watermarks/{fileName}";
+
+                using var stream = file.OpenReadStream(maxAllowedSize: 1024 * 1024 * 5); // 5MB limit
+                await StorageService.UploadAsync(stream, r2Key, file.ContentType);
+
+                _watermarkUrl = r2Key;
+            }
+            catch (Exception)
+            {
+                // Background video upload failed
+            }
+            finally
+            {
+                _isSaving = false;
+            }
+        }
+    }
+
+    private string ResolveStorageUrl(string? url)
+    {
+        if (string.IsNullOrEmpty(url)) return "";
+        if (url.StartsWith("http") || url.StartsWith("/")) return url;
+        
+        // It's an R2 key (e.g. brand/logo.png)
+        return StorageService.GetPresignedDownloadUrl(url);
+    }
+
+    private async Task SaveSettings()
+    {
+        _isSaving = true;
+        _showSuccess = false;
+        
+        try 
+        {
+            await SettingsRepository.SetValueAsync("BrandLogoUrl", _brandLogoUrl ?? "");
+            await SettingsRepository.SetValueAsync("WatermarkUrl", _watermarkUrl ?? "");
+            await SettingsRepository.SetValueAsync("StoreName", _storeName ?? "Project65 Studios");
+            await SettingsRepository.SetValueAsync("StoreAddress", _storeAddress ?? "");
+            await SettingsRepository.SetValueAsync("SupportEmail", _supportEmail ?? "");
+            await SettingsRepository.SetValueAsync("BaseSiteUrl", _baseSiteUrl ?? "");
+            await SettingsRepository.SetValueAsync("DefaultPrice", _defaultPrice.ToString());
+            await SettingsRepository.SetValueAsync("MaintenanceMode", _maintenanceMode ? "true" : "false");
+            
+            // Notify local service for immediate UI updates
+            StoreSettingsService.NotifySettingChanged("StoreName", _storeName ?? "Project65 Studios");
+            StoreSettingsService.NotifySettingChanged("BrandLogoUrl", _brandLogoUrl ?? "");
+
+            // Log the action
+            var authState = await AuthenticationStateTask;
+            var user = authState.User;
+            var userId = user.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            var userEmail = user.Identity?.Name;
+
+            await AuditService.LogActionAsync(
+                userId, 
+                userEmail, 
+                "Update Settings", 
+                "Settings", 
+                "Global", 
+                $"Settings updated. StoreName: {_storeName}, SupportEmail: {_supportEmail}, Price: ${_defaultPrice}, Maintenance: {_maintenanceMode}");
+
+            _showSuccess = true;
+            // Hide success message after 3 seconds
+            _ = Task.Delay(3000).ContinueWith(_ => { _showSuccess = false; InvokeAsync(StateHasChanged); });
+        }
+        finally 
+        {
+            _isSaving = false;
+        }
+    }
+}
