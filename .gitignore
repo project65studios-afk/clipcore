@@ -99,12 +99,39 @@ node_modules/
 wwwroot/lib/
 npm-debug.log
 
+# General Sensitive Files
+.gemini/
+.env
+secrets.json
+
+# Project65 / Root specific
+wwwroot/uploads/
+app.db
+app.db-shm
+app.db-wal
+project65.db
+project65.db-shm
+project65.db-wal
+project65_test.db
+project65_test.db-shm
+project65_test.db-wal
+pings/
+appsettings.Development.json
+
 # ClipCore specific
 ClipCore.Web/wwwroot/uploads/
 ClipCore.Web/appsettings.json
 ClipCore.Web/appsettings.Development.json
 ClipCore.Web/appsettings.Testing.json
 !ClipCore.Web/appsettings.example.json
+
+# ClipCore Databases
+clipcore.db
+clipcore.db-shm
+clipcore.db-wal
+clipcore_test.db
+clipcore_test.db-shm
+clipcore_test.db-wal
 
 # Legacy
 Project65.Web/appsettings.json
