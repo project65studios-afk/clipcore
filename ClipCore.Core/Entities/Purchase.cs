@@ -10,6 +10,7 @@ public enum FulfillmentStatus
 
 public class Purchase
 {
+    public Guid TenantId { get; set; }
     public int Id { get; set; }
     public string? UserId { get; set; } // Nullable for Guest Checkout
     public virtual ApplicationUser? User { get; set; }

@@ -5,6 +5,7 @@ namespace ClipCore.Core.Entities;
 
 public class Clip
 {
+    public Guid TenantId { get; set; }
     public string Id { get; set; } = Guid.NewGuid().ToString();
     public string EventId { get; set; } = string.Empty;
     public Event Event { get; set; } = null!;

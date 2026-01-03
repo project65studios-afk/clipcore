@@ -10,6 +10,7 @@ namespace ClipCore.Core.Entities
 
     public class PromoCode
     {
+        public Guid TenantId { get; set; }
         public int Id { get; set; }
         public string Code { get; set; } = string.Empty;
         public DiscountType DiscountType { get; set; } = DiscountType.Percentage;

@@ -1,15 +1,20 @@
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using ClipCore.Core.Entities;
+using ClipCore.Core.Interfaces;
 
 namespace ClipCore.Infrastructure.Data;
 
 public class AppDbContext : IdentityDbContext<ApplicationUser>
 {
-    public AppDbContext(DbContextOptions<AppDbContext> options) : base(options)
+    private readonly ITenantProvider _tenantProvider;
+
+    public AppDbContext(DbContextOptions<AppDbContext> options, ITenantProvider tenantProvider) : base(options)
     {
+        _tenantProvider = tenantProvider;
     }
 
+    public DbSet<Tenant> Tenants { get; set; } = null!;
     public DbSet<Event> Events { get; set; } = null!;
     public DbSet<Clip> Clips { get; set; } = null!;
     public DbSet<Purchase> Purchases { get; set; } = null!;
@@ -22,6 +27,26 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
+
+        // Global Query Filters (Multi-Tenancy)
+        var currentTenantId = _tenantProvider.TenantId;
+
+        // Note: We use a lambda here so EF Core evaluates the property access effectively
+        modelBuilder.Entity<Event>().HasQueryFilter(e => e.TenantId == _tenantProvider.TenantId);
+        modelBuilder.Entity<Clip>().HasQueryFilter(c => c.TenantId == _tenantProvider.TenantId);
+        modelBuilder.Entity<Purchase>().HasQueryFilter(p => p.TenantId == _tenantProvider.TenantId);
+        modelBuilder.Entity<PromoCode>().HasQueryFilter(p => p.TenantId == _tenantProvider.TenantId);
+        modelBuilder.Entity<Setting>().HasQueryFilter(s => s.TenantId == _tenantProvider.TenantId);
+        modelBuilder.Entity<AuditLog>().HasQueryFilter(a => a.TenantId == _tenantProvider.TenantId);
+        modelBuilder.Entity<ExternalProduct>().HasQueryFilter(p => p.TenantId == _tenantProvider.TenantId);
+        // Users are special; we might filter them manually or selectively, but let's filter for now to be safe
+        modelBuilder.Entity<ApplicationUser>().HasQueryFilter(u => u.TenantId == _tenantProvider.TenantId);
+
+
+        // Tenant Configuration
+        modelBuilder.Entity<Tenant>()
+            .HasIndex(t => t.Subdomain)
+            .IsUnique();
 
         // User -> Purchases Relationship
         modelBuilder.Entity<Purchase>()

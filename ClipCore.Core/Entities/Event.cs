@@ -5,6 +5,7 @@ namespace ClipCore.Core.Entities;
 
 public class Event
 {
+    public Guid TenantId { get; set; }
     public string Id { get; set; } = Guid.NewGuid().ToString(); // Slug, e.g. "2025-11-30"
     public string Name { get; set; } = string.Empty;
     public DateOnly Date { get; set; }

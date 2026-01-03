@@ -4,6 +4,7 @@ namespace ClipCore.Core.Entities
 {
     public class AuditLog
     {
+        public Guid TenantId { get; set; }
         public int Id { get; set; }
         public string? UserId { get; set; }
         public string? UserEmail { get; set; }

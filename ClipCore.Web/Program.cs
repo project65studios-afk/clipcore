@@ -56,7 +56,13 @@ builder.Services.AddAuthentication()
         options.AppSecret = builder.Configuration["Authentication:Facebook:AppSecret"] ?? string.Empty;
     });
 
+// Add Tenant Context (Scoped, so it lives for the request)
+builder.Services.AddScoped<ClipCore.Web.Services.TenantContext>();
+// Register it as ITenantProvider so AppDbContext can use it
+builder.Services.AddScoped<ITenantProvider>(sp => sp.GetRequiredService<ClipCore.Web.Services.TenantContext>());
+
 builder.Services.AddScoped<IEventRepository, EventRepository>();
+// builder.Services.AddScoped<ITenantProvider, FakeTenantProvider>(); // REMOVED
 builder.Services.AddScoped<IClipRepository, ClipRepository>();
 builder.Services.AddSingleton<ISearchService, LevenshteinSearchService>();
 builder.Services.AddSingleton<GlobalSettingsNotifier>();
@@ -283,7 +289,10 @@ using (var scope = app.Services.CreateScope())
     await storageService.ConfigureCorsAsync();
     
     await context.Database.MigrateAsync();
-    await ClipCore.Infrastructure.DataSeeder.SeedAsync(context, userManager, roleManager);
+
+    // Bootstrap TenantContext for Seeding
+    var tenantContext = services.GetRequiredService<ClipCore.Web.Services.TenantContext>();
+    await ClipCore.Infrastructure.DataSeeder.SeedAsync(context, userManager, roleManager, tenantContext);
 }
 
 app.Run();
