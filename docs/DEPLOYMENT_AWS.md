@@ -1,6 +1,6 @@
-# AWS Deployment Guide: Project65 (Beginner's Edition)
+# AWS Deployment Guide: ClipCore (Beginner's Edition)
 
-Welcome! This guide is designed for **absolute beginners**. We will take the Project65 web application from your computer to the AWS Cloud, step-by-step.
+Welcome! This guide is designed for **absolute beginners**. We will take the ClipCore web application from your computer to the AWS Cloud, step-by-step.
 
 We will focus on **keeping costs low** (approx. $22/month) while using professional, production-ready services.
 

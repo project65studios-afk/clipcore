@@ -1,0 +1,82 @@
+@page "/test/email"
+@using ClipCore.Web.Services
+@using ClipCore.Core.Entities
+@inject EmailTemplateService EmailTemplateService
+@inject NavigationManager Navigation
+@layout EmptyLayout
+
+<div style="background: #f0f2f5; min-height: 100vh; padding: 2rem 0;">
+    <div style="max-width: 800px; margin: 0 auto 1rem auto; display: flex; justify-content: space-between; align-items: center; padding: 0 1rem;">
+        <h3 style="margin: 0; color: #1a1a1a;">Email Template Preview</h3>
+        <div class="btn-group">
+            <button class="btn btn-sm @(_type == "receipt" ? "btn-primary" : "btn-outline-primary")" @onclick='() => SetType("receipt")'>Receipt</button>
+            <button class="btn btn-sm @(_type == "fulfillment" ? "btn-primary" : "btn-outline-primary")" @onclick='() => SetType("fulfillment")'>Fulfillment</button>
+        </div>
+        <a href="/admin" class="btn btn-sm btn-outline-secondary">Back to Admin</a>
+    </div>
+    
+    <div style="background: white; border: 1px solid #ddd; border-radius: 8px; margin: 0 auto; max-width: 650px; overflow: hidden;">
+        @((MarkupString)_emailHtml)
+    </div>
+</div>
+
+@code {
+    private string _emailHtml = "";
+    private string _type = "receipt";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await UpdatePreview();
+    }
+
+    private async Task SetType(string type)
+    {
+        _type = type;
+        await UpdatePreview();
+    }
+
+    private async Task UpdatePreview()
+    {
+        var mockItems = new List<Purchase>
+        {
+            new Purchase 
+            { 
+                ClipTitle = "Gravel Tower Coin — Limited Edition", 
+                EventName = "Azusa Canyon", 
+                PricePaidCents = 3499,
+                ClipThumbnailFileName = "sample1.jpg", 
+                CreatedAt = DateTime.UtcNow,
+                CustomerEmail = "tony@starkindustries.com",
+                CustomerAddress = "10880 Malibu Point, Malibu, CA 90265"
+            },
+            new Purchase 
+            { 
+                ClipTitle = "King of the Mountain — Collector's Edition", 
+                EventName = "Mulholland Hwy", 
+                PricePaidCents = 5499,
+                ClipThumbnailFileName = "sample2.jpg", 
+                CreatedAt = DateTime.UtcNow 
+            }
+        };
+
+        if (_type == "receipt")
+        {
+            _emailHtml = await EmailTemplateService.GenerateOrderReceiptHtmlAsync("A1B2C3", mockItems, "Tony Stark");
+        }
+        else
+        {
+            _emailHtml = await EmailTemplateService.GenerateFulfillmentEmailHtmlAsync("A1B2C3", mockItems, "Tony Stark");
+        }
+    }
+}
+
+@* Simple empty layout for the preview page *@
+@code {
+    public class EmptyLayout : LayoutComponentBase
+    {
+        protected override void BuildRenderTree(Microsoft.AspNetCore.Components.Rendering.RenderTreeBuilder builder)
+        {
+            builder.AddContent(0, Body);
+        }
+    }
+}

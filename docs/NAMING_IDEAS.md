@@ -1,6 +1,6 @@
 # App Naming Ideas
 
-Here is a collection of potential names for the "Project65" video storefront, categorized by style and vibe.
+Here is a collection of potential names for the "ClipCore" video storefront, categorized by style and vibe.
 
 ### Modern & Abstract
 *   **Vidra**

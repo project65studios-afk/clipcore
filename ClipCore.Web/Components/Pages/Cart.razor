@@ -1,0 +1,306 @@
+@page "/cart"
+@using ClipCore.Core.Entities
+@using ClipCore.Core.Interfaces
+@inject ClipCore.Web.Services.CartService CartService
+@inject NavigationManager Navigation
+@inject IPaymentService PaymentService
+@inject IVideoService VideoService
+@inject IEventRepository EventRepository
+@implements IDisposable
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject IPromoCodeRepository PromoCodeRepository
+@inject IJSRuntime JS
+@rendermode RenderMode.InteractiveServer
+
+<PageTitle>Shopping Cart - @(_storeName ?? "ClipCore Studios")</PageTitle>
+
+<div class="content-container" style="max-width: 800px; margin: 0 auto; padding: 2rem 1rem;">
+    <h1 style="margin-bottom: 2rem;">Your Cart</h1>
+
+    @if (!_isInitialized)
+    {
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary" role="status"></div>
+        </div>
+    }
+    else if (CartService.Count == 0)
+    {
+        <div style="text-align: center; padding: 4rem 1rem; background: var(--bg-surface); border-radius: var(--radius-lg); border: 1px dashed var(--border-color);">
+            <p style="color: var(--text-secondary); margin-bottom: 1.5rem; font-size: 1.1rem;">Your cart is empty.</p>
+            <a href="/" class="btn-primary">Browse Events</a>
+        </div>
+    }
+    else
+    {
+        <div style="display: flex; flex-direction: column; gap: 1rem; margin-bottom: 2rem;">
+            @foreach (var item in CartService.GetItems())
+            {
+                <div class="cart-item">
+                    <!-- Thumbnail -->
+                    <div class="cart-item-thumb">
+                         @if (_thumbnailUrls.TryGetValue(item.Id, out var thumbUrl)) 
+                         {
+                             <img src="@thumbUrl" alt="@item.Title" />
+                         }
+                    </div>
+                    
+                    <div class="cart-item-info">
+                        <h4>@item.Title</h4>
+                        @if (_events.TryGetValue(item.EventId, out var evt))
+                        {
+                            <div style="font-size: 0.85rem; color: var(--accent-primary); margin-bottom: 0.25rem;">
+                                @evt.Name
+                            </div>
+                        }
+                        <div style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 0.25rem;">
+                             Duration: @(item.DurationSec.HasValue ? TimeSpan.FromSeconds(item.DurationSec.Value).ToString(@"mm\:ss") : "--:--")
+                        </div>
+                        <div class="badge" style="background: @(item.LicenseType == LicenseType.Commercial ? "var(--accent-purple-dim)" : "var(--accent-primary-dim)"); color: @(item.LicenseType == LicenseType.Commercial ? "var(--accent-purple)" : "var(--accent-primary)"); border: 1px solid currentColor; font-size: 0.7rem; text-transform: uppercase; font-weight: 600; padding: 0.2rem 0.5rem;">
+                            @item.LicenseType License
+                        </div>
+                    </div>
+
+                    <div class="cart-item-price-actions">
+                        <div class="cart-item-price">$@(item.PriceCents / 100.00)</div>
+                        <button class="btn-link" style="color: var(--accent-secondary); font-size: 0.8rem; text-decoration: none; padding: 0; border: none; background: none; cursor: pointer;" @onclick="() => RemoveItem(item)">
+                            Remove
+                        </button>
+                    </div>
+                </div>
+            }
+        </div>
+
+        <div style="background: var(--bg-surface); padding: 1.5rem; border-radius: var(--radius-lg); border: 1px solid var(--border-color);">
+            <div style="margin-bottom: 2rem; display: flex; gap: 0.5rem;">
+                <input class="form-control" style="background: var(--bg-subtle); border-color: var(--border-color); color: var(--text-main); text-transform: uppercase;" @bind="_promoInput" placeholder="Promo Code" disabled="@_isApplyingPromo" />
+                <button class="btn-secondary" style="white-space: nowrap;" @onclick="ApplyPromoAsync" disabled="@(string.IsNullOrWhiteSpace(_promoInput) || _isApplyingPromo)">
+                    @(_isApplyingPromo ? "..." : "Apply")
+                </button>
+            </div>
+
+            @if (CartService.IsBundleDiscountApplied)
+            {
+                <div style="background: var(--status-success-dim); border: 1px solid var(--status-success); color: var(--status-success); padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem; text-align: center; font-weight: 500;">
+                    🎉 Volume Discount Unlocked: 25% Off!
+                </div>
+            }
+            else if (CartService.AppliedPromoCode != null)
+            {
+                 <div style="background: var(--status-success-dim); border: 1px solid var(--status-success); color: var(--status-success); padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem; text-align: center; font-weight: 500; display: flex; justify-content: center; align-items: center; gap: 0.5rem;">
+                    <span>🎟️ Promo Applied: <strong>@CartService.AppliedPromoCode.Code</strong></span>
+                    <button class="btn-link" style="color: var(--status-danger); font-size: 0.8rem; text-decoration: none; padding: 0; border: none; background: none; cursor: pointer;" @onclick="CartService.RemovePromoAsync">Remove</button>
+                </div>
+            }
+            else
+            {
+                <div style="background: var(--accent-primary-dim); border: 1px solid var(--accent-primary); color: var(--accent-primary); padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem; text-align: center;">
+                    Add <strong>@(3 - CartService.Count)</strong> more item@(3 - CartService.Count > 1 ? "s" : "") to unlock 25% off!
+                </div>
+            }
+
+            <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem; font-size: 1rem; color: var(--text-muted);">
+                <span>Subtotal</span>
+                <span style="@(CartService.TotalDiscountCents > 0 ? "text-decoration: line-through;" : "")">$@(CartService.SubTotalCents / 100.00)</span>
+            </div>
+
+            @if (CartService.BundleDiscountCents > 0 && CartService.BundleDiscountCents >= CartService.PromoDiscountCents)
+            {
+                <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem; font-size: 1rem; color: var(--status-success);">
+                    <span>Volume Discount (25%)</span>
+                    <span>-$@((CartService.BundleDiscountCents / 100.00).ToString("N2"))</span>
+                </div>
+            }
+            else if (CartService.PromoDiscountCents > 0)
+            {
+                 <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem; font-size: 1rem; color: var(--status-success);">
+                    <span>Promo Discount (@(CartService.AppliedPromoCode?.Code))</span>
+                    <span>-$@((CartService.PromoDiscountCents / 100.00).ToString("N2"))</span>
+                </div>
+            }
+
+            <div style="display: flex; justify-content: space-between; margin-bottom: 1.5rem; font-size: 1.25rem; font-weight: 700; border-top: 1px solid var(--border-color); padding-top: 1rem;">
+                <span>Total</span>
+                <span>$@((CartService.TotalPriceCents / 100.00).ToString("N2"))</span>
+            </div>
+            
+            <button class="btn-primary" style="width: 100%; font-size: 1.1rem; padding: 0.75rem;" @onclick="CheckoutAsync">
+                Checkout
+            </button>
+        </div>
+    }
+</div>
+
+@inject ISettingsRepository SettingsRepository
+@inject ClipCore.Web.Services.StoreSettingsService StoreSettingsService
+
+@code {
+    private bool _isInitialized = false;
+    private string? _storeName;
+    private Dictionary<string, Event> _events = new();
+    private Dictionary<string, string> _thumbnailUrls = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        _storeName = await StoreSettingsService.GetStoreNameAsync();
+        StoreSettingsService.OnChange += HandleSettingsChange;
+    }
+
+    private void HandleSettingsChange()
+    {
+        InvokeAsync(async () =>
+        {
+            _storeName = await StoreSettingsService.GetStoreNameAsync();
+            StateHasChanged();
+        });
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await CartService.InitializeAsync();
+            var items = CartService.GetItems();
+
+             // Fetch events associated with items
+             var eventIds = items.Select(c => c.EventId).Distinct();
+             foreach (var eid in eventIds)
+             {
+                 if (!_events.ContainsKey(eid))
+                 {
+                     var e = await EventRepository.GetByIdAsync(eid);
+                     if (e != null) _events[eid] = e;
+                 }
+             }
+
+             // Load Thumbnails
+             foreach (var item in items)
+             {
+                  if (!_thumbnailUrls.ContainsKey(item.Id))
+                  {
+                      var url = await GenerateThumbnailUrlAsync(item);
+                      if (url != null) _thumbnailUrls[item.Id] = url;
+                  }
+             }
+
+            _isInitialized = true;
+            CartService.OnChange += StateHasChanged;
+            StateHasChanged();
+        }
+    }
+
+    private async Task<string?> GenerateThumbnailUrlAsync(ClipCore.Web.Models.CartItem item)
+    {
+        var id = item.PlaybackId;
+        if (string.IsNullOrEmpty(id) || id.StartsWith("mock")) return null;
+
+        var token = await VideoService.GetPlaybackToken(id, "t", "480p");
+        return $"https://image.mux.com/{id}/thumbnail.jpg?token={token}&width=200";
+    }
+
+    private async Task RemoveItem(ClipCore.Web.Models.CartItem item)
+    {
+        await CartService.RemoveAsync(item.Id, item.LicenseType);
+    }
+
+    private string _promoInput = "";
+    private bool _isApplyingPromo = false;
+
+    private async Task ApplyPromoAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_promoInput)) return;
+
+        _isApplyingPromo = true;
+        try
+        {
+            var code = _promoInput.Trim().ToUpper();
+            var promo = await PromoCodeRepository.GetByCodeAsync(code);
+
+            if (promo == null || !promo.IsValid())
+            {
+                await JS.InvokeVoidAsync("alert", "Invalid or expired promo code.");
+                return;
+            }
+
+            await CartService.ApplyPromoAsync(promo);
+            _promoInput = "";
+        }
+        catch (Exception ex)
+        {
+            await JS.InvokeVoidAsync("alert", $"Error: {ex.Message}");
+        }
+        finally
+        {
+            _isApplyingPromo = false;
+        }
+    }
+
+    private async Task CheckoutAsync()
+    {
+        var items = CartService.GetItems();
+        if (!items.Any()) return;
+
+        var successUrl = Navigation.BaseUri + "checkout/success?session_id={CHECKOUT_SESSION_ID}";
+        var cancelUrl = Navigation.BaseUri + "cart";
+        
+        string? userEmail = null;
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+        if (user.Identity?.IsAuthenticated == true)
+        {
+            userEmail = user.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value ?? user.Identity.Name;
+        }
+
+        // Calculate final prices after best available discount
+        double discountFactor = 1.0;
+        string discountLabel = "";
+
+        if (CartService.TotalDiscountCents > 0)
+        {
+            if (CartService.BundleDiscountCents >= CartService.PromoDiscountCents)
+            {
+                discountFactor = 0.75; // 25% off
+                discountLabel = " (25% Bundle Offer)";
+            }
+            else
+            {
+                // For promo codes, it's either percentage or fixed.
+                // If it's percentage, we use the factor. If it's fixed, we redistribute it.
+                var promo = CartService.AppliedPromoCode!;
+                if (promo.DiscountType == DiscountType.Percentage)
+                {
+                    discountFactor = (100 - promo.Value) / 100.0;
+                    discountLabel = $" ({promo.Value}% Promo)";
+                }
+                else
+                {
+                    // Fixed redistribution
+                    discountFactor = (double)CartService.TotalPriceCents / CartService.SubTotalCents;
+                    discountLabel = $" (Promo Discount Applied)";
+                }
+            }
+        }
+
+        var checkoutItems = items.Select(i => new ClipCore.Core.DTOs.CheckoutItem 
+        {
+            Id = i.Id,
+            Title = i.Title + discountLabel,
+            PriceCents = (int)Math.Round(i.PriceCents * discountFactor),
+            LicenseType = i.LicenseType,
+            EventName = i.EventName,
+            EventDate = i.EventDate,
+            ClipRecordingStartedAt = i.ClipRecordingStartedAt,
+            DurationSec = i.DurationSec,
+            MasterFileName = i.MasterFileName,
+            ThumbnailFileName = i.ThumbnailFileName
+        });
+
+        var url = await PaymentService.CreateCheckoutSessionAsync(checkoutItems, successUrl, cancelUrl, userEmail, null, CartService.AppliedPromoCode?.Id);
+        Navigation.NavigateTo(url);
+    }
+
+    public void Dispose()
+    {
+        CartService.OnChange -= StateHasChanged;
+        StoreSettingsService.OnChange -= HandleSettingsChange;
+    }
+}

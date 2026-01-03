@@ -1,0 +1,7 @@
+<Solution>
+  <Project Path="ClipCore.Core/ClipCore.Core.csproj" />
+  <Project Path="ClipCore.Infrastructure/ClipCore.Infrastructure.csproj" />
+  <Project Path="ClipCore.Web/ClipCore.Web.csproj" />
+  <Project Path="tests/ClipCore.UnitTests/ClipCore.UnitTests.csproj" />
+  <Project Path="tests/ClipCore.E2ETests/ClipCore.E2ETests.csproj" />
+</Solution>

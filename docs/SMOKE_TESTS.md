@@ -1,4 +1,4 @@
-# Project65 - Quality Assurance & Smoke Test Plan
+# ClipCore - Quality Assurance & Smoke Test Plan
 
 This document outlines the highest-priority "Smoke Tests" to ensure application stability and protect the "Money Path."
 
@@ -35,7 +35,7 @@ A smoke test is a thin, fast layer of tests that validates your application's co
 ## 🛠 Implementation Roadmap
 
 ### Phase 1: The Infrastructure (Foundation)
-1.  **Add Test Projects**: Initialize `Project65.Tests` (xUnit) and `Project65.E2E` (Playwright) projects.
+1.  **Add Test Projects**: Initialize `ClipCore.Tests` (xUnit) and `ClipCore.E2E` (Playwright) projects.
 2.  **Mocking Layer**: Implement a "Mocked" `IVideoService` for CI environments so we don't spend real money/tokens during automated test runs.
 3.  **Database Isolation**: Configure a secondary `project65_test.db` with a clean seeder that creates a predictable test environment.
 

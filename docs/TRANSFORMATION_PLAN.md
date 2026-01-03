@@ -1,6 +1,6 @@
-# Transformation Plan: Project65 → ClipCore Platform
+# Transformation Plan: ClipCore → ClipCore Platform
 
-**Objective**: Convert the single-storefront "Project65" MVP into "ClipCore," a multi-tenant SaaS where *anyone* can create their own video storefront (like PhotoReflect, but for video).
+**Objective**: Convert the single-storefront "ClipCore" MVP into "ClipCore," a multi-tenant SaaS where *anyone* can create their own video storefront (like PhotoReflect, but for video).
 
 ## 1. Naming & Repository
 Since you want a fresh start based on the current code:
@@ -12,8 +12,8 @@ We will not just "copy-paste". We will **lift and shift**.
 
 ### Phase 1: The Lift (Cloning)
 1.  Create usage new, empty git repository (`ClipCore`).
-2.  Copy the **entire** working `Project65` solution into it.
-3.  Rename `Project65` namespaces to `ClipCore`.
+2.  Copy the **entire** working `ClipCore` solution into it.
+3.  Rename `ClipCore` namespaces to `ClipCore`.
 4.  Verify the "Single Store" version runs perfectly in the new home.
 
 ### Phase 2: The Shift (Multi-Tenancy)
@@ -39,7 +39,7 @@ We need a piece of code that runs *before* every page load:
 
 ## 3. Immediate "Dont Proceed Yet" Checklist
 Before we pull the trigger:
-- [ ] **Backup**: Ensure Project65 `v1.0-MVP` is tagged and safe.
+- [ ] **Backup**: Ensure ClipCore `v1.0-MVP` is tagged and safe.
 - [ ] **Architecture Decision**: Do we use **Subdomains** (`store.app.com`) or **Paths** (`app.com/store`)? (Subdomains are more "Pro").
 - [ ] **Tech Stack**: Are we keeping SQLite? (No, for SaaS we likely need PostgreSQL for better concurrency).
 

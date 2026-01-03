@@ -1,0 +1,275 @@
+@using System.IO
+@inject IVideoService VideoService
+@inject IStorageService StorageService
+@inject ClipCore.Web.Services.CartService CartService
+@inject IWebHostEnvironment Environment
+@inject NavigationManager Navigation
+@inject IJSRuntime JSRuntime
+@implements IDisposable
+
+<div id="clip-card-@Clip.Id" @ref="_cardElement" @key="Clip.Id" class="video-card" data-enhance-nav="false">
+    <a href="/clips/@Clip.Id" class="video-card-link" style="text-decoration: none; color: inherit; display: block;">
+        <div class="video-thumb">
+            @if (IsPurchased)
+            {
+                <div class="purchased-badge">
+                    <i class="bi bi-check-circle-fill"></i> Purchased
+                </div>
+            }
+            else if (IsInCart())
+            {
+                <div class="cart-badge">
+                    <i class="bi bi-cart-check-fill"></i> In Cart
+                </div>
+            }
+
+            <!-- AI Vehicle Tags -->
+            @if (VehicleTags.Any())
+            {
+                <div class="tags-container" style="pointer-events: none;">
+                    @foreach (var tag in VehicleTags)
+                    {
+                        <div class="vehicle-tag">
+                            <i class="bi bi-tag-fill" style="font-size: 0.6rem; opacity: 0.7;"></i> @tag
+                        </div>
+                    }
+                </div>
+            }
+
+            <img src="@GetThumbnailUrl()" alt="@Clip.Title" class="video-thumb-img" />
+
+            <!-- Hover Preview -->
+            @if (!string.IsNullOrEmpty(PreviewId) && !PreviewId.StartsWith("mock"))
+            {
+                <div id="preview-container-@Clip.Id" class="video-player-container preview-player">
+                    @if (!string.IsNullOrEmpty(WatermarkUrl))
+                    {
+                        <div class="watermark-grid" style="--wm-url: url('@WatermarkUrl');">
+                            @for (int i = 0; i < 36; i++)
+                            {
+                                int row = i / 6;
+                                int col = i % 6;
+                                bool isActive = (row + col) % 2 == 0;
+                                <div class="watermark-cell @(isActive ? "active" : "")"></div>
+                            }
+                        </div>
+                    }
+
+                    @if (HasTokens(PreviewId))
+                    {
+                        <mux-player playback-id="@PreviewId"
+                                    playback-token="@GetTokenFromCache(PreviewId, "v")"
+                                    thumbnail-token="@GetTokenFromCache(PreviewId, "t")"
+                                    storyboard-token="@GetTokenFromCache(PreviewId, "s")"
+                                    muted
+                                    autoplay
+                                    loop
+                                    disable-tracking
+                                    disable-cast
+                                    style="width: 100%; height: 100%; object-fit: cover;">
+                        </mux-player>
+                    }
+                </div>
+            }
+
+            <div class="video-duration">
+                @(Clip.DurationSec.HasValue ? TimeSpan.FromSeconds(Clip.DurationSec.Value).ToString(@"mm\:ss") : "--:--")
+            </div>
+        </div>
+
+        <div class="video-info">
+            <h3 class="video-title">@Clip.Title</h3>
+            <div class="video-meta">
+                <span class="price-tag">$@(Clip.PriceCents / 100.00)</span>
+                <span class="dot"></span>
+                <span>@Clip.RecordingStartedAt?.ToLocalTime().ToString("h:mm tt")</span>
+            </div>
+        </div>
+    </a>
+
+    @if (!IsPurchased && !IsInCart())
+    {
+        <button class="quick-add-btn" @onclick:stopPropagation="true" @onclick="AddToCart" title="Quick Add to Cart">
+            <i class="bi bi-cart-plus"></i>
+        </button>
+    }
+</div>
+
+@code {
+    [Parameter] public Clip Clip { get; set; } = null!;
+    [Parameter] public bool IsPurchased { get; set; }
+    [Parameter] public string? WatermarkUrl { get; set; }
+
+    private ElementReference _cardElement;
+    private Dictionary<string, string> _tokenCache = new();
+    private bool _isAddingToCart = false;
+
+    private string? PreviewId => string.IsNullOrEmpty(Clip.PlaybackIdTeaser) ? Clip.PlaybackIdSigned : Clip.PlaybackIdTeaser;
+
+    private List<string> VehicleTags
+    {
+        get
+        {
+            if (string.IsNullOrEmpty(Clip.TagsJson) || Clip.TagsJson == "[]") return new List<string>();
+            try
+            {
+                var tags = System.Text.Json.JsonSerializer.Deserialize<string[]>(Clip.TagsJson);
+                // Filter out "Unknown" and error-related tags
+                return tags?.Where(t => !string.Equals(t, "Unknown", StringComparison.OrdinalIgnoreCase) 
+                                     && !t.StartsWith("Error:") 
+                                     && t != "AI_Analysis_Pending" 
+                                     && t != "No_API_Key")
+                            .Take(3).ToList() ?? new List<string>();
+            }
+            catch { return new List<string>(); }
+        }
+    }
+
+    private string? _lastLoadedPreviewId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        CartService.OnChange += StateHasChanged;
+        // Logic moved to OnParametersSetAsync to handle updates
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (!string.IsNullOrEmpty(PreviewId) && !PreviewId.StartsWith("mock"))
+        {
+            if (_lastLoadedPreviewId != PreviewId)
+            {
+                _lastLoadedPreviewId = PreviewId;
+                await LoadTokensForClip(PreviewId);
+            }
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender && !string.IsNullOrEmpty(PreviewId) && !PreviewId.StartsWith("mock"))
+        {
+            try
+            {
+                await JSRuntime.InvokeVoidAsync("VideoObserver.observe", _cardElement);
+            }
+            catch (Exception)
+            {
+                // Likely due to prerendering or navigation cancellation, ignore
+            }
+        }
+    }
+
+    private async Task LoadTokensForClip(string playbackId)
+    {
+        var tasks = new List<Task<(string type, string token)>>();
+
+        if (!_tokenCache.ContainsKey($"{playbackId}-v"))
+            tasks.Add(GetSpecificTokenAsync(playbackId, "v"));
+
+        if (!_tokenCache.ContainsKey($"{playbackId}-t"))
+            tasks.Add(GetSpecificTokenAsync(playbackId, "t"));
+
+        if (!_tokenCache.ContainsKey($"{playbackId}-s"))
+            tasks.Add(GetSpecificTokenAsync(playbackId, "s"));
+
+        if (tasks.Any())
+        {
+            var results = await Task.WhenAll(tasks);
+            foreach (var (type, token) in results)
+            {
+                if (!string.IsNullOrEmpty(token))
+                {
+                    _tokenCache[$"{playbackId}-{type}"] = token;
+                }
+            }
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private async Task<(string type, string token)> GetSpecificTokenAsync(string playbackId, string type)
+    {
+        var token = await VideoService.GetPlaybackToken(playbackId, type, "540p");
+        return (type, token);
+    }
+
+    private string? GetTokenFromCache(string playbackId, string type)
+    {
+        return _tokenCache.TryGetValue($"{playbackId}-{type}", out var token) ? token : null;
+    }
+
+    private bool HasTokens(string playbackId)
+    {
+        // For signed assets, we must have all tokens that we pass to the player
+        // to avoid [mux-player] errors about missing expected tokens.
+        return _tokenCache.TryGetValue($"{playbackId}-v", out var v) && !string.IsNullOrEmpty(v) &&
+               _tokenCache.TryGetValue($"{playbackId}-t", out var t) && !string.IsNullOrEmpty(t) &&
+               _tokenCache.TryGetValue($"{playbackId}-s", out var s) && !string.IsNullOrEmpty(s);
+    }
+
+    private string GetThumbnailUrl()
+    {
+        // 1. High Res Thumbnail (R2)
+        if (!string.IsNullOrEmpty(Clip.ThumbnailFileName))
+        {
+            // If filename contains a folder prefix (e.g. ai-thumbnails/), use it directly
+            var storageKey = Clip.ThumbnailFileName.Contains("/") 
+                ? Clip.ThumbnailFileName 
+                : $"thumbnails/{Clip.ThumbnailFileName}";
+                
+            return StorageService.GetPresignedDownloadUrl(storageKey);
+        }
+
+        // 2. Mux Fallback
+        if (string.IsNullOrEmpty(PreviewId) || PreviewId.StartsWith("mock")) return "";
+
+        var token = GetTokenFromCache(PreviewId, "t");
+        if (string.IsNullOrEmpty(token)) return ""; // Wait for token to avoid 403 or missing token errors
+
+        return $"https://image.mux.com/{PreviewId}/thumbnail.jpg?token={token}&width=400";
+    }
+
+    private void NavigateToClip()
+    {
+        Navigation.NavigateTo($"/clips/{Clip.Id}", forceLoad: false);
+    }
+
+    private bool IsInCart()
+    {
+        return CartService.GetItems().Any(c => c.Id == Clip.Id);
+    }
+
+    private async Task AddToCart()
+    {
+        if (_isAddingToCart) return;
+        _isAddingToCart = true;
+        
+        try
+        {
+            var item = new ClipCore.Web.Models.CartItem
+            {
+                Id = Clip.Id,
+                Title = Clip.Title,
+                PriceCents = Clip.PriceCents,
+                DurationSec = Clip.DurationSec,
+                PlaybackId = Clip.PlaybackIdSigned,
+                EventId = Clip.EventId,
+                EventName = Clip.Event?.Name,
+                EventDate = Clip.Event?.Date,
+                ClipRecordingStartedAt = Clip.RecordingStartedAt,
+                MasterFileName = Clip.MasterFileName,
+                ThumbnailFileName = Clip.ThumbnailFileName
+            };
+            await CartService.AddAsync(item);
+        }
+        finally
+        {
+            _isAddingToCart = false;
+        }
+    }
+
+    public void Dispose()
+    {
+        CartService.OnChange -= StateHasChanged;
+    }
+}

@@ -1,14 +1,14 @@
-# Project65 Studios - Application Architecture
+# ClipCore Studios - Application Architecture
 
-This document provides a comprehensive overview of the Project65 application, its components, tech stack, and service integrations.
+This document provides a comprehensive overview of the ClipCore application, its components, tech stack, and service integrations.
 
 ## 🏗 System Overview
 
-Project65 is a high-performance video storefront built on **ASP.NET Core Blazor Server**. It follows a **Clean Architecture** pattern, separating concerns into three primary layers:
+ClipCore is a high-performance video storefront built on **ASP.NET Core Blazor Server**. It follows a **Clean Architecture** pattern, separating concerns into three primary layers:
 
-1.  **Project65.Web**: The presentation layer (Blazor Components, Controllers, SignalR Hubs).
-2.  **Project65.Infrastructure**: The implementation layer (External APIs, Database, Repository Implementations).
-3.  **Project65.Core**: The domain layer (Entities, Interfaces, Shared DTOs).
+1.  **ClipCore.Web**: The presentation layer (Blazor Components, Controllers, SignalR Hubs).
+2.  **ClipCore.Infrastructure**: The implementation layer (External APIs, Database, Repository Implementations).
+3.  **ClipCore.Core**: The domain layer (Entities, Interfaces, Shared DTOs).
 
 ---
 
@@ -23,7 +23,7 @@ Project65 is a high-performance video storefront built on **ASP.NET Core Blazor 
 
 ---
 
-## 💾 Core Domain Layer (`Project65.Core`)
+## 💾 Core Domain Layer (`ClipCore.Core`)
 
 ### Key Entities
 - **Event**: Represents a physical event (e.g., a car rally) containing multiple clips.
@@ -34,7 +34,7 @@ Project65 is a high-performance video storefront built on **ASP.NET Core Blazor 
 
 ---
 
-## 🔌 Infrastructure & Services (`Project65.Infrastructure`)
+## 🔌 Infrastructure & Services (`ClipCore.Infrastructure`)
 
 ### External Service Integrations
 - **Mux Video (`IVideoService`)**:
@@ -55,7 +55,7 @@ Project65 is a high-performance video storefront built on **ASP.NET Core Blazor 
 
 ---
 
-## 🌐 Web Layer (`Project65.Web`)
+## 🌐 Web Layer (`ClipCore.Web`)
 
 ### Key Components
 - **Home.razor**: High-performance landing page with parallelized media token fetching.
@@ -84,10 +84,10 @@ Project65 is a high-performance video storefront built on **ASP.NET Core Blazor 
 ## 📁 Project Structure
 
 ```text
-/Project65
-├── Project65.Core          # Entities & Interfaces
-├── Project65.Infrastructure    # DB & External Service Impls
-└── Project65.Web           # Blazor UI, APIs, & Webhooks
+/ClipCore
+├── ClipCore.Core          # Entities & Interfaces
+├── ClipCore.Infrastructure    # DB & External Service Impls
+└── ClipCore.Web           # Blazor UI, APIs, & Webhooks
     ├── Components          # Shared UI & Layouts
     ├── Pages               # Main Application Routes
     ├── Services            # Web-specific background logic

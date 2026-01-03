@@ -1,0 +1,968 @@
+@page "/clips/{Id}"
+@using ClipCore.Core.Entities
+@using ClipCore.Core.Interfaces
+@using ClipCore.Infrastructure.Data.Repositories
+@using Microsoft.AspNetCore.WebUtilities
+@using System.IO
+@inject IClipRepository ClipRepository
+@inject IVideoService VideoService
+@inject IPaymentService PaymentService
+@inject IPurchaseRepository PurchaseRepository
+@inject NavigationManager Navigation
+@inject ISettingsRepository SettingsRepository
+@inject ClipCore.Web.Services.StoreSettingsService StoreSettingsService
+@inject IEmailService EmailService
+@inject IJSRuntime JSRuntime
+@inject ClipCore.Web.Services.CartService CartService
+@inject IStorageService StorageService
+@inject ClipCore.Web.Services.VideoHealingService VideoHealingService
+@inject IAuditService AuditService
+@using Microsoft.AspNetCore.SignalR.Client
+@implements IAsyncDisposable
+@implements IDisposable
+
+<PageTitle>@_clip?.Title - @(_storeName ?? "ClipCore Studios")</PageTitle>
+
+@if (_loading)
+{
+    <div style="display:flex;justify-content:center;align-items:center;min-height:50vh;">
+        <div class="spinner-border text-info" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+    </div>
+}
+else if (_clip == null)
+{
+    @if (!string.IsNullOrEmpty(_errorMessage))
+    {
+        <div class="alert alert-danger">@_errorMessage</div>
+    }
+    else
+    {
+        <div class="alert alert-danger">Clip not found.</div>
+    }
+}
+else
+{
+    <div style="max-width: 1000px; margin: 0 auto;">
+        <div class="mb-4">
+            <a href="/events/@_clip.EventId" style="color: var(--text-secondary);">← Back to Event</a>
+        </div>
+        
+        <div class="clip-layout" style="display: grid; gap: 2rem;">
+             <div>
+                 <div id="player-container" class="video-player-container mobile-full-width" style="border: 1px solid var(--border-color); box-shadow: 0 0 40px rgba(0,0,0,0.5); position: relative;">
+                    @if (_hasPurchasedPersonal || _hasPurchasedCommercial)
+                    {
+                         @if (HasTokens(_clip.PlaybackIdSigned!))
+                         {
+                              <mux-player
+                                 id="purchased-player"
+                                 playback-id="@_clip.PlaybackIdSigned"
+                                 playback-token="@GetTokenFromCache(_clip.PlaybackIdSigned!, "v")"
+                                 thumbnail-token="@GetTokenFromCache(_clip.PlaybackIdSigned!, "t")"
+                                 storyboard-token="@GetTokenFromCache(_clip.PlaybackIdSigned!, "s")"
+                                 metadata-video-title="@_clip.Title"
+                                 primary-color="var(--accent-primary)"
+                                 accent-color="var(--accent-secondary)"
+                                 fullscreen-element="player-container"
+                                 disable-tracking
+                                 disable-cast
+                                 style="width: 100%; height: 100%;"
+                              >
+                                 @if (!string.IsNullOrEmpty(_watermarkUrl))
+                                 {
+                                     <div class="watermark-grid" style="--wm-url: url('@_watermarkUrl');">
+                                         @for (int i = 0; i < 36; i++)
+                                         {
+                                             int row = i / 6;
+                                             int col = i % 6;
+                                             bool isActive = (row + col) % 2 == 0;
+                                             <div class="watermark-cell @(isActive ? "active" : "")"></div>
+                                         }
+                                     </div>
+                                 }
+                              </mux-player>
+                         }
+                         else if (_limitReached)
+                         {
+                              <div style="width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; background: var(--bg-main); min-height: 400px; padding: 2rem; text-align: center;">
+                                  <i class="bi bi-hourglass-split text-warning mb-3" style="font-size: 2rem;"></i>
+                                  <h4 class="text-white">Daily Limit Reached</h4>
+                                  <p class="text-secondary mb-4" style="max-width: 400px;">
+                                      You've reached your daily viewing limit for high-quality playback.
+                                  </p>
+                                  @if (!_isAuthenticated)
+                                  {
+                                      <a href="Account/Register" class="btn btn-primary">Create Free Account to Watch More</a>
+                                      <p class="text-muted small mt-2">Already have an account? <a href="Account/Login" class="text-accent-primary">Log In</a></p>
+                                  }
+                                  else
+                                  {
+                                      <p class="text-secondary small">Come back tomorrow for more!</p>
+                                  }
+                              </div>
+                         }
+                         else
+                         {
+                              <div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background: var(--bg-main); min-height: 400px;">
+                                  <div class="spinner-border text-info" role="status"></div>
+                              </div>
+                         }
+                    }
+                    else if (GetPreviewId() is string pid)
+                    {
+                         @if (HasTokens(pid))
+                         {
+                              <mux-player
+                                 id="preview-player"
+                                 playback-id="@pid"
+                                 playback-token="@GetTokenFromCache(pid, "v")"
+                                 thumbnail-token="@GetTokenFromCache(pid, "t")"
+                                 storyboard-token="@GetTokenFromCache(pid, "s")"
+                                 metadata-video-title="@_clip.Title (Preview)"
+                                 primary-color="var(--accent-primary)"
+                                 accent-color="var(--accent-secondary)"
+                                 fullscreen-element="player-container"
+                                 disable-tracking
+                                 disable-cast
+                                 style="width: 100%; height: 100%;"
+                              >
+                                 @if (!string.IsNullOrEmpty(_watermarkUrl))
+                                 {
+                                     <div class="watermark-grid" style="--wm-url: url('@_watermarkUrl');">
+                                         @for (int i = 0; i < 36; i++)
+                                         {
+                                             int row = i / 6;
+                                             int col = i % 6;
+                                             bool isActive = (row + col) % 2 == 0;
+                                             <div class="watermark-cell @(isActive ? "active" : "")"></div>
+                                         }
+                                     </div>
+                                 }
+                              </mux-player>
+                         }
+                         else
+                         {
+                              <div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background: var(--bg-main); min-height: 400px;">
+                                  <div class="spinner-border text-info" role="status"></div>
+                              </div>
+                         }
+                    }
+                    else
+                    {
+                         <div style="width:100%;height:100%;background:linear-gradient(45deg, #1e293b, #0f172a);display:flex;align-items:center;justify-content:center;flex-direction:column; min-height: 400px; color: var(--text-muted);">
+                             <p>Preview Unavailable (Processing or Mock)</p>
+                         </div>
+                    }
+
+
+
+                </div>
+            
+            <h1 style="margin-top: 1.5rem; font-size: 1.5rem; margin-bottom: 0.25rem;">@_clip.Title</h1>
+                <div class="clip-meta-row">
+                    <p style="color: var(--text-secondary); margin: 0;">Published on @_clip.PublishedAt.ToString("MMMM dd, yyyy")</p>
+                    @if (_clip.RecordingStartedAt.HasValue)
+                    {
+                        <span style="color: var(--text-muted); font-size: 0.8rem;">•</span>
+                        <p style="color: var(--text-secondary); margin: 0;">Filmed: @_clip.RecordingStartedAt.Value.ToLocalTime().ToString("MMM dd, yyyy h:mm tt")</p>
+                    }
+                    <span style="color: var(--text-muted); font-size: 0.8rem;">•</span>
+                    <span style="color: var(--accent-primary); font-weight: 600; font-size: 0.9rem;">
+                        @(_clip.DurationSec.HasValue ? TimeSpan.FromSeconds(_clip.DurationSec.Value).ToString(@"mm\:ss") : "--:--")
+                    </span>
+                </div>
+                
+                <AuthorizeView Roles="Admin" Context="authContext">
+                    <Authorized>
+                        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.5rem;">
+                            <h4 class="h6 mb-0 text-secondary">Tags</h4>
+                            @if (!_isEditingTags)
+                            {
+                                <button class="btn btn-sm btn-link text-decoration-none p-0" style="color: var(--accent-primary); font-size: 0.85rem;" @onclick="ToggleEditTags">
+                                    Edit Tags
+                                </button>
+                            }
+                        </div>
+
+                        @if (_isEditingTags)
+                        {
+                            <div class="mb-3">
+                                <textarea class="form-control mb-2" rows="3" style="background: var(--bg-main); border: 1px solid var(--border-color); color: var(--text-main); font-size: 0.9rem;" @bind="_editingTagsInput" placeholder="Enter tags separated by commas..."></textarea>
+                                <div class="d-flex gap-2 justify-content-end">
+                                    <button class="btn btn-sm btn-secondary" @onclick="CancelEditTags">Cancel</button>
+                                    <button class="btn btn-sm btn-primary" @onclick="SaveTagsAsync">Save Tags</button>
+                                </div>
+                            </div>
+                        }
+                        else
+                        {
+                            @RenderTags()
+                        }
+                    </Authorized>
+                    <NotAuthorized>
+                        @RenderTags()
+                    </NotAuthorized>
+                </AuthorizeView>
+            </div>
+            
+            <!-- Purchase / Details Column -->
+            <div class="premium-card" style="height: fit-content;">
+                <div style="font-size: 0.85rem; color: var(--accent-primary); margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem;">
+                    <i class="bi bi-stars"></i> Includes 4K Master File
+                </div>
+
+                <!-- License Selection -->
+                <div class="mb-3">
+                    <label class="form-label" style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 0.75rem; display: block;">Select License Type</label>
+                    <div class="d-flex flex-column gap-2">
+                        <div class="license-choice @(_selectedLicense == LicenseType.Personal ? "active" : "")" @onclick="() => _selectedLicense = LicenseType.Personal">
+                            <div class="d-flex flex-column me-5"> <!-- me-5 ensures text doesn't overlap price -->
+                                <div class="license-name mb-1">Personal Use</div>
+                                <div class="license-desc">Social media, personal portfolio</div>
+                            </div>
+                            <div class="license-price position-absolute" style="top: 1rem; right: 1rem;">$@(_clip?.PriceCents / 100.00)</div>
+                        </div>
+                        <div class="license-choice @(_selectedLicense == LicenseType.Commercial ? "active" : "")" @onclick="() => _selectedLicense = LicenseType.Commercial">
+                            <div class="d-flex flex-column me-5">
+                                <div class="license-name mb-1">Commercial Use</div>
+                                <div class="license-desc">Ads, brand deals, commercial projects</div>
+                            </div>
+                            <div class="license-price position-absolute" style="top: 1rem; right: 1rem;">$@(_clip?.PriceCommercialCents / 100.00)</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <AuthorizeView Roles="Admin">
+                    <div style="margin: 2rem 0; padding: 1.25rem; background: var(--accent-primary-dim); border: 1px solid var(--accent-primary-dim); border-radius: var(--radius-lg); position: relative; overflow: hidden;">
+                        <div style="position: absolute; top: 0; right: 0; padding: 0.5rem 0.75rem; background: var(--accent-primary-dim); border-bottom-left-radius: var(--radius-md); font-size: 0.65rem; font-weight: 800; text-transform: uppercase; color: var(--accent-primary); letter-spacing: 1px;">
+                            Admin
+                        </div>
+                        
+                        <div class="mb-3 d-flex align-items-center gap-2">
+                            <h6 style="font-size: 0.8rem; font-weight: 700; color: var(--text-main); margin-bottom: 0;">
+                                <i class="bi bi-sliders2-vertical" style="color: var(--accent-primary);"></i> Manage Clip Rates
+                            </h6>
+                        </div>
+                        
+                        @if (_isEditingPrice)
+                        {
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.25rem;">
+                                <div>
+                                    <label style="font-size: 0.75rem; color: var(--text-secondary); display: block; margin-bottom: 0.5rem;">Personal ($)</label>
+                                    <div class="input-group input-group-sm">
+                                        <span class="input-group-text bg-dark border-secondary text-muted">$</span>
+                                        <input type="number" step="0.01" class="form-control bg-dark border-secondary text-white" @bind="_editingPrice" />
+                                    </div>
+                                </div>
+                                <div>
+                                    <label style="font-size: 0.75rem; color: var(--text-secondary); display: block; margin-bottom: 0.5rem;">Commercial ($)</label>
+                                    <div class="input-group input-group-sm">
+                                        <span class="input-group-text bg-dark border-secondary text-muted">$</span>
+                                        <input type="number" step="0.01" class="form-control bg-dark border-secondary text-white" @bind="_editingCommercialPrice" />
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="d-flex gap-2">
+                                <button class="btn-primary" style="flex: 1.5; padding: 0.6rem; font-size: 0.85rem; background: #6366f1; border-color: #6366f1;" @onclick="SavePriceAsync">
+                                    <i class="bi bi-check-lg me-1"></i> Update Prices
+                                </button>
+                                <button class="btn-secondary" style="flex: 1; padding: 0.6rem; font-size: 0.85rem;" @onclick="CancelEditPrice">
+                                    Cancel
+                                </button>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div style="display: flex; gap: 1.5rem;">
+                                    <div style="display: flex; flex-direction: column;">
+                                        <span style="font-size: 0.65rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">Personal</span>
+                                        <span style="font-size: 1.1rem; font-weight: 700; color: var(--text-main);">$@(_clip?.PriceCents / 100.0)</span>
+                                    </div>
+                                    <div style="width: 1px; background: rgba(255,255,255,0.1);"></div>
+                                    <div style="display: flex; flex-direction: column;">
+                                        <span style="font-size: 0.65rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">Commercial</span>
+                                        <span style="font-size: 1.1rem; font-weight: 700; color: var(--text-main);">$@(_clip?.PriceCommercialCents / 100.0)</span>
+                                    </div>
+                                </div>
+                                <button class="btn btn-sm btn-outline-secondary" style="border-radius: var(--radius-md); padding: 0.4rem 0.75rem; border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.02);" @onclick="ToggleEditPrice">
+                                    <i class="bi bi-pencil-square me-1"></i> Edit
+                                </button>
+                            </div>
+                        }
+                    </div>
+                </AuthorizeView>
+                
+                <div style="margin-bottom: 2rem;">
+                    <span style="color: var(--text-secondary);">Duration</span>
+                    <span style="float: right;">@(_clip?.DurationSec.HasValue == true ? TimeSpan.FromSeconds(_clip.DurationSec.Value).ToString(@"mm\:ss") : "--:--")</span>
+                </div>
+                
+                @{
+                    var status = _selectedLicense == LicenseType.Personal ? _hasPurchasedPersonal : _hasPurchasedCommercial;
+                }
+
+                @if (status)
+                {
+                    <div style="background: var(--status-success-dim); border: 1px solid var(--status-success); color: var(--status-success); padding: 1.25rem; border-radius: var(--radius-md); text-align: center; margin-bottom: 2rem;">
+                        <i class="bi bi-check2-circle fs-3 mb-2 d-block"></i>
+                        <div class="fw-bold">Owned License: @(_selectedLicense)</div>
+                        <div class="small mt-1 opacity-75">Available in your dashboard.</div>
+                    </div>
+                }
+                else
+                {
+                    <button type="button" class="btn-primary w-100 mb-3" style="padding: 1rem; font-size: 1.1rem;" @onclick="@(() => PrepareAction("Buy"))">
+                        <i class="bi bi-lightning-fill me-2"></i> Buy Now
+                    </button>
+                    
+                    @if (_isInCart)
+                    {
+                        <a href="/cart" class="cart-btn w-100" style="padding: 1rem; width: 100%; text-decoration: none; display: flex; align-items: center; justify-content: center; font-size: 1.1rem;">
+                            <i class="bi bi-cart-check-fill me-2"></i> <span>View in Cart</span>
+                        </a>
+                    }
+                    else
+                    {
+                        <button type="button" class="cart-btn w-100" style="padding: 1rem; font-size: 1.1rem;" @onclick="@(() => PrepareAction("Add"))" disabled="@_isAddingToCart">
+                            @if (_isAddingToCart)
+                            {
+                                <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true" style="margin-right: 0.5rem;"></span>
+                                <span>Adding...</span>
+                            }
+                            else
+                            {
+                                <i class="bi bi-cart-plus me-2"></i> <span>Add to Cart</span>
+                            }
+                        </button>
+                    }
+                }
+
+                    @if (_showLicenseModal)
+                    {
+                        <div class="license-modal-overlay">
+                            <div class="license-modal-content">
+                                <div class="modal-header-glass">
+                                    <h4 class="mb-0">Licensing Agreement</h4>
+                                    <button class="modal-close-btn" @onclick="() => _showLicenseModal = false">✕</button>
+                                </div>
+                                
+                                <div class="modal-body-glass">
+                                    <h5 class="text-accent-primary mb-3">@(_selectedLicense == LicenseType.Commercial ? "Commercial Use License" : "Personal Use License")</h5>
+                                    <div class="license-terms-scroll">
+                                        @if (_selectedLicense == LicenseType.Commercial)
+                                        {
+                                            <p>By purchasing this <strong>Commercial</strong> license, you agree to the following:</p>
+                                            <ul>
+                                                <li><strong>Allowed:</strong> Professional video production, paid advertisements, corporate use, broadcast media, and business promotion.</li>
+                                                <li><strong>Prohibited:</strong> Resale of the footage as a standalone asset, inclusion in stock libraries, or sub-licensing to third parties as raw footage.</li>
+                                                <li><strong>Scope:</strong> This license provides a world-wide, perpetual right to use this specific clip in its processed form within your commercial works.</li>
+                                            </ul>
+                                        }
+                                        else
+                                        {
+                                            <p>By purchasing this <strong>Personal</strong> license, you agree to the following:</p>
+                                            <ul>
+                                                <li><strong>Allowed:</strong> Personal use, social media posts, personal portfolios, and submission to sponsors/recruiting (non-paid).</li>
+                                                <li><strong>Prohibited:</strong> Paid advertisements, broadcast use, resale, or any form of business promotion where revenue is directly tied to the video's reach.</li>
+                                                <li><strong>Quality:</strong> Includes the full 4K master file for your private collection.</li>
+                                            </ul>
+                                        }
+                                    </div>
+
+                                    <div class="form-check mt-4 p-3 rounded" style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);">
+                                        <input class="form-check-input" type="checkbox" id="licenseAgreementModal" @bind="_hasAgreedToLicense" style="cursor: pointer; border-color: var(--accent-primary);">
+                                        <label class="form-check-label ms-2" for="licenseAgreementModal" style="font-size: 0.95rem; color: var(--text-main); cursor: pointer; user-select: none;">
+                                            I agree to the <strong>@(_selectedLicense == LicenseType.Commercial ? "Commercial Use License" : "Personal Use License")</strong>
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <div class="modal-footer-glass">
+                                    <button class="btn-secondary" style="flex: 1;" @onclick="() => _showLicenseModal = false">Cancel</button>
+                                    <button class="btn-primary" style="flex: 2;" @onclick="HandleLicenseConfirmed" disabled="@(!_hasAgreedToLicense)">
+                                        Confirm & Continue
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    }
+
+                    @if (_processingPurchase)
+                    {
+                        <div class="text-center text-info">Verifying purchase...</div>
+                    }
+                    <p style="font-size: 0.8rem; color: var(--text-muted); text-align: center; margin-top: 1rem;">
+                        <strong>Note:</strong> The video player shows a low-quality preview for speed. 
+                        Your download will be the full <strong>Original Quality (4K)</strong> file.
+                    </p>
+                    <p style="font-size: 0.8rem; color: var(--text-muted); text-align: center; opacity: 0.7;">
+                        Secure payment via Stripe. 4K Master file delivered shortly.
+                    </p>
+            </div>
+        </div>
+        
+         <!-- Related Clips Section -->
+        @if (_relatedClips.Any())
+        {
+            <div style="margin-top: 4rem;">
+                <h3 class="section-title">Related Clips</h3>
+                 <div class="video-grid">
+                    @foreach (var clip in _relatedClips)
+                    {
+                        <ClipCard Clip="clip" IsPurchased="false" WatermarkUrl="@_watermarkUrl" />
+                    }
+                </div>
+            </div>
+        }
+    </div>
+}
+
+@code {
+    [Parameter]
+    public string Id { get; set; } = string.Empty;
+
+    private Clip? _clip;
+    private List<Clip> _relatedClips = new();
+    private bool _loading = true;
+    private bool _hasPurchasedPersonal = false;
+    private bool _hasPurchasedCommercial = false;
+    private bool _processingPurchase = false;
+    private string? _storeName;
+    private string? _userId;
+    private bool _isAuthenticated = false;
+    private bool _hasAgreedToLicense = false;
+    private bool _showLicenseModal = false;
+    private string? _pendingAction;
+    private LicenseType _selectedLicense = LicenseType.Personal;
+
+    private void PrepareAction(string action)
+    {
+        _pendingAction = action;
+        _showLicenseModal = true;
+    }
+
+    private async Task HandleLicenseConfirmed()
+    {
+        if (!_hasAgreedToLicense) return;
+        
+        _showLicenseModal = false;
+        
+        if (_pendingAction == "Buy")
+        {
+            await BuyAsync();
+        }
+        else if (_pendingAction == "Add")
+        {
+            await AddToCart();
+        }
+        
+        _pendingAction = null;
+    }
+
+    private bool _isEditingPrice = false;
+    private double _editingPrice;
+    private double _editingCommercialPrice;
+    private string? _watermarkUrl;
+    private string _errorMessage = "";
+    private Dictionary<string, string> _tokenCache = new();
+    private bool _limitReached = false;
+
+    [CascadingParameter]
+    private Task<AuthenticationState> AuthenticationStateTask { get; set; } = null!;
+
+    private void ToggleEditPrice()
+    {
+        if (_clip != null)
+        {
+            _editingPrice = _clip.PriceCents / 100.00;
+            _editingCommercialPrice = _clip.PriceCommercialCents / 100.00;
+            _isEditingPrice = true;
+        }
+    }
+
+    private void CancelEditPrice() => _isEditingPrice = false;
+
+    private bool _isEditingTags = false;
+    private string _editingTagsInput = "";
+
+    private void ToggleEditTags()
+    {
+        if (_clip != null)
+        {
+            var tags = System.Text.Json.JsonSerializer.Deserialize<string[]>(_clip.TagsJson ?? "[]") ?? Array.Empty<string>();
+            _editingTagsInput = string.Join(", ", tags);
+            _isEditingTags = true;
+        }
+    }
+
+    private void CancelEditTags() => _isEditingTags = false;
+
+    private async Task SaveTagsAsync()
+    {
+        if (_clip != null)
+        {
+            var oldTags = _clip.TagsJson;
+            
+            // Clean and split tags
+            var newTagsList = _editingTagsInput
+                .Split(',', StringSplitOptions.RemoveEmptyEntries)
+                .Select(t => t.Trim())
+                .Where(t => !string.IsNullOrWhiteSpace(t))
+                .Distinct()
+                .ToArray();
+                
+            _clip.TagsJson = System.Text.Json.JsonSerializer.Serialize(newTagsList);
+            
+            await ClipRepository.UpdateAsync(_clip);
+
+            // Log the action
+            var authState = await AuthenticationStateTask;
+            var user = authState.User;
+            var userId = user.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            var userEmail = user.Identity?.Name;
+            
+            await AuditService.LogActionAsync(
+                userId, 
+                userEmail, 
+                "Update Tags", 
+                "Clip", 
+                _clip.Id, 
+                $"Tags updated. Count: {newTagsList.Length}");
+
+            _isEditingTags = false;
+        }
+    }
+
+    private RenderFragment RenderTags() => builder =>
+    {
+        if (string.IsNullOrEmpty(_clip?.TagsJson) || _clip.TagsJson == "[]")
+        {
+            builder.AddMarkupContent(0, "<span class=\"text-secondary\" style=\"font-size: 0.9rem; font-style: italic;\">No tags detected</span>");
+        }
+        else
+        {
+            var tags = System.Text.Json.JsonSerializer.Deserialize<string[]>(_clip.TagsJson) ?? Array.Empty<string>();
+            var filteredTags = tags.Where(t => !string.Equals(t, "Unknown", StringComparison.OrdinalIgnoreCase) 
+                                            && !t.StartsWith("Error:") 
+                                            && t != "AI_Analysis_Pending" 
+                                            && t != "No_API_Key")
+                                   .ToList();
+            
+            if (filteredTags.Count == 0)
+            {
+                 builder.AddMarkupContent(1, "<span class=\"text-secondary\" style=\"font-size: 0.9rem; font-style: italic;\">No relevant tags detected</span>");
+            }
+            else
+            {
+                builder.OpenElement(2, "div");
+                builder.AddAttribute(3, "style", "display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 1rem;");
+                
+                foreach (var tag in filteredTags)
+                {
+                    builder.OpenElement(4, "a");
+                    builder.AddAttribute(5, "href", $"/search?q={tag}");
+                    builder.AddAttribute(6, "class", "badge text-decoration-none me-1");
+                    builder.AddAttribute(7, "style", "background: var(--bg-main); color: var(--text-secondary); border: 1px solid var(--border-color); font-weight: 500;");
+                    builder.AddContent(8, tag);
+                    builder.CloseElement();
+                }
+                
+                builder.CloseElement();
+            }
+        }
+    };
+
+    private async Task SavePriceAsync()
+    {
+        if (_clip != null)
+        {
+            var oldPrice = _clip.PriceCents;
+            _clip.PriceCents = (int)Math.Round(_editingPrice * 100);
+            _clip.PriceCommercialCents = (int)Math.Round(_editingCommercialPrice * 100);
+            await ClipRepository.UpdateAsync(_clip);
+
+            // Log the action
+            var authState = await AuthenticationStateTask;
+            var user = authState.User;
+            var userId = user.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            var userEmail = user.Identity?.Name;
+            
+            await AuditService.LogActionAsync(
+                userId, 
+                userEmail, 
+                "Update Price", 
+                "Clip", 
+                _clip.Id, 
+                $"Price updated. Personal: ${_clip.PriceCents/100.0}, Commercial: ${_clip.PriceCommercialCents/100.0}");
+
+            _isEditingPrice = false;
+        }
+    }
+
+    private void HandleSettingsChange()
+    {
+        InvokeAsync(async () => {
+            _storeName = await StoreSettingsService.GetStoreNameAsync();
+            StateHasChanged();
+        });
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        _storeName = await StoreSettingsService.GetStoreNameAsync();
+        StoreSettingsService.OnChange += HandleSettingsChange;
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        // Prevent unnecessary reloads if Id hasn't changed (though unlikely to trigger unless parent causes render)
+        if (_clip != null && _clip.Id == Id && !_processingPurchase) return;
+
+        // Reset state for new clip navigation
+        _clip = null;
+        _relatedClips = new();
+        _loading = true;
+        _hasPurchasedPersonal = false;
+        _hasPurchasedCommercial = false;
+        _tokenCache.Clear();
+        _errorMessage = "";
+        StateHasChanged(); // Show loading spinner immediately
+
+        try 
+        {
+            _storeName = await StoreSettingsService.GetStoreNameAsync();
+            _watermarkUrl = await SettingsRepository.GetValueAsync("WatermarkUrl");
+            
+            if (AuthenticationStateTask != null)
+            {
+                var authState = await AuthenticationStateTask;
+                var user = authState.User;
+                _isAuthenticated = user.Identity?.IsAuthenticated == true;
+                
+                if (_isAuthenticated)
+                {
+                     _userId = user.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+                }
+            }
+
+            // If _clip was not loaded in OnInitializedAsync (e.g., Id was 0 or not set yet), load it here.
+            // Or if Id has changed, reload it.
+            if (_clip == null || _clip.Id != Id)
+            {
+                _clip = await ClipRepository.GetByIdAsync(Id);
+                if (_clip != null)
+                {
+                    _hasPurchasedPersonal = await PurchaseRepository.HasPurchasedAsync(_userId, Id, LicenseType.Personal);
+                    _hasPurchasedCommercial = await PurchaseRepository.HasPurchasedAsync(_userId, Id, LicenseType.Commercial);
+                }
+            }
+            
+            if (_clip != null)
+            {
+                
+                VideoHealingService.OnClipHealed -= HandleClipHealed; // Unsubscribe old
+                VideoHealingService.OnClipHealed += HandleClipHealed; // Subscribe new
+
+                // Load Related Clips
+                string[] tags = Array.Empty<string>();
+                if (!string.IsNullOrEmpty(_clip.TagsJson))
+                {
+                    try { tags = System.Text.Json.JsonSerializer.Deserialize<string[]>(_clip.TagsJson) ?? Array.Empty<string>(); } catch {}
+                }
+                _relatedClips = await ClipRepository.GetRelatedAsync(_clip.EventId, tags, _clip.Id, 4);
+                
+                // Purchase Verification Logic
+                var uri = Navigation.ToAbsoluteUri(Navigation.Uri);
+                if (QueryHelpers.ParseQuery(uri.Query).TryGetValue("session_id", out var sessionId))
+                {
+                    _processingPurchase = true;
+                    var purchases = await PaymentService.GetPurchasesFromSessionAsync(sessionId!);
+                    var purchase = purchases.FirstOrDefault(p => p.ClipId == Id);
+                    
+                    if (purchase != null)
+                    {
+                        purchase.UserId = _userId;
+                        if (!await PurchaseRepository.HasPurchasedAsync(_userId, Id, purchase.LicenseType))
+                        {
+                            try 
+                            {
+                                await PurchaseRepository.AddAsync(purchase);
+                                if (purchase.LicenseType == LicenseType.Personal) _hasPurchasedPersonal = true;
+                                if (purchase.LicenseType == LicenseType.Commercial) _hasPurchasedCommercial = true;
+
+                                // Send Receipt
+                                try 
+                                {
+                                    var email = await PaymentService.GetCustomerEmailFromSessionAsync(sessionId!);
+                                    if (!string.IsNullOrEmpty(email))
+                                    {
+                                        string receiptBody = $@"
+                                            <h1>Thank You for Your Order!</h1>
+                                            <p>You have purchased access to: <strong>{_clip.Title}</strong></p>
+                                            <p>You can watch or download it anytime here: <a href='{Navigation.Uri}'>{Navigation.Uri}</a></p>
+                                            <br/>
+                                            <p>- ClipCore Studios</p>
+                                        ";
+                                        await EmailService.SendEmailAsync(email, "Your ClipCore Receipt", receiptBody);
+                                    }
+                                }
+                                catch (Exception) 
+                                { 
+                                    // Failed to send receipt
+                                }
+                            }
+                            catch { 
+                                _hasPurchasedPersonal = true; // Fallback to true if we hit a DB error but verified manually
+                                _hasPurchasedCommercial = true; 
+                            }
+                        }
+                    }
+                    _processingPurchase = false;
+                }
+
+                // LOAD TOKENS
+                string targetId = "";
+                string? resolution = null;
+                
+                if ((_hasPurchasedPersonal || _hasPurchasedCommercial) && !string.IsNullOrEmpty(_clip.PlaybackIdSigned))
+                {
+                    targetId = _clip.PlaybackIdSigned;
+                    resolution = null; // Full quality, tracked
+                }
+                else if (GetPreviewId() is string pid)
+                {
+                    targetId = pid;
+                    resolution = "540p"; // Preview, unlimited
+                }
+
+                if (!string.IsNullOrEmpty(targetId))
+                {
+                    await LoadTokensForClip(targetId, resolution);
+                }
+            }
+            _loading = false;
+        }
+        catch (Exception)
+        {
+            _errorMessage = "Failed to load clip details.";
+            _loading = false;
+        }
+    }
+
+    private async Task LoadTokensForClip(string playbackId, string? resolution = null)
+    {
+        bool tokensAdded = false;
+        _limitReached = false;
+
+        if (!_tokenCache.ContainsKey($"{playbackId}-v"))
+        {
+            var token = await VideoService.GetPlaybackToken(playbackId, "v", resolution);
+            if (!string.IsNullOrEmpty(token)) 
+            { 
+                _tokenCache[$"{playbackId}-v"] = token; 
+                tokensAdded = true; 
+            }
+            else
+            {
+                _limitReached = true;
+            }
+        }
+        
+        if (!_tokenCache.ContainsKey($"{playbackId}-t"))
+        {
+            var token = await VideoService.GetPlaybackToken(playbackId, "t");
+            if (!string.IsNullOrEmpty(token)) { _tokenCache[$"{playbackId}-t"] = token; tokensAdded = true; }
+        }
+
+        if (!_tokenCache.ContainsKey($"{playbackId}-s"))
+        {
+            var token = await VideoService.GetPlaybackToken(playbackId, "s");
+            if (!string.IsNullOrEmpty(token)) { _tokenCache[$"{playbackId}-s"] = token; tokensAdded = true; }
+        }
+
+        if (tokensAdded || _limitReached)
+        {
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private string? GetTokenFromCache(string playbackId, string type)
+    {
+        return _tokenCache.TryGetValue($"{playbackId}-{type}", out var token) ? token : null;
+    }
+
+    private bool HasTokens(string playbackId)
+    {
+        // Only enforce Video token presence for playback.
+        // Thumbnail and Storyboard are optional enhancements.
+        return _tokenCache.TryGetValue($"{playbackId}-v", out var v) && !string.IsNullOrEmpty(v);
+    }
+
+    private string? GetPreviewId()
+    {
+        if (_clip == null) return null;
+        if (!string.IsNullOrEmpty(_clip.PlaybackIdTeaser) && !_clip.PlaybackIdTeaser.StartsWith("mock"))
+            return _clip.PlaybackIdTeaser;
+        if (!string.IsNullOrEmpty(_clip.PlaybackIdSigned) && !_clip.PlaybackIdSigned.StartsWith("mock"))
+            return _clip.PlaybackIdSigned;
+        return null;
+    }
+
+    private bool _isInCart = false;
+    private bool _isAddingToCart = false;
+
+    private async Task BuyAsync()
+    {
+        if (_clip == null) return;
+        var successUrl = Navigation.BaseUri + $"clips/{Id}?session_id={{CHECKOUT_SESSION_ID}}";
+        var cancelUrl = Navigation.BaseUri + $"clips/{Id}";
+        
+        string? userEmail = null;
+        if (AuthenticationStateTask != null)
+        {
+            var authState = await AuthenticationStateTask;
+            var user = authState.User;
+            if (user.Identity?.IsAuthenticated == true)
+            {
+                userEmail = user.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value ?? user.Identity.Name;
+            }
+        }
+
+        // Pass single item as list
+        var checkoutItem = new ClipCore.Core.DTOs.CheckoutItem
+        {
+            Id = _clip.Id,
+            Title = _clip.Title,
+            EventName = _clip.Event?.Name,
+            EventDate = _clip.Event?.Date,
+            ClipRecordingStartedAt = _clip.RecordingStartedAt,
+            MasterFileName = _clip.MasterFileName,
+            ThumbnailFileName = _clip.ThumbnailFileName,
+            PriceCents = _selectedLicense == LicenseType.Commercial ? _clip.PriceCommercialCents : _clip.PriceCents,
+            LicenseType = _selectedLicense
+        };
+        var url = await PaymentService.CreateCheckoutSessionAsync(new[] { checkoutItem }, successUrl, cancelUrl, userEmail, _userId);
+        Navigation.NavigateTo(url);
+    }
+
+
+
+    private async Task AddToCart()
+    {
+        if (_clip != null && !_isAddingToCart)
+        {
+            _isAddingToCart = true;
+            try
+            {
+                var item = new ClipCore.Web.Models.CartItem
+                {
+                    Id = _clip.Id,
+                    Title = _clip.Title,
+                    PriceCents = _selectedLicense == LicenseType.Commercial ? _clip.PriceCommercialCents : _clip.PriceCents,
+                    LicenseType = _selectedLicense,
+                    DurationSec = _clip.DurationSec,
+                    PlaybackId = _clip.PlaybackIdSigned,
+                    EventId = _clip.EventId,
+                    EventName = _clip.Event?.Name,
+                    EventDate = _clip.Event?.Date,
+                    ClipRecordingStartedAt = _clip.RecordingStartedAt,
+                    MasterFileName = _clip.MasterFileName,
+                    ThumbnailFileName = _clip.ThumbnailFileName
+                };
+                await CartService.AddAsync(item);
+                _isInCart = true;
+            }
+            finally
+            {
+                _isAddingToCart = false;
+                StateHasChanged();
+            }
+        }
+    }
+
+    private void HandleClipHealed(Clip healedClip)
+    {
+        if (_clip == null || _clip.Id != healedClip.Id) return;
+        
+        // Update local object
+        _clip.PlaybackIdSigned = healedClip.PlaybackIdSigned;
+        _clip.DurationSec = healedClip.DurationSec;
+        _clip.RecordingStartedAt = healedClip.RecordingStartedAt;
+        _clip.MuxAssetId = healedClip.MuxAssetId;
+        
+        InvokeAsync(StateHasChanged);
+    }
+
+    private HubConnection? _hubConnection;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            if (_clip != null)
+            {
+                CartService.OnChange += StateHasChanged;
+                await CartService.InitializeAsync();
+                
+                // Start background healing if needed
+                VideoHealingService.StartHealingForClips(new[] { _clip });
+
+                _isInCart = CartService.GetItems().Any(c => c.Id == _clip.Id);
+                
+                // SignalR Connection
+                _hubConnection = new HubConnectionBuilder()
+                    .WithUrl(Navigation.ToAbsoluteUri("/processingHub"))
+                    .WithAutomaticReconnect()
+                    .Build();
+
+                _hubConnection.On<string, string>("ClipStatusUpdated", (clipId, status) =>
+                {
+                    if (clipId == _clip.Id)
+                    {
+                        InvokeAsync(async () => {
+                             _clip = await ClipRepository.GetByIdAsync(clipId);
+                             StateHasChanged();
+                        });
+                    }
+                });
+
+                await _hubConnection.StartAsync();
+                StateHasChanged();
+
+                try
+                {
+                    if (_hasPurchasedPersonal || _hasPurchasedCommercial)
+                    {
+                        await JSRuntime.InvokeVoidAsync("setFullscreenElement", "#purchased-player", "player-container");
+                    }
+                    else if (GetPreviewId() != null)
+                    {
+                        await JSRuntime.InvokeVoidAsync("setFullscreenElement", "#preview-player", "player-container");
+                    }
+                }
+                catch (Exception)
+                {
+                    // Ignore JS errors on init
+                }
+            }
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        CartService.OnChange -= StateHasChanged;
+        VideoHealingService.OnClipHealed -= HandleClipHealed;
+        if (_hubConnection is not null)
+        {
+            await _hubConnection.DisposeAsync();
+        }
+    }
+
+    public void Dispose()
+    {
+        StoreSettingsService.OnChange -= HandleSettingsChange;
+    }
+}

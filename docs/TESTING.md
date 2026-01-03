@@ -1,21 +1,21 @@
 # Testing & Environment Guide
 
-This document explains how to switch between Development and Testing modes, and how to perform manual or automated verification of Project65.
+This document explains how to switch between Development and Testing modes, and how to perform manual or automated verification of ClipCore.
 
 ## 🏁 Environment Switching
 
-Project65 uses the standard `ASPNETCORE_ENVIRONMENT` variable to toggle between live integrations and mock/test data.
+ClipCore uses the standard `ASPNETCORE_ENVIRONMENT` variable to toggle between live integrations and mock/test data.
 
 ### 1. Development Mode (Default)
 Used for your active work with real data and real API keys.
-- **Command**: `dotnet run --project Project65.Web/Project65.Web.csproj`
+- **Command**: `dotnet run --project ClipCore.Web/ClipCore.Web.csproj`
 - **Config**: Reads `appsettings.Development.json`
 - **Database**: `project65.db`
 - **Services**: Uses real `MuxVideoService` and `StripePaymentService`.
 
 ### 2. Testing Mode
 Used for automated E2E tests or "safe" manual verification where you don't want to spend real Mux credits or process real payments.
-- **Command**: `ASPNETCORE_ENVIRONMENT=Testing dotnet run --project Project65.Web/Project65.Web.csproj`
+- **Command**: `ASPNETCORE_ENVIRONMENT=Testing dotnet run --project ClipCore.Web/ClipCore.Web.csproj`
 - **Config**: Reads `appsettings.Testing.json`
 - **Database**: `project65_test.db` (Clean isolation)
 - **Services**: Uses `FakeVideoService` (signed IDs start with `fake_`) and `FakePaymentService`.
@@ -27,7 +27,7 @@ Used for automated E2E tests or "safe" manual verification where you don't want 
 ### Automated Smoke Tests (Playwright)
 Run the full automated suite to protect the "Money Path."
 ```bash
-dotnet test tests/Project65.E2ETests/Project65.E2ETests.csproj
+dotnet test tests/ClipCore.E2ETests/ClipCore.E2ETests.csproj
 ```
 Tests included:
 - **Discovery**: Home page loads, search works, and media elements appear.

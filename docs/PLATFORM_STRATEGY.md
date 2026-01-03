@@ -1,7 +1,7 @@
 # Platform Strategy & Business Plan
 
 **Status**: Planning Phase (Do Not Proceed Code Yet)
-**Goal**: Transform "Project65" into a Multi-Tenant SaaS Platform for Event Videographers.
+**Goal**: Transform "ClipCore" into a Multi-Tenant SaaS Platform for Event Videographers.
 
 ---
 

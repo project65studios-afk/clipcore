@@ -1,6 +1,6 @@
-# 🗺️ Project65 Roadmap & Improvements
+# 🗺️ ClipCore Roadmap & Improvements
 
-This document outlines the strategic technical roadmap for Project65. It prioritizes stability, user experience, and operational excellence for the post-MVP phase.
+This document outlines the strategic technical roadmap for ClipCore. It prioritizes stability, user experience, and operational excellence for the post-MVP phase.
 
 ## 🔴 High Priority (Resilience & Reliability)
 

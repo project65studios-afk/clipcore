@@ -1,14 +1,14 @@
 using Microsoft.AspNetCore.Components;
-using Project65.Web.Services;
-using Project65.Core.Entities;
-using Project65.Core.Interfaces;
+using ClipCore.Web.Services;
+using ClipCore.Core.Entities;
+using ClipCore.Core.Interfaces;
 using Moq;
 using System.Diagnostics;
 
 // Mocking dependencies for the service
 var mockRepo = new Mock<ISettingsRepository>();
 mockRepo.Setup(r => r.GetValueAsync("BrandLogoUrl")).ReturnsAsync("/brand/logo.png");
-mockRepo.Setup(r => r.GetValueAsync("StoreName")).ReturnsAsync("Project65 Studios");
+mockRepo.Setup(r => r.GetValueAsync("StoreName")).ReturnsAsync("ClipCore Studios");
 
 var mockNav = new Mock<NavigationManager>();
 // NavigationManager is tricky to mock directly, but we just need ToAbsoluteUri to work
@@ -40,7 +40,7 @@ var html = $@"
     <div style=""max-width: 600px; margin: 40px auto; background-color: #ffffff; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.05);"">
         
         <div style=""padding: 40px 20px 20px; text-align: center;"">
-            <img src=""/brand/logo.png"" alt=""Project65 Studios"" style=""max-height: 80px; width: auto; display: block; margin: 0 auto;"" />
+            <img src=""/brand/logo.png"" alt=""ClipCore Studios"" style=""max-height: 80px; width: auto; display: block; margin: 0 auto;"" />
             <h1 style=""margin: 30px 0 10px; font-size: 24px; font-weight: 500; color: #111111;"">
                 Hi Tony Stark, your order is confirmed!
             </h1>
@@ -97,7 +97,7 @@ var html = $@"
         </div>
 
         <div style=""background-color: #fafafa; padding: 24px; text-align: center; border-top: 1px solid #eeeeee; font-size: 12px; color: #888888;"">
-            &copy; 2025 Project65 Studios. All rights reserved.
+            &copy; 2025 ClipCore Studios. All rights reserved.
         </div>
     </div>
 </body>

@@ -1,0 +1,116 @@
+@page "/admin/audit-logs"
+@using ClipCore.Core.Entities
+@using ClipCore.Core.Interfaces
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize(Roles = "Admin")]
+@inject IAuditRepository AuditRepository
+@inject NavigationManager Navigation
+
+<PageTitle>Audit Logs - Admin</PageTitle>
+
+<div class="admin-container">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>Audit Logs</h1>
+        <div class="d-flex gap-2">
+            <a href="/admin" class="btn btn-outline-secondary btn-sm" style="text-decoration: none;">
+                <i class="bi bi-arrow-left"></i> Back to Dashboard
+            </a>
+            <button class="btn btn-outline-secondary btn-sm" @onclick="RefreshAsync">
+                <i class="bi bi-arrow-clockwise"></i> Refresh
+            </button>
+        </div>
+    </div>
+
+    <div class="card shadow-sm">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0 mobile-card-view">
+                    <thead class="table-dark">
+                        <tr>
+                            <th style="width: 180px;">Timestamp</th>
+                            <th style="width: 200px;">User</th>
+                            <th style="width: 150px;">Action</th>
+                            <th style="width: 150px;">Entity</th>
+                            <th class="d-none d-md-table-cell">Details</th>
+                            <th class="d-none d-md-table-cell" style="width: 120px;">IP Address</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (_logs == null)
+                        {
+                            <tr>
+                                <td colspan="6" class="text-center py-4">
+                                    <div class="spinner-border text-primary" role="status"></div>
+                                </td>
+                            </tr>
+                        }
+                        else if (!_logs.Any())
+                        {
+                            <tr>
+                                <td colspan="6" class="text-center py-4 text-muted">No audit logs found.</td>
+                            </tr>
+                        }
+                        else
+                        {
+                            @foreach (var log in _logs)
+                            {
+                                <tr>
+                                    <td class="small text-muted" data-label="Timestamp">@log.Timestamp.ToLocalTime().ToString("MMM dd, yyyy HH:mm:ss")</td>
+                                    <td data-label="User">
+                                        <div class="fw-bold small">@log.UserEmail</div>
+                                        <div class="extra-small text-muted" style="font-size: 0.65rem;">@log.UserId</div>
+                                    </td>
+                                    <td data-label="Action">
+                                        <span class="badge @GetActionBadgeClass(log.Action)">@log.Action</span>
+                                    </td>
+                                    <td class="small" data-label="Entity">
+                                        <div class="text-uppercase fw-bold" style="font-size: 0.7rem; color: var(--accent-primary);">@log.EntityType</div>
+                                        <div class="text-muted" style="font-size: 0.7rem;">ID: @log.EntityId</div>
+                                    </td>
+                                    <td class="small d-none d-md-table-cell" style="max-width: 300px; white-space: normal;">
+                                        @log.Details
+                                    </td>
+                                    <td class="small text-muted font-monospace d-none d-md-table-cell">@log.IpAddress</td>
+                                </tr>
+                            }
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .extra-small {
+        font-size: 0.75rem;
+    }
+    .badge-create { background-color: var(--status-success); }
+    .badge-update { background-color: var(--accent-primary); color: var(--text-main); }
+    .badge-delete { background-color: var(--status-danger); }
+    .badge-other { background-color: var(--text-muted); color: var(--bg-main); }
+</style>
+
+@code {
+    private List<AuditLog>? _logs;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await RefreshAsync();
+    }
+
+    private async Task RefreshAsync()
+    {
+        _logs = null;
+        _logs = await AuditRepository.GetAllAsync(200);
+    }
+
+    private string GetActionBadgeClass(string action)
+    {
+        action = action.ToLower();
+        if (action.Contains("create") || action.Contains("add") || action.Contains("upload")) return "badge-create";
+        if (action.Contains("update") || action.Contains("edit") || action.Contains("change") || action.Contains("save") || action.Contains("fulfill")) return "badge-update";
+        if (action.Contains("delete") || action.Contains("remove")) return "badge-delete";
+        return "badge-other";
+    }
+}

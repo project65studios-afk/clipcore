@@ -1,9 +1,9 @@
-# Project65 - Performance & Security Audit Report
+# ClipCore - Performance & Security Audit Report
 
 **Date:** January 1, 2026  
 **Status:** Post-Optimization Baseline
 
-This report summarizes the current technical health and ratings of the Project65 application following the Phase 1 Security and Phase 2 Performance sprints.
+This report summarizes the current technical health and ratings of the ClipCore application following the Phase 1 Security and Phase 2 Performance sprints.
 
 ---
 

@@ -1,6 +1,6 @@
-# Project65 Studios
+# ClipCore Studios
 
-Project65 Studios is a premium, high-performance video storefront built with Blazor Server. It allows creators to sell high-quality video clips from events with integrated AI analysis, seamless payments, and secure streaming.
+ClipCore Studios is a premium, high-performance video storefront built with Blazor Server. It allows creators to sell high-quality video clips from events with integrated AI analysis, seamless payments, and secure streaming.
 
 ## 🚀 Quick Start
 
@@ -12,7 +12,7 @@ Project65 Studios is a premium, high-performance video storefront built with Bla
     ```
 3.  **Run**:
     ```bash
-    dotnet run --project Project65.Web
+    dotnet run --project ClipCore.Web
     ```
 
 ## 📖 Documentation
@@ -34,9 +34,9 @@ Project65 Studios is a premium, high-performance video storefront built with Bla
 
 ## 🏗 Project Structure
 
-- `Project65.Web`: Blazor Server UI & SignalR Hubs.
-- `Project65.Infrastructure`: Data access and external API implementations.
-- `Project65.Core`: Domain entities and interfaces.
+- `ClipCore.Web`: Blazor Server UI & SignalR Hubs.
+- `ClipCore.Infrastructure`: Data access and external API implementations.
+- `ClipCore.Core`: Domain entities and interfaces.
 
 ---
-© 2026 Project65 Studios. All rights reserved.
+© 2026 ClipCore Studios. All rights reserved.

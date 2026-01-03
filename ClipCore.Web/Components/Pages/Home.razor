@@ -1,0 +1,229 @@
+﻿@page "/"
+@inject ISettingsRepository SettingsRepository
+@inject ClipCore.Web.Services.StoreSettingsService StoreSettingsService
+@inject IEventRepository EventRepository
+@inject IVideoService VideoService
+@inject IStorageService StorageService
+@inject IWebHostEnvironment Environment
+@using System.IO
+@inject ClipCore.Web.Services.VideoHealingService VideoHealingService
+@implements IDisposable
+
+<PageTitle>@(_storeName ?? "ClipCore Studios")</PageTitle>
+
+<div class="mb-4">
+    <h1 style="font-size: 2rem; margin-bottom: 0.5rem;">Events</h1>
+    <p class="text-secondary">Latest productions and collections.</p>
+</div>
+
+@if (_events == null)
+{
+    <p>Loading events...</p>
+}
+else if (!_events.Any())
+{
+    <p>No events found.</p>
+}
+else
+{
+    <div class="card-grid">
+        @foreach (var evt in _events)
+        {
+            var heroClip = evt.Clips?.FirstOrDefault(c => c.Id == evt.HeroClipId);
+            var displayClip = heroClip ?? evt.Clips?.OrderBy(c => c.RecordingStartedAt ?? DateTime.MaxValue).FirstOrDefault();
+            var thumbUrl = GetThumbnailUrl(evt.Id);
+
+            <a href="/events/@evt.Id" class="grid-card">
+                <div style="height: 180px; background: linear-gradient(135deg, var(--bg-subtle) 0%, var(--bg-surface) 100%); border-radius: var(--radius-md); display: flex; align-items: center; justify-content: center; margin-bottom: 1rem; overflow: hidden; position: relative; border: 1px solid var(--border-color);">
+                    @if (!string.IsNullOrEmpty(thumbUrl))
+                    {
+                        <img src="@thumbUrl" alt="@evt.Name" style="width: 100%; height: 100%; object-fit: cover; transition: transform 0.3s;" class="event-thumb" />
+                    }
+                    else
+                    {
+                        <span style="font-size: 2rem; font-weight: 800; color: var(--bg-main); text-shadow: 0 1px 0 rgba(255,255,255,0.1);">P65</span>
+                    }
+                </div>
+                
+                <h3 class="card-title">@evt.Name</h3>
+                @if (!string.IsNullOrEmpty(evt.Location))
+                {
+                    <div style="font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 0.35rem; display: flex; align-items: center; gap: 0.35rem;">
+                         <span>📍</span> @evt.Location
+                    </div>
+                }
+                <div class="card-meta">
+                    @evt.Date.ToString("MMM dd, yyyy") 
+                    • @(evt.Clips?.Count ?? 0) clips
+                </div>
+                <p style="font-size: 0.9rem; color: var(--text-muted); margin-top: 0.5rem; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">
+                    @evt.Summary
+                </p>
+            </a>
+        }
+    </div>
+}
+
+@code {
+    private List<Event>? _events;
+    private string? _storeName;
+    private Dictionary<string, string> _tokenCache = new();
+    private Dictionary<string, string?> _thumbCache = new();
+
+
+
+    protected override async Task OnInitializedAsync()
+    {
+        _storeName = await StoreSettingsService.GetStoreNameAsync();
+        _events = (await EventRepository.ListAsync()).OrderByDescending(e => e.Date).ToList();
+        VideoHealingService.OnClipHealed += HandleClipHealed;
+        StoreSettingsService.OnChange += HandleSettingsChange;
+        
+        if (_events != null)
+        {
+            var tokenTasks = new List<Task<(string playbackId, string token)>>();
+
+            foreach (var evt in _events)
+            {
+                var heroClip = evt.Clips?.FirstOrDefault(c => c.Id == evt.HeroClipId);
+                var displayClip = heroClip ?? evt.Clips?.OrderBy(c => c.RecordingStartedAt ?? DateTime.MaxValue).FirstOrDefault();
+                if (displayClip != null)
+                {
+                    var playbackId = !string.IsNullOrEmpty(displayClip.PlaybackIdSigned) ? displayClip.PlaybackIdSigned : displayClip.PlaybackIdTeaser;
+                    if (!string.IsNullOrEmpty(playbackId) && !playbackId.StartsWith("mock"))
+                    {
+                        if (!_tokenCache.ContainsKey(playbackId))
+                        {
+                            tokenTasks.Add(GetThumbnailTokenAsync(playbackId));
+                        }
+                    }
+                }
+            }
+
+            var results = await Task.WhenAll(tokenTasks);
+            foreach (var res in results)
+            {
+                if (!string.IsNullOrEmpty(res.token))
+                {
+                    _tokenCache[res.playbackId] = res.token;
+                }
+            }
+
+            // Pre-calculate thumbnails now that we have tokens
+            foreach (var evt in _events)
+            {
+                var heroClip = evt.Clips?.FirstOrDefault(c => c.Id == evt.HeroClipId);
+                var displayClip = heroClip ?? evt.Clips?.OrderBy(c => c.RecordingStartedAt ?? DateTime.MaxValue).FirstOrDefault();
+                if (displayClip != null)
+                {
+                    _thumbCache[evt.Id] = GetThumbnailUrlInternal(clip: displayClip);
+                }
+            }
+        }
+    }
+
+    private async Task<(string playbackId, string token)> GetThumbnailTokenAsync(string playbackId)
+    {
+        var token = await VideoService.GetPlaybackToken(playbackId, "t");
+        return (playbackId, token);
+    }
+
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if (firstRender && _events != null)
+        {
+            var clipsToHeal = _events.Select(e => 
+            {
+                var hero = e.Clips?.FirstOrDefault(c => c.Id == e.HeroClipId);
+                return hero ?? e.Clips?.OrderBy(c => c.RecordingStartedAt ?? DateTime.MaxValue).FirstOrDefault();
+            })
+                                     .Where(c => c != null)
+                                     .Cast<Clip>();
+            VideoHealingService.StartHealingForClips(clipsToHeal);
+        }
+    }
+
+    private void HandleClipHealed(Clip clip)
+    {
+        if (_events == null) return;
+        
+        // Find the event and clip in our local list to ensure the UI updates
+        foreach (var evt in _events)
+        {
+            var targetClip = evt.Clips?.FirstOrDefault(c => c.Id == clip.Id);
+            if (targetClip != null)
+            {
+                // Sync properties that affect thumbnails/display
+                targetClip.PlaybackIdSigned = clip.PlaybackIdSigned;
+                targetClip.PlaybackIdTeaser = clip.PlaybackIdTeaser;
+                targetClip.DurationSec = clip.DurationSec;
+                targetClip.RecordingStartedAt = clip.RecordingStartedAt;
+                targetClip.ThumbnailFileName = clip.ThumbnailFileName;
+                
+                InvokeAsync(async () => {
+                    var playbackId = !string.IsNullOrEmpty(clip.PlaybackIdSigned) ? clip.PlaybackIdSigned : clip.PlaybackIdTeaser;
+                    if (!string.IsNullOrEmpty(playbackId) && !playbackId.StartsWith("mock"))
+                    {
+                        var token = await VideoService.GetPlaybackToken(playbackId, "t");
+                        _tokenCache[playbackId] = token;
+                    }
+                    // Refresh the thumb cache for this event
+                    _thumbCache[evt.Id] = GetThumbnailUrlInternal(targetClip);
+                    StateHasChanged();
+                });
+                return;
+            }
+        }
+    }
+
+    private async void HandleSettingsChange()
+    {
+        _storeName = await StoreSettingsService.GetStoreNameAsync();
+        await InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose()
+    {
+        VideoHealingService.OnClipHealed -= HandleClipHealed;
+        StoreSettingsService.OnChange -= HandleSettingsChange;
+    }
+
+    private string? GetThumbnailUrl(string eventId)
+    {
+        _thumbCache.TryGetValue(eventId, out var url);
+        return url;
+    }
+
+    private string? GetThumbnailUrlInternal(Clip? clip)
+    {
+        if (clip == null) return null;
+        
+        if (!string.IsNullOrEmpty(clip.ThumbnailFileName))
+        {
+            // Hybrid Check: Does it exist locally? (Legacy)
+            var localPath = Path.Combine(Environment.WebRootPath, "thumbnails", clip.ThumbnailFileName);
+            if (File.Exists(localPath)) // Sync I/O okay here as it's pre-calculated or in background
+            {
+                return $"/thumbnails/{clip.ThumbnailFileName}";
+            }
+            
+            // Otherwise, assume it's in R2 (New)
+            var storageKey = clip.ThumbnailFileName.Contains("/") 
+                ? clip.ThumbnailFileName 
+                : $"thumbnails/{clip.ThumbnailFileName}";
+                
+            return StorageService.GetPresignedDownloadUrl(storageKey);
+        }
+        
+        // Priority 2: Mux Thumbnail
+        var playbackId = !string.IsNullOrEmpty(clip.PlaybackIdSigned) ? clip.PlaybackIdSigned : clip.PlaybackIdTeaser;
+        if (string.IsNullOrEmpty(playbackId) || playbackId.StartsWith("mock")) return null;
+
+        if (_tokenCache.TryGetValue(playbackId, out var token))
+        {
+            return $"https://image.mux.com/{playbackId}/thumbnail.jpg?token={token}";
+        }
+        
+        return null;
+    }
+}

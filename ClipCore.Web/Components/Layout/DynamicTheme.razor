@@ -1,0 +1,130 @@
+@using ClipCore.Core.Interfaces
+@inject ISettingsRepository SettingsRepository
+@inject ClipCore.Web.Services.StoreSettingsService StoreSettingsService
+@implements IDisposable
+
+    <style>
+        :root {
+            /* Dark Mode Overrides (Default) */
+            --accent-primary: @(_darkPrimary ?? "#06b6d4");
+            --accent-secondary: @(_darkSecondary ?? "#ec4899");
+            --bg-main: @(_darkBackground ?? "#0f1129");
+            --bg-surface: @(_darkSurface ?? "#171936");
+            --text-main: @(_darkText ?? "#ffffff");
+            --btn-gradient-start: @(_darkBtnStart ?? "#0284c7");
+            --btn-gradient-end: @(_darkBtnEnd ?? "#06b6d4");
+            --brand-text-main: @(_darkBrandText ?? "#ffffff");
+            
+            /* Derived variables consuming the 1:1 mappings */
+            --brand-accent-color: var(--accent-primary);
+            @if (!string.IsNullOrEmpty(_darkSurface)) { <text>--bg-subtle: color-mix(in srgb, var(--bg-surface), var(--text-main) 5%);</text> }
+            --accent-primary-dim: color-mix(in srgb, var(--accent-primary), transparent 90%);
+            --accent-secondary-dim: color-mix(in srgb, var(--accent-secondary), transparent 90%);
+            --accent-primary-gradient: linear-gradient(90deg, var(--btn-gradient-start) 0%, var(--btn-gradient-end) 100%);
+
+            /* Functional Status Colors - Dark */
+            --status-success: #10b981;
+            --status-danger: #ef4444;
+            --status-warning: #f59e0b;
+            --status-success-dim: color-mix(in srgb, var(--status-success), transparent 90%);
+            --status-danger-dim: color-mix(in srgb, var(--status-danger), transparent 90%);
+
+            /* Syncing with existing variables for consistency */
+            --border-active: var(--accent-primary);
+            --bs-body-color: var(--text-main);
+        }
+
+        :root.light-theme {
+            /* Light Mode Overrides */
+            --accent-primary: @(_lightPrimary ?? "#06b6d4") !important;
+            --accent-secondary: @(_lightSecondary ?? "#ec4899") !important;
+            --bg-main: @(_lightBackground ?? "#f8fafc") !important;
+            --bg-surface: @(_lightSurface ?? "#ffffff") !important;
+            --text-main: @(_lightText ?? "#0f172a") !important;
+            --btn-gradient-start: @(_lightBtnStart ?? "#0284c7") !important;
+            --btn-gradient-end: @(_lightBtnEnd ?? "#06b6d4") !important;
+            --brand-text-main: @(_lightBrandText ?? "#0f172a") !important;
+
+            /* Derived variables consuming the 1:1 mappings */
+            --brand-accent-color: var(--accent-primary) !important;
+            @if (!string.IsNullOrEmpty(_lightSurface)) { <text>--bg-subtle: color-mix(in srgb, var(--bg-surface), var(--text-main) 5%) !important;</text> }
+            --accent-primary-dim: color-mix(in srgb, var(--accent-primary), transparent 90%) !important;
+            --accent-secondary-dim: color-mix(in srgb, var(--accent-secondary), transparent 90%) !important;
+            --accent-primary-gradient: linear-gradient(90deg, var(--btn-gradient-start) 0%, var(--btn-gradient-end) 100%) !important;
+
+            /* Functional Status Colors - Light */
+            --status-success: #059669 !important;
+            --status-danger: #dc2626 !important;
+            --status-warning: #d97706 !important;
+            --status-success-dim: color-mix(in srgb, var(--status-success), transparent 90%) !important;
+            --status-danger-dim: color-mix(in srgb, var(--status-danger), transparent 90%) !important;
+
+            /* Syncing with existing variables for consistency */
+            --border-active: var(--accent-primary) !important;
+            --bs-body-color: var(--text-main) !important;
+        }
+    </style>
+
+@code {
+    private string? _darkPrimary;
+    private string? _darkSecondary;
+    private string? _darkBackground;
+    private string? _darkSurface;
+    private string? _darkText;
+    private string? _darkBtnStart;
+    private string? _darkBtnEnd;
+    private string? _darkBrandText;
+
+    private string? _lightPrimary;
+    private string? _lightSecondary;
+    private string? _lightBackground;
+    private string? _lightSurface;
+    private string? _lightText;
+    private string? _lightBtnStart;
+    private string? _lightBtnEnd;
+    private string? _lightBrandText;
+
+    protected override async Task OnInitializedAsync()
+    {
+        StoreSettingsService.OnChange += HandleSettingsChange;
+        await LoadSettingsAsync();
+    }
+
+    private async Task LoadSettingsAsync()
+    {
+        // Dark Mode
+        _darkPrimary = await SettingsRepository.GetValueAsync("ThemeDarkPrimary");
+        _darkSecondary = await SettingsRepository.GetValueAsync("ThemeDarkSecondary");
+        _darkBackground = await SettingsRepository.GetValueAsync("ThemeDarkBackground");
+        _darkSurface = await SettingsRepository.GetValueAsync("ThemeDarkSurface");
+        _darkText = await SettingsRepository.GetValueAsync("ThemeDarkText");
+        _darkBtnStart = await SettingsRepository.GetValueAsync("ThemeDarkBtnStart");
+        _darkBtnEnd = await SettingsRepository.GetValueAsync("ThemeDarkBtnEnd");
+        _darkBrandText = await SettingsRepository.GetValueAsync("ThemeDarkBrandText");
+
+        // Light Mode
+        _lightPrimary = await SettingsRepository.GetValueAsync("ThemeLightPrimary");
+        _lightSecondary = await SettingsRepository.GetValueAsync("ThemeLightSecondary");
+        _lightBackground = await SettingsRepository.GetValueAsync("ThemeLightBackground");
+        _lightSurface = await SettingsRepository.GetValueAsync("ThemeLightSurface");
+        _lightText = await SettingsRepository.GetValueAsync("ThemeLightText");
+        _lightBtnStart = await SettingsRepository.GetValueAsync("ThemeLightBtnStart");
+        _lightBtnEnd = await SettingsRepository.GetValueAsync("ThemeLightBtnEnd");
+        _lightBrandText = await SettingsRepository.GetValueAsync("ThemeLightBrandText");
+        
+        StateHasChanged();
+    }
+
+    private void HandleSettingsChange()
+    {
+        InvokeAsync(async () =>
+        {
+            await LoadSettingsAsync();
+        });
+    }
+
+    public void Dispose()
+    {
+        StoreSettingsService.OnChange -= HandleSettingsChange;
+    }
+}
