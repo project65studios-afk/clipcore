@@ -2,10 +2,10 @@
 
 This document outlines how we will build and test ClipCore capability-by-capability, ensuring we don't break the existing experience while enabling the new multi-tenant features.
 
-## 1. The Local Testing Setup (How to "See" It)
+## 1. The Local Testing Setup (How to "See" It) ✅ Completed
 To test multi-tenancy locally, you cannot just use `localhost:5095`. You need to simulate real domains.
 
-### Step A: Configure Local Subdomains
+### Step A: Configure Local Subdomains ✅ Completed
 We will edit your hosts file to map subdomains to your local machine.
 **Command**: `sudo nano /etc/hosts`
 **Add this line**:
@@ -18,10 +18,10 @@ We will edit your hosts file to map subdomains to your local machine.
 
 ---
 
-## 2. The Seeding Strategy ("Project65 First")
+## 2. The Seeding Strategy ("Project65 First") ✅ Completed
 We will use your original brand, **Project65 Studios**, as the "First Tenant". This proves migration works.
 
-### Update `DataSeeder.cs`
+### Update `DataSeeder.cs` ✅ Completed
 Instead of a generic "Demo Store", we will seed two distinct tenants to verify isolation.
 
 | Tenant | Subdomain | Purpose | Data |
@@ -31,7 +31,7 @@ Instead of a generic "Demo Store", we will seed two distinct tenants to verify i
 
 ---
 
-## 3. Incremental Development Steps
+## 3. Incremental Development Steps ✅ Completed
 
 ### Step 1: UI Awareness (The Header Test)
 **Goal**: Identify which store we are in visually.
@@ -41,7 +41,7 @@ Instead of a generic "Demo Store", we will seed two distinct tenants to verify i
     2. Visit `racing.clipcore.local` -> Header says **"Speed Racing"**.
 *   *If this works, the plumbing is solid.*
 
-### Step 2: Product Isolation (The Data Test)
+### Step 2: Product Isolation (The Data Test) ✅ Completed
 **Goal**: Verify Store A doesn't see Store B's products.
 *   **Action**: 
     1. Seed "Urban Neon Loop" clip to **Project65**.
@@ -51,7 +51,7 @@ Instead of a generic "Demo Store", we will seed two distinct tenants to verify i
     2. Browse `racing...` -> See only "Race Car".
 *   *If this works, Global Query Filters are solid.*
 
-### Step 3: The "Shop" Flow (The Money Test)
+### Step 3: The "Shop" Flow (The Money Test) ✅ Completed
 **Goal**: Verify the Cart and Checkout work per-tenant.
 *   **Action**: Attempt to buy a clip on **Speed Racing**.
 *   **Test**: 
@@ -59,7 +59,7 @@ Instead of a generic "Demo Store", we will seed two distinct tenants to verify i
     2. Verify `Order` is saved with `TenantId = [RacingGuid]`.
 *   *This ensures money goes to the right place.*
 
-### Step 4: Branding (The "Vibe" Test)
+### Step 4: Branding (The "Vibe" Test) ✅ Completed
 **Goal**: Different colors for different stores.
 *   **Action**: Update `Project65` tenant with `Theme: "Dark/Blue"` and `Racing` with `Theme: "Red"`.
 *   **Test**: Switch tabs. The entire app feel should change instantly.
