@@ -18,6 +18,7 @@ ClipCore Studios is a premium, high-performance video storefront built with Blaz
 ## 📖 Documentation
 
 - **[Architecture Overview](docs/ARCHITECTURE.md)**: Deep dive into the system design, tech stack, and service integrations.
+- **[Stripe Connect Integration](docs/STRIPE_CONNECT.md)**: setup, configuration, and multi-tenant OAuth flow.
 - **[Audit Report](docs/AUDIT_REPORT.md)**: 360-degree technical health check (Security, Speed, Performance, UX).
 - **[AWS Deployment Guide](docs/DEPLOYMENT_AWS.md)**: Production-ready roadmap and CI/CD setup for AWS.
 - **[QA & Testing Guide](docs/TESTING.md)**: Procedures for automated (Unit/E2E) and manual verification.
