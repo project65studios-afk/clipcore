@@ -653,7 +653,7 @@ else
         try 
         {
             _storeName = await StoreSettingsService.GetStoreNameAsync();
-            _watermarkUrl = await SettingsRepository.GetValueAsync("WatermarkUrl");
+            _watermarkUrl = await StoreSettingsService.GetWatermarkUrlAsync();
             
             if (AuthenticationStateTask != null)
             {

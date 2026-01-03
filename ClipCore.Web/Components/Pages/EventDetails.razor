@@ -273,14 +273,13 @@ else
     {
         _loading = true;
         var storeNameTask = SettingsRepository.GetValueAsync("StoreName");
-        var watermarkTask = SettingsRepository.GetValueAsync("WatermarkUrl");
+        _watermarkUrl = await StoreSettingsService.GetWatermarkUrlAsync();
         var eventTask = EventRepository.GetByIdAsync(Id);
 
-        await Task.WhenAll(watermarkTask, eventTask);
+        await Task.WhenAll(eventTask);
         
         _storeName = await StoreSettingsService.GetStoreNameAsync();
         StoreSettingsService.OnChange += HandleSettingsChange;
-        _watermarkUrl = await watermarkTask;
         _event = await eventTask;
         
         if (_event?.Clips != null)

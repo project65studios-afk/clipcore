@@ -1,5 +1,7 @@
+using System.Text.Json;
 using ClipCore.Core.Entities;
 using ClipCore.Core.Interfaces;
+using Microsoft.Extensions.Logging;
 
 namespace ClipCore.Infrastructure.Services;
 
@@ -9,18 +11,44 @@ namespace ClipCore.Infrastructure.Services;
 /// </summary>
 public class TenantContext : ITenantProvider
 {
+    private readonly ILogger<TenantContext> _logger;
     private Tenant? _currentTenant;
+    private ThemeSettings? _cachedTheme;
+
+    public TenantContext(ILogger<TenantContext> logger)
+    {
+        _logger = logger;
+    }
 
     public Tenant? CurrentTenant
     {
         get => _currentTenant;
-        set => _currentTenant = value;
+        set 
+        {
+            _currentTenant = value;
+            _cachedTheme = null; // Reset cache when tenant changes
+        }
+    }
+
+    public ThemeSettings Theme => _cachedTheme ??= ParseTheme();
+
+    private ThemeSettings ParseTheme()
+    {
+        if (CurrentTenant != null && !string.IsNullOrEmpty(CurrentTenant.ThemeSettingsJson))
+        {
+            try
+            {
+                _cachedTheme = JsonSerializer.Deserialize<ThemeSettings>(CurrentTenant.ThemeSettingsJson, 
+                    new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+            }
+            catch
+            {
+                _cachedTheme = new ThemeSettings();
+            }
+        }
+        return _cachedTheme ?? new ThemeSettings();
     }
 
     // Implementation of ITenantProvider for EF Core Global Query Filter
-    // If no tenant is resolved (e.g. middleware hasn't run), return null or handle gracefully.
-    // For EF Core filters, returning a default/empty GUID might be safer than null if the column is non-nullable, 
-    // but our global query is `e.TenantId == _tenantProvider.TenantId`. 
-    // If TenantId is missing/null, we should probably return Guid.Empty to return NO results (secure by default).
     public Guid? TenantId => _currentTenant?.Id ?? Guid.Empty; 
 }

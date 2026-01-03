@@ -2,10 +2,13 @@
 @rendermode RenderMode.InteractiveServer
 @using Microsoft.AspNetCore.Authorization
 @using ClipCore.Core.Interfaces
+@using ClipCore.Core.Entities
+@using System.Text.Json
 @attribute [Authorize(Roles = "Admin")]
-@inject ISettingsRepository SettingsRepository
 @inject IAuditService AuditService
 @inject IJSRuntime JS
+@inject ITenantRepository TenantRepository
+@inject ClipCore.Infrastructure.Services.TenantContext TenantContext
 @inject ClipCore.Web.Services.StoreSettingsService StoreSettingsService
 @inject ClipCore.Web.Services.GlobalSettingsNotifier GlobalSettingsNotifier
 
@@ -89,7 +92,7 @@
                         }
                         else
                         {
-                            <span class="text-muted small">Changes apply globally upon saving.</span>
+                            <span class="text-muted small">Changes apply to your store upon saving.</span>
                         }
                         <button class="btn btn-primary px-4 py-2" @onclick="SaveTheme" disabled="@_isSaving">
                             @if (_isSaving)
@@ -116,9 +119,9 @@
                     <!-- The Preview Window -->
                     <div class="preview-window w-100 h-100" style="background: @(ActiveTheme.Background); color: @(ActiveTheme.Text); transition: all 0.3s ease; --bg-main: @(ActiveTheme.Background); --bg-surface: @(ActiveTheme.Surface); --accent-primary: @(ActiveTheme.Primary); --accent-secondary: @(ActiveTheme.Secondary); --text-main: @(ActiveTheme.Text); --btn-gradient-start: @(ActiveTheme.BtnStart); --btn-gradient-end: @(ActiveTheme.BtnEnd); --brand-text-main: @(ActiveTheme.BrandText); --accent-primary-gradient: linear-gradient(90deg, var(--btn-gradient-start) 0%, var(--btn-gradient-end) 100%);">
                         <div class="preview-nav p-3 d-flex justify-content-between align-items-center border-bottom" style="border-color: color-mix(in srgb, var(--text-main), transparent 90%) !important;">
-                             <div class="fw-bold" style="letter-spacing: 1px;"><span class="brand-accent">PROJECT</span><span style="color: var(--brand-text-main); opacity: 0.9;">65</span></div>
+                             <div class="fw-bold" style="letter-spacing: 1px;"><span class="brand-accent">@(TenantContext.CurrentTenant?.Name?.ToUpper() ?? "STORE")</span></div>
                              <div class="d-flex gap-3 small opacity-75">
-                                <span>Events</span><span>Search</span><span>Cart</span>
+                                 <span>Events</span><span>Search</span><span>Cart</span>
                              </div>
                         </div>
                         <div class="p-4">
@@ -154,32 +157,34 @@
 
     private ThemeConfig ActiveTheme => _activeTab == "dark" ? _dark : _light;
 
-    protected override async Task OnInitializedAsync()
+    protected override void OnInitialized()
     {
-        await LoadThemeSettings();
+        LoadThemeFromContext();
     }
 
-    private async Task LoadThemeSettings()
+    private void LoadThemeFromContext()
     {
+        var theme = TenantContext.Theme;
+
         // Dark Mode
-        _dark.Primary = await SettingsRepository.GetValueAsync("ThemeDarkPrimary") ?? "#06b6d4";
-        _dark.Secondary = await SettingsRepository.GetValueAsync("ThemeDarkSecondary") ?? "#ec4899";
-        _dark.Background = await SettingsRepository.GetValueAsync("ThemeDarkBackground") ?? "#0f1129";
-        _dark.Surface = await SettingsRepository.GetValueAsync("ThemeDarkSurface") ?? "#171936";
-        _dark.Text = await SettingsRepository.GetValueAsync("ThemeDarkText") ?? "#ffffff";
-        _dark.BtnStart = await SettingsRepository.GetValueAsync("ThemeDarkBtnStart") ?? "#0284c7";
-        _dark.BtnEnd = await SettingsRepository.GetValueAsync("ThemeDarkBtnEnd") ?? "#06b6d4";
-        _dark.BrandText = await SettingsRepository.GetValueAsync("ThemeDarkBrandText") ?? "#ffffff";
+        _dark.Primary = theme.DarkPrimary ?? "#06b6d4";
+        _dark.Secondary = theme.DarkSecondary ?? "#ec4899";
+        _dark.Background = theme.DarkBackground ?? "#0f1129";
+        _dark.Surface = theme.DarkSurface ?? "#171936";
+        _dark.Text = theme.DarkText ?? "#ffffff";
+        _dark.BtnStart = theme.DarkBtnStart ?? "#0284c7";
+        _dark.BtnEnd = theme.DarkBtnEnd ?? "#06b6d4";
+        _dark.BrandText = theme.DarkBrandText ?? "#ffffff";
 
         // Light Mode
-        _light.Primary = await SettingsRepository.GetValueAsync("ThemeLightPrimary") ?? "#06b6d4";
-        _light.Secondary = await SettingsRepository.GetValueAsync("ThemeLightSecondary") ?? "#ec4899";
-        _light.Background = await SettingsRepository.GetValueAsync("ThemeLightBackground") ?? "#f8fafc";
-        _light.Surface = await SettingsRepository.GetValueAsync("ThemeLightSurface") ?? "#ffffff";
-        _light.Text = await SettingsRepository.GetValueAsync("ThemeLightText") ?? "#0f172a";
-        _light.BtnStart = await SettingsRepository.GetValueAsync("ThemeLightBtnStart") ?? "#0284c7";
-        _light.BtnEnd = await SettingsRepository.GetValueAsync("ThemeLightBtnEnd") ?? "#06b6d4";
-        _light.BrandText = await SettingsRepository.GetValueAsync("ThemeLightBrandText") ?? "#0f172a";
+        _light.Primary = theme.LightPrimary ?? "#06b6d4";
+        _light.Secondary = theme.LightSecondary ?? "#ec4899";
+        _light.Background = theme.LightBackground ?? "#f8fafc";
+        _light.Surface = theme.LightSurface ?? "#ffffff";
+        _light.Text = theme.LightText ?? "#0f172a";
+        _light.BtnStart = theme.LightBtnStart ?? "#0284c7";
+        _light.BtnEnd = theme.LightBtnEnd ?? "#06b6d4";
+        _light.BrandText = theme.LightBrandText ?? "#0f172a";
     }
 
     private void ResetToDefaults()
@@ -215,47 +220,39 @@
 
         try
         {
-            // Save Dark Settings
-            await SettingsRepository.SetValueAsync("ThemeDarkPrimary", _dark.Primary);
-            await SettingsRepository.SetValueAsync("ThemeDarkSecondary", _dark.Secondary);
-            await SettingsRepository.SetValueAsync("ThemeDarkBackground", _dark.Background);
-            await SettingsRepository.SetValueAsync("ThemeDarkSurface", _dark.Surface);
-            await SettingsRepository.SetValueAsync("ThemeDarkText", _dark.Text);
-            await SettingsRepository.SetValueAsync("ThemeDarkBtnStart", _dark.BtnStart);
-            await SettingsRepository.SetValueAsync("ThemeDarkBtnEnd", _dark.BtnEnd);
-            await SettingsRepository.SetValueAsync("ThemeDarkBrandText", _dark.BrandText);
+            if (TenantContext.CurrentTenant == null) return;
 
-            // Save Light Settings
-            await SettingsRepository.SetValueAsync("ThemeLightPrimary", _light.Primary);
-            await SettingsRepository.SetValueAsync("ThemeLightSecondary", _light.Secondary);
-            await SettingsRepository.SetValueAsync("ThemeLightBackground", _light.Background);
-            await SettingsRepository.SetValueAsync("ThemeLightSurface", _light.Surface);
-            await SettingsRepository.SetValueAsync("ThemeLightText", _light.Text);
-            await SettingsRepository.SetValueAsync("ThemeLightBtnStart", _light.BtnStart);
-            await SettingsRepository.SetValueAsync("ThemeLightBtnEnd", _light.BtnEnd);
-            await SettingsRepository.SetValueAsync("ThemeLightBrandText", _light.BrandText);
+            var theme = new ThemeSettings
+            {
+                // Dark
+                DarkPrimary = _dark.Primary,
+                DarkSecondary = _dark.Secondary,
+                DarkBackground = _dark.Background,
+                DarkSurface = _dark.Surface,
+                DarkText = _dark.Text,
+                DarkBtnStart = _dark.BtnStart,
+                DarkBtnEnd = _dark.BtnEnd,
+                DarkBrandText = _dark.BrandText,
+                
+                // Light
+                LightPrimary = _light.Primary,
+                LightSecondary = _light.Secondary,
+                LightBackground = _light.Background,
+                LightSurface = _light.Surface,
+                LightText = _light.Text,
+                LightBtnStart = _light.BtnStart,
+                LightBtnEnd = _light.BtnEnd,
+                LightBrandText = _light.BrandText
+            };
 
-            // Notify all theme changes globally so DynamicTheme reloads
-            GlobalSettingsNotifier.NotifyUpdate("ThemeDarkPrimary", _dark.Primary);
-            GlobalSettingsNotifier.NotifyUpdate("ThemeDarkSecondary", _dark.Secondary);
-            GlobalSettingsNotifier.NotifyUpdate("ThemeDarkBackground", _dark.Background);
-            GlobalSettingsNotifier.NotifyUpdate("ThemeDarkSurface", _dark.Surface);
-            GlobalSettingsNotifier.NotifyUpdate("ThemeDarkText", _dark.Text);
-            GlobalSettingsNotifier.NotifyUpdate("ThemeDarkBtnStart", _dark.BtnStart);
-            GlobalSettingsNotifier.NotifyUpdate("ThemeDarkBtnEnd", _dark.BtnEnd);
-            GlobalSettingsNotifier.NotifyUpdate("ThemeDarkBrandText", _dark.BrandText);
-            
-            GlobalSettingsNotifier.NotifyUpdate("ThemeLightPrimary", _light.Primary);
-            GlobalSettingsNotifier.NotifyUpdate("ThemeLightSecondary", _light.Secondary);
-            GlobalSettingsNotifier.NotifyUpdate("ThemeLightBackground", _light.Background);
-            GlobalSettingsNotifier.NotifyUpdate("ThemeLightSurface", _light.Surface);
-            GlobalSettingsNotifier.NotifyUpdate("ThemeLightText", _light.Text);
-            GlobalSettingsNotifier.NotifyUpdate("ThemeLightBtnStart", _light.BtnStart);
-            GlobalSettingsNotifier.NotifyUpdate("ThemeLightBtnEnd", _light.BtnEnd);
-            GlobalSettingsNotifier.NotifyUpdate("ThemeLightBrandText", _light.BrandText);
+            TenantContext.CurrentTenant.ThemeSettingsJson = JsonSerializer.Serialize(theme);
+            await TenantRepository.UpdateAsync(TenantContext.CurrentTenant);
+
+            // Notify reactive components to refresh
+            GlobalSettingsNotifier.NotifyUpdate("ThemeUpdate", "saved");
 
             // Log
-            await AuditService.LogActionAsync(null, "Admin", "Update Theme", "Settings", "Theme", "Theme colors updated for both modes.");
+            await AuditService.LogActionAsync(null, "Admin", "Update Theme", "Settings", "Theme", "Theme colors updated for tenant store.");
 
             _showSuccess = true;
             _ = Task.Delay(3000).ContinueWith(_ => { _showSuccess = false; InvokeAsync(StateHasChanged); });

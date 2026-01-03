@@ -301,10 +301,11 @@
     [CascadingParameter]
     private Task<AuthenticationState> AuthenticationStateTask { get; set; } = null!;
 
-    protected override async Task OnInitializedAsync()
+    protected override void OnInitialized()
     {
-        _brandLogoUrl = await SettingsRepository.GetValueAsync("BrandLogoUrl");
-        if (!string.IsNullOrEmpty(_brandLogoUrl) && _brandLogoUrl.StartsWith("/uploads/brand/"))
+        var theme = TenantContext.Theme;
+        _brandLogoUrl = theme.LogoUrl;
+        if (!string.IsNullOrEmpty(_brandLogoUrl) && !_brandLogoUrl.StartsWith("http") && !_brandLogoUrl.StartsWith("/"))
         {
             _useLogoUpload = true;
         }
@@ -313,8 +314,8 @@
             _useLogoUpload = false;
         }
 
-        _watermarkUrl = await SettingsRepository.GetValueAsync("WatermarkUrl");
-        if (!string.IsNullOrEmpty(_watermarkUrl) && _watermarkUrl.StartsWith("/uploads/"))
+        _watermarkUrl = theme.WatermarkUrl;
+        if (!string.IsNullOrEmpty(_watermarkUrl) && !_watermarkUrl.StartsWith("http") && !_watermarkUrl.StartsWith("/"))
         {
             _useUpload = true;
         }
@@ -323,20 +324,21 @@
             _useUpload = false;
         }
 
-        _storeName = await SettingsRepository.GetValueAsync("StoreName") ?? "ClipCore Studios";
-        _storeAddress = await SettingsRepository.GetValueAsync("StoreAddress") ?? "";
-        _supportEmail = await SettingsRepository.GetValueAsync("SupportEmail") ?? "";
-        _baseSiteUrl = await SettingsRepository.GetValueAsync("BaseSiteUrl") ?? "";
-        
-        var priceStr = await SettingsRepository.GetValueAsync("DefaultPrice");
-        if (double.TryParse(priceStr, out var p)) _defaultPrice = p;
+        InvokeAsync(async () => {
+            _storeName = await SettingsRepository.GetValueAsync("StoreName") ?? "ClipCore Studios";
+            _storeAddress = await SettingsRepository.GetValueAsync("StoreAddress") ?? "";
+            _supportEmail = await SettingsRepository.GetValueAsync("SupportEmail") ?? "";
+            _baseSiteUrl = await SettingsRepository.GetValueAsync("BaseSiteUrl") ?? "";
+            
+            var priceStr = await SettingsRepository.GetValueAsync("DefaultPrice");
+            if (double.TryParse(priceStr, out var p)) _defaultPrice = p;
 
-        var maintenanceStr = await SettingsRepository.GetValueAsync("MaintenanceMode");
-        _maintenanceMode = maintenanceStr == "true";
-        
-        // Load Stripe Connect ID explicitly from TenantContext
-        // We do not load this from SettingsRepository because it's a core Tenant property
-        _stripeConnectAccountId = TenantContext.CurrentTenant.StripeConnectAccountId;
+            var maintenanceStr = await SettingsRepository.GetValueAsync("MaintenanceMode");
+            _maintenanceMode = maintenanceStr == "true";
+            
+            _stripeConnectAccountId = TenantContext.CurrentTenant.StripeConnectAccountId;
+            StateHasChanged();
+        });
     }
 
     private async Task HandleLogoSelected(InputFileChangeEventArgs e)
@@ -409,64 +411,31 @@
         
         try 
         {
-            await SettingsRepository.SetValueAsync("BrandLogoUrl", _brandLogoUrl ?? "");
-            await SettingsRepository.SetValueAsync("WatermarkUrl", _watermarkUrl ?? "");
             await SettingsRepository.SetValueAsync("StoreName", _storeName ?? "ClipCore Studios");
             await SettingsRepository.SetValueAsync("StoreAddress", _storeAddress ?? "");
             await SettingsRepository.SetValueAsync("SupportEmail", _supportEmail ?? "");
             await SettingsRepository.SetValueAsync("BaseSiteUrl", _baseSiteUrl ?? "");
             await SettingsRepository.SetValueAsync("DefaultPrice", _defaultPrice.ToString());
-            await SettingsRepository.SetValueAsync("DefaultPrice", _defaultPrice.ToString());
             await SettingsRepository.SetValueAsync("MaintenanceMode", _maintenanceMode ? "true" : "false");
 
             // Save Stripe Connect ID to Tenant
-            // This requires modifying the Tenant entity itself in the database
-            // Ideally we'd have a TenantRepository.UpdateAsync, but for now we might use ITenantProvider or similar?
-            // Wait, we can use SettingsRepository if we mapped it, OR more correctly:
-            // update the ACTUAL tenant record.
-            // Since TenantContext is scoped, let's see if we have a way to save.
-            // Actually, best practice here is to use a TenantService or Repository.
-            // But for speed, let's inject ITenantProvider or Repository? 
-            // NOTE: SettingsRepository is for K/V pairs. Connect ID is on the Entity.
-            // Let's use the DB Context via a repository if available.
-            // Wait, we don't have ITenantRepository injected here.
-            // Let's cheat slightly and use SettingsRepository ONLY IF we change the architecture, 
-            // BUT correct way is:
-            
-            // We need to persist this change. 
-            // Let's assume we can add a method to SettingsRepository or similar, OR inject the DbContext (bad practice in checking).
-            // Let's add ITenantRepository injection!
-            
-            // For now, I will use a direct update strategy assuming there is a repository available.
-            // I'll check available services first.
-            // Ah, I'll inject ITenantProvider? No that's read only.
-            // I need to update the tenant.
-            
-            // Temporary: I will assume I can update it via a repository.
-            // I'll add @inject ITenantRepository at the top next step if it fails.
-            
-            // Wait - I can't just write comments. I need to IMPLEMENT.
-            // I'll add the saving logic in the next tool call because I need to check if ITenantRepository exists.
-            
-            // RE-READING CODE: TenantContext.CurrentTenant is the object. 
-            // I need to save it. 
-            // Let's assume for this step I am just adding the UI and binding.
-            // I will fix the persistence in the next step.
-            
-            // ACTUALLY, I will add the logic to update TenantContext.CurrentTenant object
-            // and then I need to save it.
             if (TenantContext.CurrentTenant.StripeConnectAccountId != _stripeConnectAccountId)
             {
-                 // Update the local context
                  TenantContext.CurrentTenant.StripeConnectAccountId = _stripeConnectAccountId;
-                 
-                 // Persist to database
-                 await TenantRepository.UpdateAsync(TenantContext.CurrentTenant);
             }
+
+            // Update Theme JSON with Logo and Watermark
+            var theme = TenantContext.Theme;
+            theme.LogoUrl = _brandLogoUrl;
+            theme.WatermarkUrl = _watermarkUrl;
+            TenantContext.CurrentTenant.ThemeSettingsJson = System.Text.Json.JsonSerializer.Serialize(theme);
+
+            // Persist Tenant changes
+            await TenantRepository.UpdateAsync(TenantContext.CurrentTenant);
             
             // Notify local service for immediate UI updates
             StoreSettingsService.NotifySettingChanged("StoreName", _storeName ?? "ClipCore Studios");
-            StoreSettingsService.NotifySettingChanged("BrandLogoUrl", _brandLogoUrl ?? "");
+            StoreSettingsService.NotifySettingChanged("ThemeUpdate", "saved");
 
             // Log the action
             var authState = await AuthenticationStateTask;

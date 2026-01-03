@@ -27,10 +27,32 @@ public static class DataSeeder
                 Name = "Project65 Studios",
                 Subdomain = "project65",
                 OwnerId = "system",
-                ThemeSettingsJson = "{}", // Default theme
+                ThemeSettingsJson = @"{
+                    ""DarkPrimary"": ""#8b5cf6"",
+                    ""DarkSecondary"": ""#10b981"",
+                    ""DarkBackground"": ""#030712"",
+                    ""DarkSurface"": ""#111827"",
+                    ""DarkText"": ""#f9fafb"",
+                    ""DarkBtnStart"": ""#6d28d9"",
+                    ""DarkBtnEnd"": ""#8b5cf6"",
+                    ""LogoUrl"": ""/images/logo_p65_placeholder.png"",
+                    ""WatermarkUrl"": ""/images/wm_p65_placeholder.png""
+                }",
                 CreatedAt = DateTime.UtcNow
             };
             await context.Tenants.AddAsync(project65Tenant);
+        }
+        else if (string.IsNullOrEmpty(project65Tenant.ThemeSettingsJson) || project65Tenant.ThemeSettingsJson == "{}")
+        {
+            project65Tenant.ThemeSettingsJson = @"{
+                ""DarkPrimary"": ""#06b6d4"",
+                ""DarkSecondary"": ""#ec4899"",
+                ""DarkBackground"": ""#0f1129"",
+                ""DarkSurface"": ""#171936"",
+                ""DarkText"": ""#ffffff"",
+                ""DarkBtnStart"": ""#0284c7"",
+                ""DarkBtnEnd"": ""#06b6d4""
+            }";
         }
 
         // Tenant B: Speed Racing (The "New" Tenant for Isolation Testing)
@@ -43,10 +65,32 @@ public static class DataSeeder
                 Name = "Speed Racing",
                 Subdomain = "racing",
                 OwnerId = "system",
-                ThemeSettingsJson = "{}",
+                ThemeSettingsJson = @"{
+                    ""DarkPrimary"": ""#ef4444"",
+                    ""DarkSecondary"": ""#f97316"",
+                    ""DarkBackground"": ""#111111"",
+                    ""DarkSurface"": ""#1a1a1a"",
+                    ""DarkText"": ""#ffffff"",
+                    ""DarkBtnStart"": ""#991b1b"",
+                    ""DarkBtnEnd"": ""#ef4444"",
+                    ""LogoUrl"": ""/images/logo_racing_placeholder.png"",
+                    ""WatermarkUrl"": ""/images/wm_racing_placeholder.png""
+                }",
                 CreatedAt = DateTime.UtcNow
             };
             await context.Tenants.AddAsync(racingTenant);
+        }
+        else if (string.IsNullOrEmpty(racingTenant.ThemeSettingsJson) || racingTenant.ThemeSettingsJson == "{}")
+        {
+            racingTenant.ThemeSettingsJson = @"{
+                ""DarkPrimary"": ""#ef4444"",
+                ""DarkSecondary"": ""#f97316"",
+                ""DarkBackground"": ""#111111"",
+                ""DarkSurface"": ""#1a1a1a"",
+                ""DarkText"": ""#ffffff"",
+                ""DarkBtnStart"": ""#991b1b"",
+                ""DarkBtnEnd"": ""#ef4444""
+            }";
         }
         
         // Save Tenants first so IDs are valid
@@ -214,6 +258,36 @@ public static class DataSeeder
                 ExpiryDate = DateTime.UtcNow.AddMonths(1),
                 IsActive = true
             });
+        }
+
+        if (project65Tenant != null)
+        {
+            project65Tenant.ThemeSettingsJson = @"{
+                ""DarkPrimary"": ""#8b5cf6"",
+                ""DarkSecondary"": ""#10b981"",
+                ""DarkBackground"": ""#030712"",
+                ""DarkSurface"": ""#111827"",
+                ""DarkText"": ""#f9fafb"",
+                ""DarkBtnStart"": ""#6d28d9"",
+                ""DarkBtnEnd"": ""#8b5cf6"",
+                ""LogoUrl"": ""/images/logo_p65_placeholder.png"",
+                ""WatermarkUrl"": ""/images/wm_p65_placeholder.png""
+            }";
+        }
+
+        if (racingTenant != null)
+        {
+            racingTenant.ThemeSettingsJson = @"{
+                ""DarkPrimary"": ""#ef4444"",
+                ""DarkSecondary"": ""#f97316"",
+                ""DarkBackground"": ""#111111"",
+                ""DarkSurface"": ""#1a1a1a"",
+                ""DarkText"": ""#ffffff"",
+                ""DarkBtnStart"": ""#991b1b"",
+                ""DarkBtnEnd"": ""#ef4444"",
+                ""LogoUrl"": ""/images/logo_racing_placeholder.png"",
+                ""WatermarkUrl"": ""/images/wm_racing_placeholder.png""
+            }";
         }
 
         await context.SaveChangesAsync();

@@ -1,23 +1,23 @@
 @using ClipCore.Core.Interfaces
-@inject ISettingsRepository SettingsRepository
-@inject ClipCore.Web.Services.StoreSettingsService StoreSettingsService
+@using ClipCore.Infrastructure.Services
+@inject TenantContext TenantContext
 @implements IDisposable
 
     <style>
         :root {
             /* Dark Mode Overrides (Default) */
-            --accent-primary: @(_darkPrimary ?? "#06b6d4");
-            --accent-secondary: @(_darkSecondary ?? "#ec4899");
-            --bg-main: @(_darkBackground ?? "#0f1129");
-            --bg-surface: @(_darkSurface ?? "#171936");
-            --text-main: @(_darkText ?? "#ffffff");
-            --btn-gradient-start: @(_darkBtnStart ?? "#0284c7");
-            --btn-gradient-end: @(_darkBtnEnd ?? "#06b6d4");
-            --brand-text-main: @(_darkBrandText ?? "#ffffff");
+            --accent-primary: @(TenantContext.Theme.DarkPrimary ?? "#06b6d4");
+            --accent-secondary: @(TenantContext.Theme.DarkSecondary ?? "#ec4899");
+            --bg-main: @(TenantContext.Theme.DarkBackground ?? "#0f1129");
+            --bg-surface: @(TenantContext.Theme.DarkSurface ?? "#171936");
+            --text-main: @(TenantContext.Theme.DarkText ?? "#ffffff");
+            --btn-gradient-start: @(TenantContext.Theme.DarkBtnStart ?? "#0284c7");
+            --btn-gradient-end: @(TenantContext.Theme.DarkBtnEnd ?? "#06b6d4");
+            --brand-text-main: @(TenantContext.Theme.DarkBrandText ?? "#ffffff");
             
             /* Derived variables consuming the 1:1 mappings */
             --brand-accent-color: var(--accent-primary);
-            @if (!string.IsNullOrEmpty(_darkSurface)) { <text>--bg-subtle: color-mix(in srgb, var(--bg-surface), var(--text-main) 5%);</text> }
+            @if (!string.IsNullOrEmpty(TenantContext.Theme.DarkSurface)) { <text>--bg-subtle: color-mix(in srgb, var(--bg-surface), var(--text-main) 5%);</text> }
             --accent-primary-dim: color-mix(in srgb, var(--accent-primary), transparent 90%);
             --accent-secondary-dim: color-mix(in srgb, var(--accent-secondary), transparent 90%);
             --accent-primary-gradient: linear-gradient(90deg, var(--btn-gradient-start) 0%, var(--btn-gradient-end) 100%);
@@ -36,18 +36,18 @@
 
         :root.light-theme {
             /* Light Mode Overrides */
-            --accent-primary: @(_lightPrimary ?? "#06b6d4") !important;
-            --accent-secondary: @(_lightSecondary ?? "#ec4899") !important;
-            --bg-main: @(_lightBackground ?? "#f8fafc") !important;
-            --bg-surface: @(_lightSurface ?? "#ffffff") !important;
-            --text-main: @(_lightText ?? "#0f172a") !important;
-            --btn-gradient-start: @(_lightBtnStart ?? "#0284c7") !important;
-            --btn-gradient-end: @(_lightBtnEnd ?? "#06b6d4") !important;
-            --brand-text-main: @(_lightBrandText ?? "#0f172a") !important;
+            --accent-primary: @(TenantContext.Theme.LightPrimary ?? "#06b6d4") !important;
+            --accent-secondary: @(TenantContext.Theme.LightSecondary ?? "#ec4899") !important;
+            --bg-main: @(TenantContext.Theme.LightBackground ?? "#f8fafc") !important;
+            --bg-surface: @(TenantContext.Theme.LightSurface ?? "#ffffff") !important;
+            --text-main: @(TenantContext.Theme.LightText ?? "#0f172a") !important;
+            --btn-gradient-start: @(TenantContext.Theme.LightBtnStart ?? "#0284c7") !important;
+            --btn-gradient-end: @(TenantContext.Theme.LightBtnEnd ?? "#06b6d4") !important;
+            --brand-text-main: @(TenantContext.Theme.LightBrandText ?? "#0f172a") !important;
 
             /* Derived variables consuming the 1:1 mappings */
             --brand-accent-color: var(--accent-primary) !important;
-            @if (!string.IsNullOrEmpty(_lightSurface)) { <text>--bg-subtle: color-mix(in srgb, var(--bg-surface), var(--text-main) 5%) !important;</text> }
+            @if (!string.IsNullOrEmpty(TenantContext.Theme.LightSurface)) { <text>--bg-subtle: color-mix(in srgb, var(--bg-surface), var(--text-main) 5%) !important;</text> }
             --accent-primary-dim: color-mix(in srgb, var(--accent-primary), transparent 90%) !important;
             --accent-secondary-dim: color-mix(in srgb, var(--accent-secondary), transparent 90%) !important;
             --accent-primary-gradient: linear-gradient(90deg, var(--btn-gradient-start) 0%, var(--btn-gradient-end) 100%) !important;
@@ -66,61 +66,16 @@
     </style>
 
 @code {
-    private string? _darkPrimary;
-    private string? _darkSecondary;
-    private string? _darkBackground;
-    private string? _darkSurface;
-    private string? _darkText;
-    private string? _darkBtnStart;
-    private string? _darkBtnEnd;
-    private string? _darkBrandText;
+    [Inject] private ClipCore.Web.Services.StoreSettingsService StoreSettingsService { get; set; } = default!;
 
-    private string? _lightPrimary;
-    private string? _lightSecondary;
-    private string? _lightBackground;
-    private string? _lightSurface;
-    private string? _lightText;
-    private string? _lightBtnStart;
-    private string? _lightBtnEnd;
-    private string? _lightBrandText;
-
-    protected override async Task OnInitializedAsync()
+    protected override void OnInitialized()
     {
         StoreSettingsService.OnChange += HandleSettingsChange;
-        await LoadSettingsAsync();
-    }
-
-    private async Task LoadSettingsAsync()
-    {
-        // Dark Mode
-        _darkPrimary = await SettingsRepository.GetValueAsync("ThemeDarkPrimary");
-        _darkSecondary = await SettingsRepository.GetValueAsync("ThemeDarkSecondary");
-        _darkBackground = await SettingsRepository.GetValueAsync("ThemeDarkBackground");
-        _darkSurface = await SettingsRepository.GetValueAsync("ThemeDarkSurface");
-        _darkText = await SettingsRepository.GetValueAsync("ThemeDarkText");
-        _darkBtnStart = await SettingsRepository.GetValueAsync("ThemeDarkBtnStart");
-        _darkBtnEnd = await SettingsRepository.GetValueAsync("ThemeDarkBtnEnd");
-        _darkBrandText = await SettingsRepository.GetValueAsync("ThemeDarkBrandText");
-
-        // Light Mode
-        _lightPrimary = await SettingsRepository.GetValueAsync("ThemeLightPrimary");
-        _lightSecondary = await SettingsRepository.GetValueAsync("ThemeLightSecondary");
-        _lightBackground = await SettingsRepository.GetValueAsync("ThemeLightBackground");
-        _lightSurface = await SettingsRepository.GetValueAsync("ThemeLightSurface");
-        _lightText = await SettingsRepository.GetValueAsync("ThemeLightText");
-        _lightBtnStart = await SettingsRepository.GetValueAsync("ThemeLightBtnStart");
-        _lightBtnEnd = await SettingsRepository.GetValueAsync("ThemeLightBtnEnd");
-        _lightBrandText = await SettingsRepository.GetValueAsync("ThemeLightBrandText");
-        
-        StateHasChanged();
     }
 
     private void HandleSettingsChange()
     {
-        InvokeAsync(async () =>
-        {
-            await LoadSettingsAsync();
-        });
+        InvokeAsync(StateHasChanged);
     }
 
     public void Dispose()
