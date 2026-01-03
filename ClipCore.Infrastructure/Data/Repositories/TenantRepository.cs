@@ -24,4 +24,29 @@ public class TenantRepository : ITenantRepository
         _context.Tenants.Update(tenant);
         await _context.SaveChangesAsync();
     }
+
+    public async Task<List<TenantMembership>> GetMembershipsAsync(Guid tenantId)
+    {
+        return await _context.TenantMemberships
+            .Include(m => m.User)
+            .Where(m => m.TenantId == tenantId)
+            .OrderByDescending(m => m.CreatedAt)
+            .ToListAsync();
+    }
+
+    public async Task AddMembershipAsync(TenantMembership membership)
+    {
+        await _context.TenantMemberships.AddAsync(membership);
+        await _context.SaveChangesAsync();
+    }
+
+    public async Task RemoveMembershipAsync(Guid membershipId)
+    {
+        var membership = await _context.TenantMemberships.FindAsync(membershipId);
+        if (membership != null)
+        {
+            _context.TenantMemberships.Remove(membership);
+            await _context.SaveChangesAsync();
+        }
+    }
 }

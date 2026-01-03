@@ -60,6 +60,11 @@
                 <a href="/admin/settings" class="btn btn-outline-secondary border-0 btn-sm d-flex align-items-center gap-2 text-body">
                     <i class="bi bi-gear"></i> Settings
                 </a>
+                <AuthorizeView Policy="TenantOwner">
+                    <a href="/admin/team" class="btn btn-outline-secondary border-0 btn-sm d-flex align-items-center gap-2 text-body">
+                        <i class="bi bi-people"></i> Team
+                    </a>
+                </AuthorizeView>
             </div>
         </div>
     </div>

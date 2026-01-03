@@ -1,0 +1,187 @@
+@page "/admin/team"
+@using ClipCore.Core.Entities
+@using ClipCore.Core.Interfaces
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Identity
+@attribute [Authorize(Policy = "TenantOwner")]
+@inject ITenantRepository TenantRepository
+@inject ClipCore.Infrastructure.Services.TenantContext TenantContext
+@inject UserManager<ApplicationUser> UserManager
+@inject IJSRuntime JS
+@inject NavigationManager Navigation
+@rendermode RenderMode.InteractiveServer
+
+<div class="container py-5" style="max-width: 800px;">
+    <div class="d-flex align-items-center gap-3 mb-4">
+        <a href="/admin" class="btn btn-outline-secondary border-0 btn-sm">
+            <i class="bi bi-arrow-left me-1"></i> Back
+        </a>
+        <h1 class="h3 fw-bold mb-0">Team Management</h1>
+    </div>
+
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body p-4">
+            <h5 class="fw-bold mb-3">Add Team Member</h5>
+            <p class="text-muted small mb-4">Invite an existing user to help manage your storefront as an Administrator.</p>
+            
+            <div class="row g-3">
+                <div class="col-md-9">
+                    <input type="email" class="form-control" placeholder="User email (e.g. staff@example.com)" @bind="_newMemberEmail" />
+                </div>
+                <div class="col-md-3">
+                    <button class="btn btn-primary w-100 fw-bold" @onclick="AddMemberAsync" disabled="@_isProcessing">
+                        @(_isProcessing ? "Adding..." : "Add Member")
+                    </button>
+                </div>
+            </div>
+            @if (!string.IsNullOrEmpty(_errorMessage))
+            {
+                <div class="text-danger small mt-2">@_errorMessage</div>
+            }
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-sm">
+        <div class="card-header bg-white border-bottom p-4">
+            <h5 class="fw-bold mb-0">Active Members</h5>
+        </div>
+        <div class="card-body p-0">
+            @if (_memberships == null)
+            {
+                <div class="p-5 text-center">
+                    <div class="spinner-border text-primary" role="status"></div>
+                </div>
+            }
+            else if (!_memberships.Any())
+            {
+                <div class="p-5 text-center text-muted">
+                    No team members found.
+                </div>
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="bg-light">
+                            <tr>
+                                <th class="ps-4">User</th>
+                                <th>Role</th>
+                                <th>Added</th>
+                                <th class="text-end pe-4">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var member in _memberships)
+                            {
+                                <tr>
+                                    <td class="ps-4">
+                                        <div class="fw-bold">@member.User?.Email</div>
+                                        <div class="text-muted small">@member.UserId</div>
+                                    </td>
+                                    <td>
+                                        <span class="badge @(member.Role == "Owner" ? "bg-primary" : "bg-info text-dark")">@member.Role</span>
+                                    </td>
+                                    <td class="text-muted small">@member.CreatedAt.ToString("MMM dd, yyyy")</td>
+                                    <td class="text-end pe-4">
+                                        @if (member.Role != "Owner")
+                                        {
+                                            <button class="btn btn-sm btn-outline-danger border-0" @onclick="() => RemoveMemberAsync(member)">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted small fst-italic">Primary</span>
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+    private List<TenantMembership>? _memberships;
+    private string _newMemberEmail = "";
+    private string? _errorMessage;
+    private bool _isProcessing = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadMembershipsAsync();
+    }
+
+    private async Task LoadMembershipsAsync()
+    {
+        if (TenantContext.CurrentTenant != null)
+        {
+            _memberships = await TenantRepository.GetMembershipsAsync(TenantContext.CurrentTenant.Id);
+        }
+    }
+
+    private async Task AddMemberAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_newMemberEmail)) return;
+        if (TenantContext.CurrentTenant == null) return;
+
+        _isProcessing = true;
+        _errorMessage = null;
+
+        try
+        {
+            var user = await UserManager.FindByEmailAsync(_newMemberEmail);
+            if (user == null)
+            {
+                _errorMessage = "User not found. They must register an account on the platform first.";
+                return;
+            }
+
+            // Check if already a member
+            if (_memberships?.Any(m => m.UserId == user.Id) == true)
+            {
+                _errorMessage = "User is already a member of this team.";
+                return;
+            }
+
+            // Ensure the user has the global 'Admin' role so they can hit the portal area
+            if (!await UserManager.IsInRoleAsync(user, "Admin"))
+            {
+                await UserManager.AddToRoleAsync(user, "Admin");
+            }
+
+            var membership = new TenantMembership
+            {
+                UserId = user.Id,
+                TenantId = TenantContext.CurrentTenant.Id,
+                Role = "Admin"
+            };
+
+            await TenantRepository.AddMembershipAsync(membership);
+            _newMemberEmail = "";
+            await LoadMembershipsAsync();
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = $"Error: {ex.Message}";
+        }
+        finally
+        {
+            _isProcessing = false;
+        }
+    }
+
+    private async Task RemoveMemberAsync(TenantMembership membership)
+    {
+        if (membership.Role == "Owner") return;
+
+        bool confirmed = await JS.InvokeAsync<bool>("confirm", $"Remove {membership.User?.Email} from the team?");
+        if (!confirmed) return;
+
+        await TenantRepository.RemoveMembershipAsync(membership.Id);
+        await LoadMembershipsAsync();
+    }
+}

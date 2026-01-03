@@ -104,92 +104,93 @@ public static class DataSeeder
         }
 
         // 3. Seed Users 
-        // Admin User -> Project65
-        var adminEmail = "admin@clipcore.com"; 
-        var user = await userManager.FindByEmailAsync(adminEmail);
-        if (user == null)
+
+        // --- Super Admin (Platform-Wide) ---
+        var superAdminEmail = "admin@clipcore.com";
+        var superAdmin = await userManager.FindByEmailAsync(superAdminEmail);
+        if (superAdmin == null)
         {
-            user = new ApplicationUser
-            {
-                UserName = adminEmail,
-                Email = adminEmail,
-                EmailConfirmed = true
-            };
-            await userManager.CreateAsync(user, "Admin123!");
+            superAdmin = new ApplicationUser { UserName = superAdminEmail, Email = superAdminEmail, EmailConfirmed = true };
+            await userManager.CreateAsync(superAdmin, "Admin123!");
+        }
+        if (!await userManager.IsInRoleAsync(superAdmin, adminRole))
+        {
+            await userManager.AddToRoleAsync(superAdmin, adminRole);
         }
 
-        // Add Membership for Admin -> Project65
-        if (!await context.TenantMemberships.AnyAsync(tm => tm.UserId == user.Id && tm.TenantId == project65Tenant.Id))
+        // --- Project65 Accounts ---
+        var p65OwnerEmail = "owner@project65.com"; 
+        var project65Owner = await userManager.FindByEmailAsync(p65OwnerEmail);
+        if (project65Owner == null)
         {
-            await context.TenantMemberships.AddAsync(new TenantMembership
-            {
-                UserId = user.Id,
-                TenantId = project65Tenant.Id,
-                Role = "Owner"
-            });
+            project65Owner = new ApplicationUser { UserName = p65OwnerEmail, Email = p65OwnerEmail, EmailConfirmed = true };
+            await userManager.CreateAsync(project65Owner, "Admin123!");
         }
 
-        if (!await userManager.IsInRoleAsync(user, adminRole))
+        if (!await userManager.IsInRoleAsync(project65Owner, adminRole))
         {
-            await userManager.AddToRoleAsync(user, adminRole);
+            await userManager.AddToRoleAsync(project65Owner, adminRole);
         }
 
-        // Regular User -> Project65
-        var userEmail = "carandreyn@gmail.com";
-        var regularUser = await userManager.FindByEmailAsync(userEmail);
-        if (regularUser == null)
+        if (!await context.TenantMemberships.AnyAsync(tm => tm.UserId == project65Owner.Id && tm.TenantId == project65Tenant.Id))
         {
-            regularUser = new ApplicationUser
-            {
-                UserName = userEmail,
-                Email = userEmail,
-                EmailConfirmed = true
-            };
-            await userManager.CreateAsync(regularUser, "User123!");
+            await context.TenantMemberships.AddAsync(new TenantMembership { UserId = project65Owner.Id, TenantId = project65Tenant.Id, Role = "Owner" });
         }
 
-        // Test User -> Racing Tenant (To test login isolation later if needed, or just keep in P65)
-        // Let's put test user in Project65 for now to keep existing tests happy
+        // --- Speed Racing Accounts ---
+        var racingOwnerEmail = "owner@racing.com";
+        var racingOwner = await userManager.FindByEmailAsync(racingOwnerEmail);
+        if (racingOwner == null)
+        {
+            racingOwner = new ApplicationUser { UserName = racingOwnerEmail, Email = racingOwnerEmail, EmailConfirmed = true };
+            await userManager.CreateAsync(racingOwner, "Racing123!");
+        }
+
+        if (!await userManager.IsInRoleAsync(racingOwner, adminRole))
+        {
+            await userManager.AddToRoleAsync(racingOwner, adminRole);
+        }
+
+        if (!await context.TenantMemberships.AnyAsync(tm => tm.UserId == racingOwner.Id && tm.TenantId == racingTenant.Id))
+        {
+            await context.TenantMemberships.AddAsync(new TenantMembership { UserId = racingOwner.Id, TenantId = racingTenant.Id, Role = "Owner" });
+        }
+
+        // Speed Racing Staff (Demonstrates Multi-Admin per storefront)
+        var racingStaffEmail = "staff@racing.com";
+        var racingStaff = await userManager.FindByEmailAsync(racingStaffEmail);
+        if (racingStaff == null)
+        {
+            racingStaff = new ApplicationUser { UserName = racingStaffEmail, Email = racingStaffEmail, EmailConfirmed = true };
+            await userManager.CreateAsync(racingStaff, "Staff123!");
+        }
+
+        if (!await userManager.IsInRoleAsync(racingStaff, adminRole))
+        {
+            await userManager.AddToRoleAsync(racingStaff, adminRole);
+        }
+
+        if (!await context.TenantMemberships.AnyAsync(tm => tm.UserId == racingStaff.Id && tm.TenantId == racingTenant.Id))
+        {
+            await context.TenantMemberships.AddAsync(new TenantMembership { UserId = racingStaff.Id, TenantId = racingTenant.Id, Role = "Admin" });
+        }
+
+        // --- Global Customer Accounts ---
+        var customerEmail = "customer@clipcore.com";
+        var globalCustomer = await userManager.FindByEmailAsync(customerEmail);
+        if (globalCustomer == null)
+        {
+            globalCustomer = new ApplicationUser { UserName = customerEmail, Email = customerEmail, EmailConfirmed = true };
+            await userManager.CreateAsync(globalCustomer, "User123!");
+        }
+
+        // Legacy Test User (Keeping for existing tests/scripts)
         var testEmail = "test@clipcore.com";
         var testUser = await userManager.FindByEmailAsync(testEmail);
         if (testUser == null)
         {
-            testUser = new ApplicationUser
-            {
-                UserName = testEmail,
-                Email = testEmail,
-                EmailConfirmed = true
-            };
+            testUser = new ApplicationUser { UserName = testEmail, Email = testEmail, EmailConfirmed = true };
             await userManager.CreateAsync(testUser, "Test123!");
-        }
-
-        // Racing Tenant Owner (Specifically to test Racing Admin)
-        var racingEmail = "owner@racing.com";
-        var racingUser = await userManager.FindByEmailAsync(racingEmail);
-        if (racingUser == null)
-        {
-            racingUser = new ApplicationUser
-            {
-                UserName = racingEmail,
-                Email = racingEmail,
-                EmailConfirmed = true
-            };
-            await userManager.CreateAsync(racingUser, "Racing123!");
-        }
-
-        if (!await userManager.IsInRoleAsync(racingUser, adminRole))
-        {
-            await userManager.AddToRoleAsync(racingUser, adminRole);
-        }
-
-        if (!await context.TenantMemberships.AnyAsync(tm => tm.UserId == racingUser.Id && tm.TenantId == racingTenant.Id))
-        {
-            await context.TenantMemberships.AddAsync(new TenantMembership
-            {
-                UserId = racingUser.Id,
-                TenantId = racingTenant.Id,
-                Role = "Owner"
-            });
         }
 
         // 4. Seed Events & Clips tied to Project65 (Legacy Data)

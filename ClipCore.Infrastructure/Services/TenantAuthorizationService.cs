@@ -19,7 +19,12 @@ public class TenantAuthorizationService : ITenantAuthorizationService
         var userId = user.FindFirstValue(ClaimTypes.NameIdentifier);
         if (string.IsNullOrEmpty(userId)) return false;
 
-        // "Admin" role users in the TenantMembership table, OR platform-wide super admins (if we had them)
+        var email = user.FindFirstValue(ClaimTypes.Email);
+
+        // Super Admin Bypass: admin@clipcore.com has platform-wide access
+        if (email == "admin@clipcore.com") return true;
+
+        // "Admin" role users in the TenantMembership table
         return await _context.TenantMemberships
             .AnyAsync(tm => tm.UserId == userId && tm.TenantId == tenantId && (tm.Role == "Admin" || tm.Role == "Owner"));
     }

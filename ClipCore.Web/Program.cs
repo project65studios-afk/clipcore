@@ -1,4 +1,8 @@
 using ClipCore.Web.Components;
+using ClipCore.Web.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Authorization;
 using ClipCore.Web.Services;
 using Microsoft.EntityFrameworkCore;
 using ClipCore.Infrastructure.Data;
@@ -139,6 +143,8 @@ builder.Services.AddScoped<ClipCore.Web.Services.SummaryGenerationService>();
 builder.Services.AddScoped<IInvoiceService, QuestPdfInvoiceService>();
 builder.Services.AddScoped<ClipCore.Web.Services.VideoHealingService>();
 builder.Services.AddScoped<ITenantAuthorizationService, TenantAuthorizationService>();
+builder.Services.AddScoped<IAuthorizationHandler, TenantAdminHandler>();
+builder.Services.AddScoped<IAuthorizationHandler, TenantOwnerHandler>();
 
 // Configure QuestPDFLicense
 QuestPDF.Settings.License = QuestPDF.Infrastructure.LicenseType.Community;
@@ -205,19 +211,13 @@ builder.Services.AddAuthorization(options =>
     options.AddPolicy("TenantAdmin", policy =>
     {
         policy.RequireAuthenticatedUser();
-        policy.RequireRole("Admin");
-        policy.RequireAssertion(async context =>
-        {
-            var httpContext = context.Resource as HttpContext;
-            if (httpContext == null) return false;
+        policy.AddRequirements(new TenantAdminRequirement());
+    });
 
-            var tenantContext = httpContext.RequestServices.GetRequiredService<ClipCore.Infrastructure.Services.TenantContext>();
-            var authService = httpContext.RequestServices.GetRequiredService<ITenantAuthorizationService>();
-
-            if (tenantContext.CurrentTenant == null) return false;
-
-            return await authService.IsAdminAsync(context.User, tenantContext.CurrentTenant.Id);
-        });
+    options.AddPolicy("TenantOwner", policy =>
+    {
+        policy.RequireAuthenticatedUser();
+        policy.AddRequirements(new TenantOwnerRequirement());
     });
 });
 
@@ -310,7 +310,21 @@ app.MapStaticAssets();
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 
+app.MapPost("/Account/Logout", async (
+    SignInManager<ApplicationUser> signInManager,
+    [FromForm] string? returnUrl) =>
+{
+    await signInManager.SignOutAsync();
+    // Use a redirect that works even if the returnUrl is not local
+    if (!string.IsNullOrEmpty(returnUrl) && Uri.IsWellFormedUriString(returnUrl, UriKind.RelativeOrAbsolute))
+    {
+        return Results.Redirect(returnUrl);
+    }
+    return Results.Redirect("/");
+}).DisableAntiforgery();
+
 app.MapRazorPages().RequireRateLimiting("login"); // Required for Identity UI endpoints
+
 app.MapControllers(); // Required for API endpoints
 app.MapHub<ClipCore.Web.Hubs.ProcessingHub>("/processingHub");
 
