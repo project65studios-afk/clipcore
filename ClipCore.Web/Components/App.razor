@@ -1,4 +1,4 @@
-﻿@using Microsoft.AspNetCore.Components.Web
+﻿@inject ClipCore.Infrastructure.Services.TenantContext TenantContext
 <!DOCTYPE html>
 <html lang="en">
 
@@ -32,7 +32,7 @@
 
 <body>
     <CascadingAuthenticationState>
-        <Routes @rendermode="@(new InteractiveServerRenderMode(prerender: false))" />
+        <Routes @rendermode="@(new InteractiveServerRenderMode(prerender: false))" TenantId="@TenantContext.CurrentTenant?.Id" />
     </CascadingAuthenticationState>
     <script src="@Assets["_framework/blazor.web.js"]"></script>
     <script src="js/sales-chart.js"></script>

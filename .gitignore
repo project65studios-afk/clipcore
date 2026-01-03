@@ -99,22 +99,14 @@ node_modules/
 wwwroot/lib/
 npm-debug.log
 
-# Project65 specific
-wwwroot/uploads/
-app.db
-app.db-shm
-app.db-wal
-project65.db
-project65.db-shm
-project65.db-wal
-project65_test.db
-project65_test.db-shm
-project65_test.db-wal
-pings/
-.gemini/
-.env
-appsettings.Development.json
-secrets.json
+# ClipCore specific
+ClipCore.Web/wwwroot/uploads/
+ClipCore.Web/appsettings.json
+ClipCore.Web/appsettings.Development.json
+ClipCore.Web/appsettings.Testing.json
+!ClipCore.Web/appsettings.example.json
+
+# Legacy
 Project65.Web/appsettings.json
 Project65.Web/wwwroot/thumbnails/
 

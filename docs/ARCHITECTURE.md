@@ -1,95 +1,39 @@
-# ClipCore Studios - Application Architecture
+# ClipCore Architecture
 
-This document provides a comprehensive overview of the ClipCore application, its components, tech stack, and service integrations.
+## Multi-Tenancy Strategy
+ClipCore uses a **Logical Isolation** model (Single Database, Shared Schema) to handle multiple storefronts efficiently.
 
-## 🏗 System Overview
-
-ClipCore is a high-performance video storefront built on **ASP.NET Core Blazor Server**. It follows a **Clean Architecture** pattern, separating concerns into three primary layers:
-
-1.  **ClipCore.Web**: The presentation layer (Blazor Components, Controllers, SignalR Hubs).
-2.  **ClipCore.Infrastructure**: The implementation layer (External APIs, Database, Repository Implementations).
-3.  **ClipCore.Core**: The domain layer (Entities, Interfaces, Shared DTOs).
-
----
-
-## 🛠 Tech Stack
-
-- **Framework**: .NET 10 (ASP.NET Core)
-- **Frontend**: Blazor Server (InteractiveServer mode)
-- **Database**: SQLite (EF Core)
-- **Authentication**: ASP.NET Core Identity (with Google/Facebook support)
-- **Real-time**: SignalR (for video processing status updates)
-- **Styling**: Vanilla CSS (Custom Variable-based system)
-
----
-
-## 💾 Core Domain Layer (`ClipCore.Core`)
-
-### Key Entities
-- **Event**: Represents a physical event (e.g., a car rally) containing multiple clips.
-- **Clip**: A specific video file with metadata, Mux playback IDs, and AI-generated tags.
-- **Purchase**: Records of user transactions, including Stripe session IDs and license types.
-- **ExternalProduct**: Featured products linked to events (e.g., merch from Shopify/Printful).
-- **Setting**: Key-value store for application configuration (Watermarks, API toggles).
-
----
-
-## 🔌 Infrastructure & Services (`ClipCore.Infrastructure`)
-
-### External Service Integrations
-- **Mux Video (`IVideoService`)**:
-    - Handles video hosting and streaming.
-    - Generates signed JWT tokens for secure playback, thumbnails, and storyboards.
-    - Manages direct uploads via authenticated URLs.
-- **Cloudflare R2 (`IStorageService`)**:
-    - S3-compatible storage for master video files and high-res thumbnails.
-    - Configured with strict CORS to prevent unauthorized hotlinking.
-- **Stripe (`IPaymentService`)**:
-    - Manages Checkout sessions and Webhook processing.
-- **Postmark/SendGrid (`IEmailService`)**:
-    - Transactional email delivery for receipts and account notifications.
-
-### Data Access
-- **Repository Pattern**: Heavily utilized to abstract EF Core logic.
-- **Optimizations**: Uses `AsSplitQuery()` for complex Eager Loading and `AsNoTracking()` for performance-critical read paths.
-
----
-
-## 🌐 Web Layer (`ClipCore.Web`)
+### Core Concepts
+1.  **Single Shared Database**: All tenants (Project65, Speed Racing, etc.) share the same database tables.
+2.  **Row-Level Security**: Every entity (`Event`, `Clip`, `Purchase`) has a `TenantId` column.
+3.  **Automatic Filtering**: The application automatically filters all database queries to strictly show data for the current tenant.
 
 ### Key Components
-- **Home.razor**: High-performance landing page with parallelized media token fetching.
-- **EventDetails.razor**: Multi-collection view optimized with query splitting.
-- **ClipCard.razor**: Shared component featuring hover-previews and deferred token loading.
-- **CartService**: Manages the user's shopping experience across navigations.
-- **VideoHealingService**: A background background scavenger that detects and fixes broken Mux assets/tokens automatically.
 
----
+#### 1. Tenant Resolution (`TenantResolutionMiddleware`)
+*   **Role**: Identifies *who* is making the request.
+*   **Mechanism**: Inspects the `Host` header (e.g., `racing.clipcore.test`).
+*   **Logic**:
+    *   Extracts subdomain (`racing`).
+    *   Looks up `Tenant` in database.
+    *   Sets `TenantContext.CurrentTenant`.
+    *   *Optimization*: Skips static assets (`.js`, `.css`, etc.) to improve performance.
 
-## 🛡 Security & Performance
+#### 2. Tenant Context (`ITenantProvider`)
+*   **Role**: A Scoped Service that holds the verification "Badge" for the current request.
+*   **Lifetime**: Exists only for the duration of a single HTTP request.
 
-### Security Posture
-- **Content Security Policy (CSP)**: Strict policy allowing only trusted domains (Mux, Stripe, Cloudflare).
-- **Subresource Integrity (SRI)**: All CDN assets verified via SHA384 hashes.
-- **Rate Limiting**: Protection against brute-force on login and resource exhaustion on upload.
-- **Anti-CSRF**: Automated token management for both Razor Pages and API controllers.
+#### 3. Data Isolation (EF Core Global Filters)
+*   **Role**: The Enforcer.
+*   **Implementation**: In `AppDbContext`, a global rule is applied to all entities:
+    ```csharp
+    modelBuilder.Entity<Event>().HasQueryFilter(e => e.TenantId == _tenantProvider.TenantId);
+    ```
+*   **Result**: It is impossible to accidentally query another tenant's data. Even `db.Events.ToListAsync()` only returns the current tenant's events.
 
-### Performance Measures
-- **Response Compression**: Brotli/Gzip enabled for all payloads.
-- **Zero-Blocking Rendering**: Pre-cached media URLs and deferred script loading to ensure an instant-feeling UI.
-- **SignalR Optimization**: Configured to handle binary traffic efficiently for high-interactivity states.
+### Database Specifics (SQLite)
+*   **GUID Handling**: SQLite stores GUIDs as 16-byte Blobs by default. To ensure compatibility with our text-based queries, we force a conversion to `TEXT` strings in `AppDbContext` when running in SQLite mode.
 
----
-
-## 📁 Project Structure
-
-```text
-/ClipCore
-├── ClipCore.Core          # Entities & Interfaces
-├── ClipCore.Infrastructure    # DB & External Service Impls
-└── ClipCore.Web           # Blazor UI, APIs, & Webhooks
-    ├── Components          # Shared UI & Layouts
-    ├── Pages               # Main Application Routes
-    ├── Services            # Web-specific background logic
-    └── wwwroot             # Static assets (JS/CSS/Images)
-```
+## Development Environment
+*   **Local Domains**: We use `.test` domains (e.g., `project65.clipcore.test`) to avoid MacOS Bonjour (`.local`) conflicts.
+*   **Port**: Applications run on port `5095` to avoid conflicts with other local services.

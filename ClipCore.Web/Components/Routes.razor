@@ -1,6 +1,41 @@
-﻿<Router AppAssembly="typeof(Program).Assembly" NotFoundPage="typeof(Pages.NotFound)">
+﻿@using ClipCore.Infrastructure.Data
+@using ClipCore.Infrastructure.Services
+@using Microsoft.EntityFrameworkCore
+@inject AppDbContext DbContext
+@inject TenantContext TenantContext
+@inject ILogger<Routes> Logger
+
+<Router AppAssembly="typeof(Program).Assembly" NotFoundPage="typeof(Pages.NotFound)">
     <Found Context="routeData">
         <AuthorizeRouteView RouteData="routeData" DefaultLayout="typeof(Layout.MainLayout)" />
         <FocusOnNavigate RouteData="routeData" Selector="h1" />
     </Found>
 </Router>
+
+@code {
+    [Parameter]
+    public Guid? TenantId { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (TenantId.HasValue && TenantContext.CurrentTenant == null)
+        {
+            // Re-hydrate the Tenant Context for this circuit
+            try 
+            {
+                var tenant = await DbContext.Tenants
+                    .IgnoreQueryFilters()
+                    .FirstOrDefaultAsync(t => t.Id == TenantId.Value);
+
+                if (tenant != null)
+                {
+                    TenantContext.CurrentTenant = tenant;
+                }
+            }
+            catch (Exception ex)
+            {
+               Logger.LogError(ex, "Failed to re-hydrate tenant context");
+            }
+        }
+    }
+}

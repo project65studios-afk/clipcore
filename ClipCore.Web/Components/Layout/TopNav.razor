@@ -2,6 +2,7 @@
 @inject ClipCore.Web.Services.CartService CartService
 @inject ISettingsRepository SettingsRepository
 @inject ClipCore.Web.Services.StoreSettingsService StoreSettingsService
+@inject ClipCore.Infrastructure.Services.TenantContext TenantContext
 @implements IDisposable
 @rendermode RenderMode.InteractiveServer
 
@@ -10,7 +11,11 @@
     <header class="top-nav">
         <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
             <a href="/" class="brand">
-                @if (!string.IsNullOrEmpty(_storeName))
+                @if (TenantContext.CurrentTenant != null)
+                {
+                    <span class="brand-accent">@TenantContext.CurrentTenant.Name.ToUpper()</span>
+                }
+                else if (!string.IsNullOrEmpty(_storeName))
                 {
                     var parts = _storeName.Split(' ', 2, StringSplitOptions.RemoveEmptyEntries);
                     if (parts.Length > 0)

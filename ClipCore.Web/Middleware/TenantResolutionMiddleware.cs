@@ -1,6 +1,6 @@
 using ClipCore.Core.Entities;
 using ClipCore.Infrastructure.Data;
-using ClipCore.Web.Services;
+using ClipCore.Infrastructure.Services;
 using Microsoft.EntityFrameworkCore;
 
 namespace ClipCore.Web.Middleware;
@@ -16,10 +16,22 @@ public class TenantResolutionMiddleware
         _logger = logger;
     }
 
-    public async Task InvokeAsync(HttpContext context, TenantContext tenantContext, AppDbContext dbContext)
+    public async Task InvokeAsync(HttpContext context, AppDbContext dbContext, TenantContext tenantContext)
     {
         // 1. Get Host
         var host = context.Request.Host.Host;
+        var path = context.Request.Path.Value?.ToLower();
+
+        // Skip static files and assets to prevent DB lookups
+        if (path != null && (path.Contains(".") || path.StartsWith("/_framework") || path.StartsWith("/_blazor")))
+        {
+            // Simple check for extensions (js, css, png, etc) roughly
+            if (path.EndsWith(".js") || path.EndsWith(".css") || path.EndsWith(".png") || path.EndsWith(".jpg") || path.EndsWith(".ico") || path.EndsWith(".woff2"))
+            {
+                await _next(context);
+                return;
+            }
+        }
         
         // 2. Determine Subdomain
         // Logic: if host is "carlos.clipcore.com", subdomain is "carlos".
@@ -63,11 +75,17 @@ public class TenantResolutionMiddleware
 
         if (!string.IsNullOrEmpty(subdomain))
         {
+            _logger.LogInformation($"[TenantResolution] Lookup for subdomain: '{subdomain}'");
             // 3. Lookup Tenant
             // We use IgnoreQueryFilters because we haven't set the TenantId yet!
             tenant = await dbContext.Tenants
                 .IgnoreQueryFilters()
                 .FirstOrDefaultAsync(t => t.Subdomain == subdomain);
+                
+            if (tenant != null)
+                 _logger.LogInformation($"[TenantResolution] Found Tenant: {tenant.Name} ({tenant.Id})");
+            else
+                 _logger.LogWarning($"[TenantResolution] Tenant not found for subdomain: '{subdomain}'");
         }
 
         if (tenant == null)

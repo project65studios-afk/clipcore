@@ -1,7 +1,7 @@
 using ClipCore.Core.Entities;
 using ClipCore.Core.Interfaces;
 
-namespace ClipCore.Web.Services;
+namespace ClipCore.Infrastructure.Services;
 
 /// <summary>
 /// A scoped service that holds the current Tenant for the request lifecycle.

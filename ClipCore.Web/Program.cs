@@ -27,7 +27,13 @@ builder.Services.AddCascadingAuthenticationState();
 builder.Services.AddSignalR();
 
 builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")));
+{
+    options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection"));
+    if (builder.Environment.IsDevelopment())
+    {
+        options.EnableDetailedErrors();
+    }
+});
 
 builder.Services.AddDefaultIdentity<ApplicationUser>(options => options.SignIn.RequireConfirmedAccount = false)
     .AddRoles<Microsoft.AspNetCore.Identity.IdentityRole>()
@@ -57,9 +63,9 @@ builder.Services.AddAuthentication()
     });
 
 // Add Tenant Context (Scoped, so it lives for the request)
-builder.Services.AddScoped<ClipCore.Web.Services.TenantContext>();
+builder.Services.AddScoped<ClipCore.Infrastructure.Services.TenantContext>();
 // Register it as ITenantProvider so AppDbContext can use it
-builder.Services.AddScoped<ITenantProvider>(sp => sp.GetRequiredService<ClipCore.Web.Services.TenantContext>());
+builder.Services.AddScoped<ITenantProvider>(sp => sp.GetRequiredService<ClipCore.Infrastructure.Services.TenantContext>());
 
 builder.Services.AddScoped<IEventRepository, EventRepository>();
 // builder.Services.AddScoped<ITenantProvider, FakeTenantProvider>(); // REMOVED
@@ -267,6 +273,7 @@ app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
 app.UseAntiforgery();
+app.UseMiddleware<ClipCore.Web.Middleware.TenantResolutionMiddleware>();
 
 
 app.MapStaticAssets();
@@ -291,7 +298,7 @@ using (var scope = app.Services.CreateScope())
     await context.Database.MigrateAsync();
 
     // Bootstrap TenantContext for Seeding
-    var tenantContext = services.GetRequiredService<ClipCore.Web.Services.TenantContext>();
+    var tenantContext = services.GetRequiredService<ClipCore.Infrastructure.Services.TenantContext>();
     await ClipCore.Infrastructure.DataSeeder.SeedAsync(context, userManager, roleManager, tenantContext);
 }
 
