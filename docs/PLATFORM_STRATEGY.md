@@ -12,7 +12,7 @@ The market for event photography (PhotoReflect, SmugMug) is saturated, but autom
 *   **The Problem**: Videographers have 100+ clips. Manually editing, rendering, and emailing them takes 10+ hours.
 *   **Our Solution**: Automated "Healing", Mux processing, R2 delivery, and instant commerce.
 
-## 2. Naming Ideas (Not "VideoReflect")
+## 2. Naming Ideas (Not "ClipCore")
 We need a name that implies infrastructure, speed, or motion.
 *   **ReflectOS**
 *   **ClipFlow**

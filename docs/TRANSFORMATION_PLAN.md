@@ -1,19 +1,19 @@
-# Transformation Plan: Project65 → VideoReflect Platform
+# Transformation Plan: Project65 → ClipCore Platform
 
-**Objective**: Convert the single-storefront "Project65" MVP into "VideoReflect," a multi-tenant SaaS where *anyone* can create their own video storefront (like PhotoReflect, but for video).
+**Objective**: Convert the single-storefront "Project65" MVP into "ClipCore," a multi-tenant SaaS where *anyone* can create their own video storefront (like PhotoReflect, but for video).
 
 ## 1. Naming & Repository
 Since you want a fresh start based on the current code:
-*   **Repo Name**: `VideoReflect` (Clean, professional).
+*   **Repo Name**: `ClipCore` (Clean, professional).
 *   **Alternative**: `ReflectOS` (if you want it to sound like an infrastructure product).
 
 ## 2. The Migration Strategy
 We will not just "copy-paste". We will **lift and shift**.
 
 ### Phase 1: The Lift (Cloning)
-1.  Create usage new, empty git repository (`VideoReflect`).
+1.  Create usage new, empty git repository (`ClipCore`).
 2.  Copy the **entire** working `Project65` solution into it.
-3.  Rename `Project65` namespaces to `VideoReflect`.
+3.  Rename `Project65` namespaces to `ClipCore`.
 4.  Verify the "Single Store" version runs perfectly in the new home.
 
 ### Phase 2: The Shift (Multi-Tenancy)
@@ -28,7 +28,7 @@ We must add a `TenantId` (or `StoreId`) to **every single table**:
 
 #### B. The "Tenant Context" Middleware
 We need a piece of code that runs *before* every page load:
-1.  **Check URL**: Is it `carlos.videoreflect.com` or `alex.videoreflect.com`?
+1.  **Check URL**: Is it `carlos.clipcore.com` or `alex.clipcore.com`?
 2.  **Load Context**: "Okay, we are in Carlos's Store."
 3.  **Filter Data**: Tell the Database "Only show me Events where StoreId = Carlos".
 
