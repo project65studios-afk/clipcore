@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using ClipCore.Core.Interfaces;
 using ClipCore.Core.Entities;
 using System.Diagnostics;
+using Microsoft.EntityFrameworkCore;
 
 namespace ClipCore.Web.Controllers;
 
@@ -18,6 +19,7 @@ public class VideoCompressionController : ControllerBase
     private readonly IStorageService _storageService;
     private readonly IVisionService _visionService;
     private readonly ILogger<VideoCompressionController> _logger;
+    private readonly IServiceScopeFactory _scopeFactory;
 
     public VideoCompressionController(
         IVideoService videoService,
@@ -25,7 +27,8 @@ public class VideoCompressionController : ControllerBase
         IEventRepository eventRepository,
         IStorageService storageService,
         IVisionService visionService,
-        ILogger<VideoCompressionController> logger)
+        ILogger<VideoCompressionController> logger,
+        IServiceScopeFactory scopeFactory)
     {
         _videoService = videoService;
         _clipRepository = clipRepository;
@@ -33,6 +36,7 @@ public class VideoCompressionController : ControllerBase
         _storageService = storageService;
         _visionService = visionService;
         _logger = logger;
+        _scopeFactory = scopeFactory;
     }
 
     [HttpPost("compress-and-upload")]
@@ -52,12 +56,19 @@ public class VideoCompressionController : ControllerBase
             if (string.IsNullOrEmpty(eventId))
                 return BadRequest(new { error = "Event ID is required" });
 
+            // Validate Event and Get TenantId (Early for R2 path construction)
+            var evt = await _eventRepository.GetByIdAsync(eventId);
+            if (evt == null)
+            {
+                return BadRequest(new { error = "Event not found" });
+            }
+
             var tempDir = Path.Combine(Path.GetTempPath(), "video-compression", Guid.NewGuid().ToString());
             Directory.CreateDirectory(tempDir);
 
             try
             {
-                // Save uploaded file
+                // Save uploaded file locally for ffmpeg
                 var inputPath = Path.Combine(tempDir, file.FileName);
                 using (var stream = new FileStream(inputPath, FileMode.Create))
                 {
@@ -68,146 +79,152 @@ public class VideoCompressionController : ControllerBase
 
                 var clipId = Guid.NewGuid().ToString();
 
-                // 1. Extract High-Res Thumbnail (from original input)
-                var thumbName = $"{clipId}.jpg";
-                var thumbPath = Path.Combine(tempDir, thumbName);
-
-                try 
+                // Define Task 1: Upload Original to R2 (Master)
+                // We use a separate stream from the IFormFile to avoid conflict, although file.OpenReadStream() creates a new stream.
+                // However, to be safe and avoid reading the request stream concurrently if it's not buffered,
+                // we will upload from the LOCAL FILE we just saved. This is safer and robust.
+                var r2UploadTask = Task.Run(async () => 
                 {
-                    _logger.LogInformation($"[Compression] Extracting thumbnail to {thumbPath}");
-                    var thumbProcess = new Process
+                    try 
+                    {
+                         // Structure: {TenantId}/events/{EventId}/clips/{FileName}
+                         var r2Key = $"{evt.TenantId}/events/{evt.Id}/clips/{file.FileName}";
+                         _logger.LogInformation($"[R2] Uploading master file to {r2Key}");
+                         
+                         using (var fs = new FileStream(inputPath, FileMode.Open, FileAccess.Read, FileShare.Read))
+                         {
+                             await _storageService.UploadAsync(fs, r2Key, file.ContentType);
+                         }
+                         
+                         _logger.LogInformation($"[R2] Master upload complete.");
+                         return r2Key;
+                    }
+                    catch (Exception r2Ex)
+                    {
+                        _logger.LogError(r2Ex, "[R2] Failed to upload master file");
+                        return null; // non-fatal, but logged
+                    }
+                });
+
+                // Define Task 2: Process Video (Thumbnail, Compress, Mux)
+                var processingTask = Task.Run(async () => 
+                {
+                    // 1. Extract High-Res Thumbnail
+                    string? r2ThumbKey = null;
+                    var thumbName = $"{clipId}.jpg";
+                    var thumbPath = Path.Combine(tempDir, thumbName);
+                    
+                    try 
+                    {
+                        _logger.LogInformation($"[Compression] Extracting thumbnail to {thumbPath}");
+                        var thumbProcess = new Process
+                        {
+                            StartInfo = new ProcessStartInfo
+                            {
+                                FileName = "ffmpeg",
+                                Arguments = $"-ss 00:00:01 -i \"{inputPath}\" -vframes 1 -q:v 2 \"{thumbPath}\"",
+                                RedirectStandardOutput = true,
+                                RedirectStandardError = true,
+                                UseShellExecute = false,
+                                CreateNoWindow = true
+                            }
+                        };
+                        thumbProcess.Start();
+                        await thumbProcess.WaitForExitAsync();
+                        
+                        if (thumbProcess.ExitCode == 0)
+                        {
+                            // Upload thumbnail to R2
+                            using var thumbStream = new FileStream(thumbPath, FileMode.Open, FileAccess.Read);
+                            r2ThumbKey = $"{evt.TenantId}/events/{evt.Id}/thumbnails/{thumbName}"; 
+                            await _storageService.UploadAsync(thumbStream, r2ThumbKey, "image/jpeg");
+                            
+                            _logger.LogInformation($"[Compression] Thumbnail uploaded to R2: {r2ThumbKey}");
+                            
+                            // 2. AI Analysis (Best effort)
+                            try
+                            {
+                                using var analysisStream = new FileStream(thumbPath, FileMode.Open, FileAccess.Read);
+                                var aiTags = await _visionService.AnalyzeImageAsync(analysisStream);
+                                if (aiTags.Length > 0)
+                                {
+                                     // Store tags in a way we can retrieve? 
+                                     // We can't use HttpContext inside Task.Run. Return them.
+                                     return (r2ThumbKey, aiTags); 
+                                }
+                            }
+                            catch (Exception) { /* AI failure ignored */ }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "[Compression] Thumbnail extraction exception");
+                    }
+
+                    return (r2ThumbKey, (string[])null);
+                });
+
+                // Task 3: Compress and Mux (Can run alongside Thumbnail? No, ffmpeg might contend for disk read? 
+                // Actually, OS handles concurrent reads fine. Let's run Compress in parallel with Thumb too?
+                // Mux requires the output of Compress.
+                // So (R2 Master) || (Thumbnail) || (Compress -> Mux)
+                
+                var compressionAndMuxTask = Task.Run(async () => 
+                {
+                    // Compress with FFmpeg
+                    var outputPath = Path.Combine(tempDir, Path.GetFileNameWithoutExtension(file.FileName) + "_540p.mp4");
+                    var stopwatch = Stopwatch.StartNew();
+
+                    var ffmpegProcess = new Process
                     {
                         StartInfo = new ProcessStartInfo
                         {
                             FileName = "ffmpeg",
-                            // Extract frame at 1s, qscale:v 2 for high quality JPG
-                            Arguments = $"-ss 00:00:01 -i \"{inputPath}\" -vframes 1 -q:v 2 \"{thumbPath}\"",
+                            Arguments = $"-i \"{inputPath}\" -vf \"scale=-2:540\" -c:v libx264 -preset veryfast -crf 28 -c:a aac -b:a 128k \"{outputPath}\"",
                             RedirectStandardOutput = true,
                             RedirectStandardError = true,
                             UseShellExecute = false,
                             CreateNoWindow = true
                         }
                     };
-                    thumbProcess.Start();
-                    await thumbProcess.WaitForExitAsync();
+
+                    ffmpegProcess.Start();
+                    await ffmpegProcess.WaitForExitAsync();
+                    stopwatch.Stop();
+                    _logger.LogInformation($"[Compression] FFmpeg completed in {stopwatch.ElapsedMilliseconds / 1000.0:F1}s");
+
+                    if (ffmpegProcess.ExitCode != 0)
+                    {
+                        throw new Exception("FFmpeg compression failed");
+                    }
+
+                    // Upload to Mux
+                    var (muxUrl, uploadId) = await _videoService.CreateUploadUrlAsync(
+                        clipId: clipId,
+                        title: file.FileName,
+                        creatorId: userId
+                    );
+
+                    using var httpClient = new HttpClient();
+                    using var fileStream = new FileStream(outputPath, FileMode.Open, FileAccess.Read);
+                    using var content = new StreamContent(fileStream);
+                    content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("video/mp4");
                     
-                    if (thumbProcess.ExitCode != 0)
+                    var uploadResponse = await httpClient.PutAsync(muxUrl, content);
+                    if (!uploadResponse.IsSuccessStatusCode)
                     {
-                         var err = await thumbProcess.StandardError.ReadToEndAsync();
-                         _logger.LogWarning($"[Compression] Thumbnail extraction failed: {err}");
-                         thumbName = null; // Fallback to Mux
+                         throw new Exception($"Mux upload failed: {uploadResponse.StatusCode}");
                     }
-                    else
-                    {
-                        // Upload thumbnail to R2
-                        using var thumbStream = new FileStream(thumbPath, FileMode.Open, FileAccess.Read);
-                        var r2ThumbKey = $"thumbnails/{thumbName}"; // Standardized path
-                        await _storageService.UploadAsync(thumbStream, r2ThumbKey, "image/jpeg");
-                        
-                        _logger.LogInformation($"[Compression] Thumbnail uploaded to R2: {r2ThumbKey}");
-                        
-                        // Close stream so we can delete file
-                        thumbStream.Close();
-                        
-                        // 2. AI Analysis (Async - don't block upload too long, but wait since it's fast)
-                        // Trigger AI Analysis on the local high-res thumbnail
-                        try
-                        {
-                            _logger.LogInformation($"[AI] Analyzing frame for auto-tagging...");
-                            using var analysisStream = new FileStream(thumbPath, FileMode.Open, FileAccess.Read);
-                            var aiTags = await _visionService.AnalyzeImageAsync(analysisStream);
-                            if (aiTags.Length > 0)
-                            {
-                                 _logger.LogInformation($"[AI] Identified tags: {string.Join(", ", aiTags)}");
-                                // We'll save these to the Clip object later
-                                HttpContext.Items["AiTags"] = aiTags; 
-                            }
-                        }
-                        catch (Exception aiEx)
-                        {
-                            _logger.LogError($"[AI] Analysis failed: {aiEx.Message}");
-                        }
-                        
-                        // Delete local thumbnail
-                        System.IO.File.Delete(thumbPath);
-                    }
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "[Compression] Thumbnail extraction exception");
-                    thumbName = null;
-                }
+                    
+                    return (uploadId, new FileInfo(outputPath).Length, stopwatch.ElapsedMilliseconds / 1000.0);
+                });
 
-                // Compress with FFmpeg
-                var outputPath = Path.Combine(tempDir, Path.GetFileNameWithoutExtension(file.FileName) + "_540p.mp4");
-                var stopwatch = Stopwatch.StartNew();
-
-                var ffmpegProcess = new Process
-                {
-                    StartInfo = new ProcessStartInfo
-                    {
-                        FileName = "ffmpeg",
-                        Arguments = $"-i \"{inputPath}\" -vf \"scale=-2:540\" -c:v libx264 -preset veryfast -crf 28 -c:a aac -b:a 128k \"{outputPath}\"",
-                        RedirectStandardOutput = true,
-                        RedirectStandardError = true,
-                        UseShellExecute = false,
-                        CreateNoWindow = true
-                    }
-                };
-
-                ffmpegProcess.Start();
+                // Await all tasks
+                await Task.WhenAll(r2UploadTask, processingTask, compressionAndMuxTask);
                 
-                // Read Output/Error streams asynchronously to avoid deadlock
-                var stdoutTask = ffmpegProcess.StandardOutput.ReadToEndAsync();
-                var stderrTask = ffmpegProcess.StandardError.ReadToEndAsync();
-                var ffmpegExitTask = ffmpegProcess.WaitForExitAsync();
-
-                // Wait for compression to complete
-                await Task.WhenAll(ffmpegExitTask, stdoutTask, stderrTask);
-
-                stopwatch.Stop();
-                _logger.LogInformation($"[Compression] FFmpeg completed in {stopwatch.ElapsedMilliseconds / 1000.0:F1}s");
-
-                if (ffmpegProcess.ExitCode != 0)
-                {
-                    var error = await stderrTask; // we already awaited it
-                    _logger.LogError($"[Compression] FFmpeg error: {error}");
-                    return StatusCode(500, new { error = "Video compression failed" });
-                }
-
-                // Get file info
-                var compressedFile = new FileInfo(outputPath);
-                _logger.LogInformation($"[Compression] Output size: {compressedFile.Length / 1024 / 1024}MB");
-
-                // Upload to Mux
-                // clipId is already generated above
-                var (muxUrl, uploadId) = await _videoService.CreateUploadUrlAsync(
-                    clipId: clipId,
-                    title: file.FileName,
-                    creatorId: userId
-                );
-
-                // Upload compressed file to Mux using HttpClient
-                using var httpClient = new HttpClient();
-                using var fileStream = System.IO.File.OpenRead(outputPath);
-                using var content = new StreamContent(fileStream);
-                content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("video/mp4");
-                
-                var uploadResponse = await httpClient.PutAsync(muxUrl, content);
-                if (!uploadResponse.IsSuccessStatusCode)
-                {
-                    _logger.LogError($"[Compression] Mux upload failed: {uploadResponse.StatusCode}");
-                    return StatusCode(500, new { error = "Mux upload failed" });
-                }
-
-                _logger.LogInformation($"[Compression] Uploaded to Mux successfully");
-
-                // Validate Event and Get TenantId
-                var evt = await _eventRepository.GetByIdAsync(eventId);
-                if (evt == null)
-                {
-                    return BadRequest(new { error = "Event not found" });
-                }
+                var r2MasterKey = await r2UploadTask;
+                var (r2ThumbKey, aiTags) = await processingTask;
+                var (muxUploadId, compressedSize, compressionTime) = await compressionAndMuxTask;
 
                 // Create Clip entity
                 var clip = new Clip
@@ -217,28 +234,25 @@ public class VideoCompressionController : ControllerBase
                     TenantId = evt.TenantId,
                     Title = file.FileName,
                     PriceCents = priceCents,
-                    MuxUploadId = uploadId,
-                    MasterFileName = null, // No R2 master for standard event uploads
-                    ThumbnailFileName = $"thumbnails/{thumbName}"
+                    MuxUploadId = muxUploadId,
+                    MasterFileName = r2MasterKey, 
+                    ThumbnailFileName = r2ThumbKey
                 };
 
-                // Apply AI Tags if found
-                if (HttpContext.Items.TryGetValue("AiTags", out var tagsObj) && tagsObj is string[] tags)
+                if (aiTags != null && aiTags.Length > 0)
                 {
-                    clip.TagsJson = System.Text.Json.JsonSerializer.Serialize(tags);
+                    clip.TagsJson = System.Text.Json.JsonSerializer.Serialize(aiTags);
                 }
 
-                // Capture browser's Modified Date if provided
                 if (DateTime.TryParse(lastModified, out var modifiedDate))
                 {
                     clip.RecordingStartedAt = modifiedDate;
-                    _logger.LogInformation($"[Compression] Saved LastModified date: {modifiedDate}");
                 }
 
                 await _clipRepository.AddAsync(clip);
                 _logger.LogInformation($"[Compression] Clip saved to database: {clipId}");
 
-                // Start background polling to resolve Asset ID and Playback ID
+                // Start background polling
                 _ = ResolveMuxDetailsAsync(clip);
 
                 return Ok(new
@@ -246,13 +260,12 @@ public class VideoCompressionController : ControllerBase
                     success = true,
                     clipId = clipId,
                     originalSize = file.Length,
-                    compressedSize = compressedFile.Length,
-                    compressionTime = stopwatch.ElapsedMilliseconds / 1000.0
+                    compressedSize = compressedSize,
+                    compressionTime = compressionTime
                 });
             }
             finally
             {
-                // Clean up temp files
                 try
                 {
                     if (Directory.Exists(tempDir))
@@ -271,67 +284,85 @@ public class VideoCompressionController : ControllerBase
         }
     }
 
-    private async Task ResolveMuxDetailsAsync(Clip clip)
+    private Task ResolveMuxDetailsAsync(Clip clip)
     {
-        if (string.IsNullOrEmpty(clip.MuxUploadId)) return;
-
-        _logger.LogInformation($"[Compression] Starting background poll for AssetId: {clip.Title} (UploadId: {clip.MuxUploadId})");
-        
-        // 1. Poll for AssetId (up to 30 seconds)
-        string? assetId = null;
-        for (int i = 0; i < 15; i++)
+        // Offload to background thread to avoid blocking request and detaching from request context
+        return Task.Run(async () => 
         {
-            await Task.Delay(2000);
-            assetId = await _videoService.GetAssetIdFromUploadAsync(clip.MuxUploadId);
-            if (!string.IsNullOrEmpty(assetId)) break;
-        }
+            using var scope = _scopeFactory.CreateScope();
+            var dbContext = scope.ServiceProvider.GetRequiredService<ClipCore.Infrastructure.Data.AppDbContext>();
+            var videoService = scope.ServiceProvider.GetRequiredService<IVideoService>();
+            var logger = scope.ServiceProvider.GetRequiredService<ILogger<VideoCompressionController>>();
 
-        if (string.IsNullOrEmpty(assetId))
-        {
-            _logger.LogWarning($"[Compression] Timed out waiting for AssetId for {clip.Title}");
-            return;
-        }
-
-        _logger.LogInformation($"[Compression] Resolved AssetId: {assetId} for {clip.Title}");
-        clip.MuxAssetId = assetId;
-
-        // 2. Poll for Duration and PlaybackId (up to 60 seconds)
-        for (int i = 0; i < 20; i++)
-        {
-            var (duration, startedAt) = await _videoService.GetAssetDetailsAsync(assetId);
-            _logger.LogInformation($"[Compression] Polling duration for {clip.Title}: {(duration.HasValue ? duration.Value.ToString() : "null")}");
-            
-            if (duration.HasValue && duration.Value > 0)
+            try 
             {
-                clip.DurationSec = duration;
+                // Re-fetch clip ignoring query filters to ensure we can update it even without Tenant Context
+                var dbClip = await dbContext.Clips.IgnoreQueryFilters().FirstOrDefaultAsync(c => c.Id == clip.Id);
+                if (dbClip == null) return;
+
+                if (string.IsNullOrEmpty(dbClip.MuxUploadId)) return;
+
+                logger.LogInformation($"[Compression] Starting background poll for AssetId: {dbClip.Title} (UploadId: {dbClip.MuxUploadId})");
                 
-                // Mux Metadata Date > Browser Modified Date
-                // Since MuxVideoService.cs no longer falls back to Upload Time, 'startedAt' is a REAL creation date from metadata/atoms.
-                // We trust this more than the user's file system modified date, so we overwrite.
-                if (startedAt.HasValue) 
+                // 1. Poll for AssetId (up to 30 seconds)
+                string? assetId = null;
+                for (int i = 0; i < 15; i++)
                 {
-                    clip.RecordingStartedAt = startedAt;
-                    _logger.LogInformation($"[Compression] Upgraded timestamp to Mux Metadata: {startedAt}");
-                }
-                
-                // Ensure we have a Playback ID for the thumbnail
-                var playbackId = await _videoService.EnsurePlaybackIdAsync(assetId);
-                if (!string.IsNullOrEmpty(playbackId))
-                {
-                    clip.PlaybackIdSigned = playbackId;
+                    await Task.Delay(2000);
+                    assetId = await videoService.GetAssetIdFromUploadAsync(dbClip.MuxUploadId);
+                    if (!string.IsNullOrEmpty(assetId)) break;
                 }
 
-                await _clipRepository.UpdateAsync(clip);
-                _logger.LogInformation($"[Compression] SUCCESS: Resolved playback details for {clip.Title}");
-                return;
+                if (string.IsNullOrEmpty(assetId))
+                {
+                    logger.LogWarning($"[Compression] Timed out waiting for AssetId for {dbClip.Title}");
+                    return;
+                }
+
+                logger.LogInformation($"[Compression] Resolved AssetId: {assetId} for {dbClip.Title}");
+                dbClip.MuxAssetId = assetId;
+                await dbContext.SaveChangesAsync(); // Save AssetID immediately
+
+                // 2. Poll for Duration and PlaybackId (up to 60 seconds)
+                for (int i = 0; i < 20; i++)
+                {
+                    var (duration, startedAt) = await videoService.GetAssetDetailsAsync(assetId);
+                    logger.LogInformation($"[Compression] Polling duration for {dbClip.Title}: {(duration.HasValue ? duration.Value.ToString() : "null")}");
+                    
+                    if (duration.HasValue && duration.Value > 0)
+                    {
+                        dbClip.DurationSec = duration;
+                        
+                        if (startedAt.HasValue) 
+                        {
+                            dbClip.RecordingStartedAt = startedAt;
+                            logger.LogInformation($"[Compression] Upgraded timestamp to Mux Metadata: {startedAt}");
+                        }
+                        
+                        // Ensure we have a Playback ID for the thumbnail
+                        var playbackId = await videoService.EnsurePlaybackIdAsync(assetId);
+                        if (!string.IsNullOrEmpty(playbackId))
+                        {
+                            dbClip.PlaybackIdSigned = playbackId;
+                        }
+
+                        await dbContext.SaveChangesAsync();
+                        logger.LogInformation($"[Compression] SUCCESS: Resolved playback details for {dbClip.Title}");
+                        return;
+                    }
+
+                    logger.LogInformation($"[Compression] Still waiting for duration for {dbClip.Title} (attempt {i+1}/20)...");
+                    await Task.Delay(3000); // Wait 3s between attempts
+                }
+
+                // Final save even if duration is still missing (fallback)
+                await dbContext.SaveChangesAsync();
+                logger.LogWarning($"[Compression] Metadata polling finished for {dbClip.Title} (Duration might still be processing)");
             }
-
-            _logger.LogInformation($"[Compression] Still waiting for duration for {clip.Title} (attempt {i+1}/20)...");
-            await Task.Delay(3000); // Wait 3s between attempts
-        }
-
-        // Final save even if duration is still missing (fallback)
-        await _clipRepository.UpdateAsync(clip);
-        _logger.LogWarning($"[Compression] Metadata polling finished for {clip.Title} (Duration might still be processing)");
+            catch (Exception ex)
+            {
+                 logger.LogError(ex, $"[Compression] Error in background polling for {clip.Id}");
+            }
+        });
     }
 }

@@ -9,6 +9,7 @@
 @inject IStorageService StorageService
 @inject IAuditService AuditService
 @inject NavigationManager Navigation
+@inject ClipCore.Infrastructure.Services.TenantContext TenantContext
 
 <div class="container-fluid py-4" style="max-width: 1400px;">
     <!-- Header -->
@@ -333,7 +334,8 @@
             try
             {
                 var ext = System.IO.Path.GetExtension(file.Name);
-                var key = $"products/{Guid.NewGuid()}{ext}";
+                var tenantId = TenantContext.CurrentTenant?.Id.ToString() ?? "unknown_tenant";
+                var key = $"{tenantId}/products/{Guid.NewGuid()}{ext}";
                 
                 using var stream = file.OpenReadStream(maxAllowedSize: 5 * 1024 * 1024); // 5MB
                 await StorageService.UploadAsync(stream, key, file.ContentType);

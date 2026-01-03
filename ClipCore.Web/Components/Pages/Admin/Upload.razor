@@ -11,6 +11,7 @@
 @inject IAuditService AuditService
 @using Microsoft.AspNetCore.SignalR
 @inject IHubContext<ClipCore.Web.Hubs.ProcessingHub> HubContext
+@inject ClipCore.Infrastructure.Services.TenantContext TenantContext
 
 
 
@@ -332,6 +333,13 @@
         try
         {
             if (string.IsNullOrEmpty(_newEvent.Id)) _newEvent.Id = Guid.NewGuid().ToString();
+            
+            // Assign TenantId
+            if (TenantContext.CurrentTenant != null)
+            {
+                _newEvent.TenantId = TenantContext.CurrentTenant.Id;
+            }
+            
             await EventRepository.AddAsync(_newEvent);
             _events = await EventRepository.ListAsync();
             _selectedEventId = _newEvent.Id;

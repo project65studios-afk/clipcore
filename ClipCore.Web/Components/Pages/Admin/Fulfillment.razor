@@ -11,6 +11,7 @@
 @inject IStorageService StorageService
 @inject IEmailService EmailService
 @inject IAuditService AuditService
+@inject ClipCore.Infrastructure.Services.TenantContext TenantContext
 @inject ClipCore.Web.Services.EmailTemplateService EmailTemplateService
 @rendermode RenderMode.InteractiveServer
 
@@ -523,7 +524,8 @@
             ? target.StripeSessionId.Substring(target.StripeSessionId.Length - 8).ToUpper()
             : (!string.IsNullOrEmpty(target.OrderId) ? target.OrderId : target.Id.ToString());
             
-        var key = $"{folderName}/{fileName}";
+        var tenantId = TenantContext.CurrentTenant?.Id.ToString() ?? "unknown_tenant";
+        var key = $"{tenantId}/orders/{folderName}/{fileName}";
         _uploadToPurchaseMap[fileName] = target.Id;
         
         var url = StorageService.GetPresignedUploadUrl(key, contentType);
@@ -549,7 +551,9 @@
              var folderName = !string.IsNullOrEmpty(purchase.StripeSessionId) && purchase.StripeSessionId.Length >= 8
                  ? purchase.StripeSessionId.Substring(purchase.StripeSessionId.Length - 8).ToUpper()
                  : (!string.IsNullOrEmpty(purchase.OrderId) ? purchase.OrderId : purchase.Id.ToString());
-             key = $"{folderName}/{fileName}";
+             
+             var tenantId = TenantContext.CurrentTenant?.Id.ToString() ?? "unknown_tenant";
+             key = $"{tenantId}/orders/{folderName}/{fileName}";
 
              // 1. Update CLIP
              if (purchase.Clip != null)

@@ -350,7 +350,7 @@
             try
             {
                 var fileName = $"logo_{DateTime.UtcNow.Ticks}{Path.GetExtension(file.Name)}";
-                var r2Key = $"brand/{fileName}";
+                var r2Key = $"{TenantContext.CurrentTenant!.Id}/brand/{fileName}";
 
                 using var stream = file.OpenReadStream(maxAllowedSize: 1024 * 1024 * 5); // 5MB limit
                 await StorageService.UploadAsync(stream, r2Key, file.ContentType);
@@ -377,7 +377,7 @@
             try
             {
                 var fileName = $"watermark_{DateTime.UtcNow.Ticks}{Path.GetExtension(file.Name)}";
-                var r2Key = $"watermarks/{fileName}";
+                var r2Key = $"{TenantContext.CurrentTenant!.Id}/brand/{fileName}";
 
                 using var stream = file.OpenReadStream(maxAllowedSize: 1024 * 1024 * 5); // 5MB limit
                 await StorageService.UploadAsync(stream, r2Key, file.ContentType);
