@@ -91,3 +91,18 @@ Once the "Shop Flow" is verified, we move from a multi-store engine to a scalabl
 **Goal**: Grow to 1,000+ sellers without manual intervention.
 *   **Merchant Sign-up**: Public registration flow that auto-provisions subdomains.
 *   **Onboarding Checklist**: Guiding sellers through Stripe Connect and Store Customization.
+
+## 5. Enterprise Readiness & Security ("The Platform Trust Path")
+
+As the platform grows, we move from "Functional" to "Enterprise Grade." We have already laid the foundation for this with the `TenantAuthorizationService` bypass.
+
+### Step 9: Advanced Security & Auditing
+**Goal**: Ensure platform-wide stability and prevent administrative abuse.
+*   **Audit Logging (High Priority)**: We already have an `AuditService`. To be Enterprise-grade, every time a Super Admin touches a store that isn't their own, we must log: `"Super Admin [X] modified Product [Y] on Store [Z] at [Time]."`
+*   **MFA for Super Admins**: Never allow a Super Admin to log in without a physical security key (like a Yubikey) or an Authenticator app.
+*   **The "System" Dashboard**: A dedicated portal (e.g., `system.clipcore.test`) where platform owners can see a list of all tenants, their total sales, and their Stripe connection status in one view.
+
+### Why do this?
+*   **Trust**: Sellers need to know that while the platform owner *can* assist them, every action is tracked and accountable.
+*   **Risk Mitigation**: A single compromised "Super Admin" credential is a catastrophic risk. MFA and a dedicated, isolated System Dashboard minimize this blast radius.
+*   **Operational Efficiency**: At 1,000+ stores, you cannot look up tenant details in the database manually. You need a centralized cockpit.
