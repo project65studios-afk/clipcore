@@ -4,7 +4,7 @@
 @using Microsoft.AspNetCore.Components.Forms
 @using ClipCore.Core.Entities
 @using ClipCore.Core.Interfaces
-@attribute [Authorize(Roles = "Admin")]
+@attribute [Authorize(Policy = "TenantAdmin")]
 @inject IExternalProductRepository ProductRepository
 @inject IStorageService StorageService
 @inject IAuditService AuditService

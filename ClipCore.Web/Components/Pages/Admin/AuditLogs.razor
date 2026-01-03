@@ -2,7 +2,7 @@
 @using ClipCore.Core.Entities
 @using ClipCore.Core.Interfaces
 @using Microsoft.AspNetCore.Authorization
-@attribute [Authorize(Roles = "Admin")]
+@attribute [Authorize(Policy = "TenantAdmin")]
 @inject IAuditRepository AuditRepository
 @inject NavigationManager Navigation
 

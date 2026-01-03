@@ -137,7 +137,8 @@ builder.Services.AddScoped<ClipCore.Web.Services.CartService>();
 builder.Services.AddScoped<ClipCore.Web.Services.StoreSettingsService>();
 builder.Services.AddScoped<ClipCore.Web.Services.SummaryGenerationService>();
 builder.Services.AddScoped<IInvoiceService, QuestPdfInvoiceService>();
-builder.Services.AddSingleton<ClipCore.Web.Services.VideoHealingService>();
+builder.Services.AddScoped<ClipCore.Web.Services.VideoHealingService>();
+builder.Services.AddScoped<ITenantAuthorizationService, TenantAuthorizationService>();
 
 // Configure QuestPDFLicense
 QuestPDF.Settings.License = QuestPDF.Infrastructure.LicenseType.Community;
@@ -198,6 +199,27 @@ builder.Services.AddResponseCompression(options =>
 });
 
 builder.Services.AddControllers();
+
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy("TenantAdmin", policy =>
+    {
+        policy.RequireAuthenticatedUser();
+        policy.RequireRole("Admin");
+        policy.RequireAssertion(async context =>
+        {
+            var httpContext = context.Resource as HttpContext;
+            if (httpContext == null) return false;
+
+            var tenantContext = httpContext.RequestServices.GetRequiredService<ClipCore.Infrastructure.Services.TenantContext>();
+            var authService = httpContext.RequestServices.GetRequiredService<ITenantAuthorizationService>();
+
+            if (tenantContext.CurrentTenant == null) return false;
+
+            return await authService.IsAdminAsync(context.User, tenantContext.CurrentTenant.Id);
+        });
+    });
+});
 
 // Configure CORS for Mux/R2/Stripe interactions
 var allowedOrigins = builder.Configuration.GetSection("AllowedOrigins").Get<string[]>() 

@@ -23,6 +23,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<AuditLog> AuditLogs { get; set; } = null!;
     public DbSet<PromoCode> PromoCodes { get; set; } = null!;
     public DbSet<ExternalProduct> ExternalProducts { get; set; } = null!;
+    public DbSet<TenantMembership> TenantMemberships { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -39,8 +40,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
         modelBuilder.Entity<Setting>().HasQueryFilter(s => s.TenantId == _tenantProvider.TenantId);
         modelBuilder.Entity<AuditLog>().HasQueryFilter(a => a.TenantId == _tenantProvider.TenantId);
         modelBuilder.Entity<ExternalProduct>().HasQueryFilter(p => p.TenantId == _tenantProvider.TenantId);
-        // Users are special; we might filter them manually or selectively, but let's filter for now to be safe
-        modelBuilder.Entity<ApplicationUser>().HasQueryFilter(u => u.TenantId == _tenantProvider.TenantId);
+        // Users are platform-wide; no global query filter.
 
 
         // Tenant Configuration
@@ -54,6 +54,23 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
             .WithMany(u => u.Purchases)
             .HasForeignKey(p => p.UserId)
             .OnDelete(DeleteBehavior.SetNull);
+
+        // TenantMemberships
+        modelBuilder.Entity<TenantMembership>()
+            .HasOne(tm => tm.User)
+            .WithMany()
+            .HasForeignKey(tm => tm.UserId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<TenantMembership>()
+            .HasOne(tm => tm.Tenant)
+            .WithMany()
+            .HasForeignKey(tm => tm.TenantId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<TenantMembership>()
+            .HasIndex(tm => new { tm.UserId, tm.TenantId })
+            .IsUnique();
 
         // Purchase -> Clip Relationship
         modelBuilder.Entity<Purchase>()

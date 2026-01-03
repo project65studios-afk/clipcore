@@ -4,7 +4,7 @@
 @using ClipCore.Core.Interfaces
 @using ClipCore.Core.Entities
 @using System.Text.Json
-@attribute [Authorize(Roles = "Admin")]
+@attribute [Authorize(Policy = "TenantAdmin")]
 @inject IAuditService AuditService
 @inject IJSRuntime JS
 @inject ITenantRepository TenantRepository

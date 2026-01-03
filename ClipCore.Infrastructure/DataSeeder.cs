@@ -113,10 +113,20 @@ public static class DataSeeder
             {
                 UserName = adminEmail,
                 Email = adminEmail,
-                EmailConfirmed = true,
-                TenantId = project65Tenant.Id 
+                EmailConfirmed = true
             };
             await userManager.CreateAsync(user, "Admin123!");
+        }
+
+        // Add Membership for Admin -> Project65
+        if (!await context.TenantMemberships.AnyAsync(tm => tm.UserId == user.Id && tm.TenantId == project65Tenant.Id))
+        {
+            await context.TenantMemberships.AddAsync(new TenantMembership
+            {
+                UserId = user.Id,
+                TenantId = project65Tenant.Id,
+                Role = "Owner"
+            });
         }
 
         if (!await userManager.IsInRoleAsync(user, adminRole))
@@ -133,8 +143,7 @@ public static class DataSeeder
             {
                 UserName = userEmail,
                 Email = userEmail,
-                EmailConfirmed = true,
-                TenantId = project65Tenant.Id
+                EmailConfirmed = true
             };
             await userManager.CreateAsync(regularUser, "User123!");
         }
@@ -149,10 +158,38 @@ public static class DataSeeder
             {
                 UserName = testEmail,
                 Email = testEmail,
-                EmailConfirmed = true,
-                TenantId = project65Tenant.Id
+                EmailConfirmed = true
             };
             await userManager.CreateAsync(testUser, "Test123!");
+        }
+
+        // Racing Tenant Owner (Specifically to test Racing Admin)
+        var racingEmail = "owner@racing.com";
+        var racingUser = await userManager.FindByEmailAsync(racingEmail);
+        if (racingUser == null)
+        {
+            racingUser = new ApplicationUser
+            {
+                UserName = racingEmail,
+                Email = racingEmail,
+                EmailConfirmed = true
+            };
+            await userManager.CreateAsync(racingUser, "Racing123!");
+        }
+
+        if (!await userManager.IsInRoleAsync(racingUser, adminRole))
+        {
+            await userManager.AddToRoleAsync(racingUser, adminRole);
+        }
+
+        if (!await context.TenantMemberships.AnyAsync(tm => tm.UserId == racingUser.Id && tm.TenantId == racingTenant.Id))
+        {
+            await context.TenantMemberships.AddAsync(new TenantMembership
+            {
+                UserId = racingUser.Id,
+                TenantId = racingTenant.Id,
+                Role = "Owner"
+            });
         }
 
         // 4. Seed Events & Clips tied to Project65 (Legacy Data)
