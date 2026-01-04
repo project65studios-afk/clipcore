@@ -90,7 +90,7 @@
                                             {
                                                 <!-- Ready / Copy Link -->
                                                 <div class="d-flex align-items-center gap-2 bg-dark border border-secondary-subtle rounded px-2 py-1">
-                                                    <button class="btn btn-outline-primary btn-sm me-2" @onclick="() => CompleteOrder(order.ToList(), true)" title="Resend Email">
+                                                    <button class="btn btn-outline-primary btn-sm me-2" @onclick="() => ConfirmAndResendEmail(order.ToList())" title="Resend Email">
                                                         <i class="bi bi-envelope-at me-1"></i> Resend Email
                                                     </button>
                                                     <span class="badge bg-success small text-uppercase">Ready</span>
@@ -608,6 +608,16 @@
     }
     
     // --- New Order Logic ---
+    private async Task ConfirmAndResendEmail(List<Purchase> order)
+    {
+        var firstItem = order.First();
+        var confirmed = await JSRuntime.InvokeAsync<bool>("confirm", $"Are you sure you want to resend the fulfillment email to {firstItem.CustomerEmail}?");
+        if (confirmed)
+        {
+            await CompleteOrder(order, true);
+        }
+    }
+
     private async Task CompleteOrder(List<Purchase> order, bool isManualResend = false)
     {
         var firstItem = order.First();
@@ -673,6 +683,11 @@
             {
                 // Silent catch or use proper logging if available
             }
+        }
+
+        if (isManualResend && !string.IsNullOrEmpty(customerEmail))
+        {
+             await JSRuntime.InvokeVoidAsync("alert", $"Email sent successfully to {customerEmail}!");
         }
         
         // Switch to "Fulfilled" tab to show the result

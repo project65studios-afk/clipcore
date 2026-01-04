@@ -265,9 +265,10 @@
         if (string.IsNullOrEmpty(fileName)) return "";
         if (fileName.StartsWith("http") || fileName.StartsWith("/")) return fileName;
         
-        var storageKey = fileName.Contains("/") 
-            ? fileName 
-            : $"thumbnails/{fileName}";
+        var cleanName = fileName.TrimStart('/');
+        var storageKey = cleanName.StartsWith("thumbnails/") 
+            ? cleanName 
+            : $"thumbnails/{cleanName}";
             
         return StorageService.GetPresignedDownloadUrl(storageKey);
     }

@@ -42,9 +42,10 @@ public class EmailTemplateService
             string thumbUrl = "https://via.placeholder.com/80?text=Clip";
             if (!string.IsNullOrEmpty(i.ClipThumbnailFileName))
             {
-                var storageKey = i.ClipThumbnailFileName.Contains("/") 
-                    ? i.ClipThumbnailFileName 
-                    : $"thumbnails/{i.ClipThumbnailFileName}";
+                var cleanName = i.ClipThumbnailFileName.TrimStart('/');
+                var storageKey = cleanName.StartsWith("thumbnails/") 
+                    ? cleanName 
+                    : $"thumbnails/{cleanName}";
                 thumbUrl = _storageService.GetPresignedDownloadUrl(storageKey);
             }
 
@@ -196,9 +197,10 @@ public class EmailTemplateService
             string? thumbUrl = null;
             if (!string.IsNullOrEmpty(i.ClipThumbnailFileName))
             {
-                var storageKey = i.ClipThumbnailFileName.Contains("/") 
-                    ? i.ClipThumbnailFileName 
-                    : $"thumbnails/{i.ClipThumbnailFileName}";
+                var cleanName = i.ClipThumbnailFileName.TrimStart('/');
+                var storageKey = cleanName.StartsWith("thumbnails/") 
+                    ? cleanName 
+                    : $"thumbnails/{cleanName}";
                 thumbUrl = _storageService.GetPresignedDownloadUrl(storageKey);
             }
 
@@ -265,9 +267,9 @@ public class EmailTemplateService
         <!-- CTA Section -->
         <div style=""padding: 40px; text-align: center;"">
             <p style=""font-size: 16px; color: #444444; margin-bottom: 30px; line-height: 1.6;"">
-                You can now view and download your high-quality clips directly from your account dashboard.
+                You can now view and download your high-quality clips directly from your order delivery page.
             </p>
-            <a href=""{effectiveBaseUri}my-purchases"" style=""display: inline-block; padding: 18px 40px; background-color: #111111; color: #ffffff; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 18px;"">
+            <a href=""{effectiveBaseUri}delivery/{items.FirstOrDefault()?.StripeSessionId}"" style=""display: inline-block; padding: 18px 40px; background-color: #111111; color: #ffffff; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 18px;"">
                 Access My Clips
             </a>
         </div>

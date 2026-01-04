@@ -74,16 +74,21 @@ else
 builder.Services.AddScoped<IVisionService, OpenAIVisionService>();
 builder.Services.AddHttpClient<OpenAIVisionService>(); // Best practice for HttpClient injection
 
-// Configure R2 (via AWS SDK)
-var r2Options = builder.Configuration.GetAWSOptions();
-r2Options.Credentials = new Amazon.Runtime.BasicAWSCredentials(
-    builder.Configuration["R2:AccessKeyId"], 
-    builder.Configuration["R2:SecretAccessKey"]);
-r2Options.Region = Amazon.RegionEndpoint.USEast1; // R2 requires a region, usually ignored or auto
-r2Options.DefaultClientConfig.ServiceURL = $"https://{builder.Configuration["R2:AccountId"]}.r2.cloudflarestorage.com";
-
-builder.Services.AddDefaultAWSOptions(r2Options);
-builder.Services.AddAWSService<IAmazonS3>();
+// Configure R2 manually to ensure ForcePathStyle and correct ServiceURL
+builder.Services.AddSingleton<IAmazonS3>(sp => 
+{
+    var r2Config = new AmazonS3Config
+    {
+        ServiceURL = $"https://{builder.Configuration["R2:AccountId"]}.r2.cloudflarestorage.com",
+        ForcePathStyle = true
+    };
+    
+    var creds = new Amazon.Runtime.BasicAWSCredentials(
+        builder.Configuration["R2:AccessKeyId"], 
+        builder.Configuration["R2:SecretAccessKey"]);
+        
+    return new AmazonS3Client(creds, r2Config);
+});
 builder.Services.AddScoped<IStorageService, R2StorageService>();
 builder.Services.AddScoped<IPurchaseRepository, PurchaseRepository>();
 builder.Services.AddScoped<ISettingsRepository, SettingsRepository>();
