@@ -59,7 +59,7 @@ window.muxUpload = {
                     try {
                         // --- Upload Logic Start ---
                         uppy.info(`Uploading ${file.name} to server...`, 'info', 0);
-                        const startTime = performance.now();
+                        const startTime = Date.now();
 
                         // Create FormData
                         if (!uploadInfo || !uploadInfo.eventId) {
@@ -71,6 +71,7 @@ window.muxUpload = {
                         formData.append('eventId', uploadInfo.eventId);
                         formData.append('masterFileName', file.name);
                         formData.append('priceCents', uploadInfo.priceCents);
+                        formData.append('priceCommercialCents', uploadInfo.priceCommercialCents);
                         formData.append('userId', uploadInfo.userId);
 
                         // Capture Modified Date
@@ -86,7 +87,7 @@ window.muxUpload = {
                             // Mark file as uploading
                             uppy.setFileState(id, {
                                 progress: {
-                                    uploadStarted: Date.now(),
+                                    uploadStarted: startTime,
                                     uploadComplete: false,
                                     percentage: 0,
                                     bytesUploaded: 0,
@@ -120,7 +121,7 @@ window.muxUpload = {
                                 if (xhr.status >= 200 && xhr.status < 300) {
                                     const response = JSON.parse(xhr.responseText);
                                     uppy.setFileState(id, {
-                                        progress: { uploadComplete: true, uploadStarted: Date.now(), percentage: 100 }
+                                        progress: { uploadComplete: true, uploadStarted: startTime, percentage: 100 }
                                     });
                                     uppy.emit('upload-success', file, {
                                         clipId: response.clipId,

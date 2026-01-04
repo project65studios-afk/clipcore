@@ -38,6 +38,7 @@ public class VideoCompressionController : ControllerBase
         [FromForm] string? eventId,
         [FromForm] string? masterFileName,
         [FromForm] int priceCents,
+        [FromForm] int priceCommercialCents,
         [FromForm] string? userId,
         [FromForm] string? lastModified = null)
     {
@@ -206,6 +207,7 @@ public class VideoCompressionController : ControllerBase
                     EventId = eventId,
                     Title = file.FileName,
                     PriceCents = priceCents,
+                    PriceCommercialCents = priceCommercialCents,
                     MuxUploadId = uploadId,
                     MasterFileName = null, // No R2 master for standard event uploads
                     ThumbnailFileName = $"thumbnails/{thumbName}"
