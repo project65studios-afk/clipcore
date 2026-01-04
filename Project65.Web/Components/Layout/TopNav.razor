@@ -92,7 +92,6 @@
                         </Authorized>
                     </AuthorizeView>
                     <a href="/my-purchases" class="btn-secondary" style="padding: 0.5rem 1rem; font-size: 0.9rem; white-space: nowrap;">My Purchases</a>
-                    <a href="/Account/Manage" class="btn-secondary" style="padding: 0.5rem 1rem; font-size: 0.9rem; white-space: nowrap;">Manage Account</a>
                     <form action="/Account/Logout" method="post" style="display:inline; width: 100%;">
                         <AntiforgeryToken />
                         <input type="hidden" name="ReturnUrl" value="@("/" + Navigation.ToBaseRelativePath(Navigation.BaseUri))" />
