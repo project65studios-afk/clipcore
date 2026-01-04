@@ -122,6 +122,7 @@ builder.Services.AddScoped<Project65.Web.Services.CartService>();
 builder.Services.AddScoped<Project65.Web.Services.StoreSettingsService>();
 builder.Services.AddScoped<Project65.Web.Services.SummaryGenerationService>();
 builder.Services.AddScoped<IInvoiceService, QuestPdfInvoiceService>();
+builder.Services.AddScoped<Project65.Web.Services.OrderFulfillmentService>();
 builder.Services.AddSingleton<Project65.Web.Services.VideoHealingService>();
 
 // Configure QuestPDFLicense
@@ -154,7 +155,7 @@ builder.Services.AddRateLimiter(options =>
                 factory: _ => new FixedWindowRateLimiterOptions
                 {
                     AutoReplenishment = true,
-                    PermitLimit = 10,
+                    PermitLimit = 60,
                     QueueLimit = 0,
                     Window = TimeSpan.FromMinutes(1)
                 });

@@ -61,7 +61,11 @@ namespace Project65.Infrastructure.Services
                     BucketName = _bucketName,
                     Key = fileName,
                     Expires = DateTime.UtcNow.AddMinutes(durationMinutes),
-                    Verb = HttpVerb.GET
+                    Verb = HttpVerb.GET,
+                    ResponseHeaderOverrides = new ResponseHeaderOverrides
+                    {
+                        ContentDisposition = $"attachment; filename=\"{System.IO.Path.GetFileName(fileName)}\""
+                    }
                 };
 
                 var url = _s3Client.GetPreSignedURL(request);

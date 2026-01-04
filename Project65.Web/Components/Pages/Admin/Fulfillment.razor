@@ -78,15 +78,8 @@
                                         </div>
                                     </div>
                                     <div class="col-md-8 text-md-end mt-2 mt-md-0">
-                                        <div class="d-flex justify-content-md-end gap-3 text-start text-md-end align-items-center">
-                                            
                                             <!-- Order Completion Logic -->
-                                            @{
-                                                var allFilesUploaded = order.All(p => !string.IsNullOrEmpty(p.Clip?.MasterFileName) || !string.IsNullOrEmpty(p.ClipMasterFileName));
-                                                var isFullyFulfilled = order.All(p => p.FulfillmentStatus == FulfillmentStatus.Fulfilled);
-                                            }
-
-                                            @if (isFullyFulfilled)
+                                            @if (order.All(p => p.FulfillmentStatus == FulfillmentStatus.Fulfilled))
                                             {
                                                 <!-- Ready / Copy Link -->
                                                 <div class="d-flex align-items-center gap-2 bg-dark border border-secondary-subtle rounded px-2 py-1">
@@ -105,7 +98,7 @@
                                                     </div>
                                                 </div>
                                             }
-                                            else if (allFilesUploaded)
+                                            else if (order.All(p => !string.IsNullOrEmpty(p.ClipMasterFileName)))
                                             {
                                                 <!-- Action Button -->
                                                 <button class="btn btn-success btn-sm shadow-sm" @onclick="() => CompleteOrder(order.ToList())">
@@ -116,6 +109,12 @@
                                             {
                                                 <!-- Action Buttons -->
                                                 <div class="d-flex gap-2">
+                                                    @if (order.Any(p => string.IsNullOrEmpty(p.ClipMasterFileName) && p.Clip != null && !string.IsNullOrEmpty(p.Clip.MasterFileName)))
+                                                    {
+                                                        <button class="btn btn-warning btn-sm shadow-sm text-dark" @onclick="() => SyncOrderFiles(order.ToList())">
+                                                            <i class="bi bi-arrow-repeat me-1"></i> Sync from Global
+                                                        </button>
+                                                    }
                                                     <button class="btn btn-primary btn-sm shadow-sm" @onclick="() => OpenBulkUploadModal(order.ToList())">
                                                         <i class="bi bi-cloud-upload me-1"></i> Fulfill All
                                                     </button>
@@ -169,7 +168,6 @@
                                         </div>
                                     </div>
                                 </div>
-                             </div>
 
                              <!-- Items Table -->
                              <div class="table-responsive bg-transparent">
@@ -263,6 +261,12 @@
                                                             </div>
                                                         }
                                                     }
+                                                    else if (!string.IsNullOrEmpty(p.ClipMasterFileName))
+                                                    {
+                                                        <span class="badge bg-info text-dark rounded-pill px-3 border border-info-subtle">
+                                                            <i class="bi bi-cloud-check me-1"></i> Ready
+                                                        </span>
+                                                    }
                                                     else
                                                     {
                                                         <span class="badge bg-warning bg-opacity-25 text-warning border border-warning-subtle rounded-pill px-3">
@@ -333,7 +337,9 @@
                         <div class="alert alert-info bg-info bg-opacity-10 border-0 text-info rounded-0 m-0 small py-2">
                             <i class="bi bi-info-circle me-2"></i>
                             <strong>System will automatically match files to items:</strong> 
-                            @(string.Join(", ", _currentOrderPurchases.Select(p => p.ClipMasterFileName ?? p.Clip?.MasterFileName ?? p.ClipTitle ?? p.Clip?.Title ?? "Unknown")))
+                            @(string.Join(", ", _currentOrderPurchases.Select(p => 
+                                System.IO.Path.GetFileName((p.ClipMasterFileName ?? p.Clip?.MasterFileName ?? p.ClipTitle ?? p.Clip?.Title ?? "Unknown").Replace("\\", "/"))
+                            )))
                         </div>
                     }
                     else
@@ -341,7 +347,13 @@
                         <div class="p-3 border-bottom border-secondary bg-black bg-opacity-25">
                             <label class="form-label text-muted small text-uppercase fw-bold m-0">Expected Filename</label>
                             <div class="p-2 bg-black rounded border border-secondary mt-1">
-                                <code class="text-info">@(_selectedPurchase?.Clip?.MasterFileName ?? _selectedPurchase?.ClipMasterFileName ?? "No filename tracked")</code>
+                                <code class="text-info">
+                                    @{
+                                        var rawName = _selectedPurchase?.Clip?.MasterFileName ?? _selectedPurchase?.ClipMasterFileName ?? "No filename tracked";
+                                        var fileNameOnly = System.IO.Path.GetFileName(rawName.Replace("\\", "/"));
+                                    }
+                                    @fileNameOnly
+                                </code>
                             </div>
                             <label class="form-label text-muted small text-uppercase fw-bold m-0 mt-3">Expected Clip Title</label>
                             <div class="p-2 bg-black rounded border border-secondary mt-1">
@@ -493,7 +505,8 @@
                     !_uploadToPurchaseMap.Values.Contains(p.Id) &&
                     (string.Equals(p.ClipMasterFileName, fileName, StringComparison.OrdinalIgnoreCase) ||
                      string.Equals(p.Clip?.MasterFileName, fileName, StringComparison.OrdinalIgnoreCase) ||
-                     (p.ClipMasterFileName != null && string.Equals(System.IO.Path.GetFileName(p.ClipMasterFileName.Replace("\\", "/")), fileName, StringComparison.OrdinalIgnoreCase))));
+                     (p.ClipMasterFileName != null && string.Equals(System.IO.Path.GetFileName(p.ClipMasterFileName.Replace("\\", "/")), fileName, StringComparison.OrdinalIgnoreCase)) ||
+                     (p.Clip?.MasterFileName != null && string.Equals(System.IO.Path.GetFileName(p.Clip.MasterFileName.Replace("\\", "/")), fileName, StringComparison.OrdinalIgnoreCase))));
             }
 
             if (target == null)
@@ -563,12 +576,12 @@
                  }
              }
 
-             // 2. Update PURCHASE
-             purchase.FulfillmentStatus = FulfillmentStatus.Fulfilled;
-             purchase.FulfilledAt = DateTime.UtcNow;
+             // 2. Update PURCHASE (But kept as Pending until Admin explicitly completes)
+             // purchase.FulfillmentStatus = FulfillmentStatus.Fulfilled; // REMOVED
+             // purchase.FulfilledAt = DateTime.UtcNow; // REMOVED
              purchase.ClipMasterFileName = key;
              
-             // Ensure download link is set
+             // Ensure download link is set for preview/admin use
              var deliveryLink = $"{Navigation.BaseUri}delivery/{purchase.StripeSessionId}";
              purchase.HighResDownloadUrl = deliveryLink;
 
@@ -588,15 +601,9 @@
                  purchase.StripeSessionId, 
                  $"Item fulfilled via bulk upload: {fileName}");
 
-             if (_currentOrderPurchases != null && _currentOrderPurchases.All(p => p.FulfillmentStatus == FulfillmentStatus.Fulfilled))
-             {
-                 await CompleteOrder(_currentOrderPurchases);
-             }
-             else 
-             {
-                 // Don't reload everything yet, just refresh UI state
-                 StateHasChanged();
-             }
+             // Auto-complete logic removed per user request.
+             // Admin must explicitly review and click "Complete Order".
+             StateHasChanged();
         }
     }
 
@@ -608,6 +615,50 @@
     }
     
     // --- New Order Logic ---
+    private async Task SyncOrderFiles(List<Purchase> order)
+    {
+        var orderIdDisplay = !string.IsNullOrEmpty(order.First().StripeSessionId) 
+            ? (order.First().StripeSessionId.Length > 8 ? order.First().StripeSessionId.Substring(order.First().StripeSessionId.Length - 8).ToUpper() : order.First().StripeSessionId.ToUpper())
+            : "N/A";
+
+        int syncedCount = 0;
+        foreach (var p in order)
+        {
+            if (string.IsNullOrEmpty(p.ClipMasterFileName) && p.Clip != null && !string.IsNullOrEmpty(p.Clip.MasterFileName))
+            {
+                // Logic to "Sync" (Copy) Global File -> Order File
+                var originalFileName = System.IO.Path.GetFileName(p.Clip.MasterFileName.Replace("\\", "/"));
+                var folderName = orderIdDisplay;
+                var newKey = $"{folderName}/{originalFileName}";
+
+                try 
+                {
+                    if (!await StorageService.FileExistsAsync(newKey))
+                    {
+                        await StorageService.CopyFileAsync(p.Clip.MasterFileName, newKey);
+                    }
+                    p.ClipMasterFileName = newKey;
+                    await PurchaseRepository.UpdateAsync(p);
+                    syncedCount++;
+                }
+                catch (Exception)
+                {
+                    // Log fail but continue
+                }
+            }
+        }
+
+        if (syncedCount > 0)
+        {
+             await JSRuntime.InvokeVoidAsync("alert", $"Successfully synced {syncedCount} files to order folder.");
+             await LoadDataAsync();
+        }
+        else
+        {
+             await JSRuntime.InvokeVoidAsync("alert", "No new files were synced. Items might already be synced or source files are missing.");
+        }
+    }
+
     private async Task ConfirmAndResendEmail(List<Purchase> order)
     {
         var firstItem = order.First();
@@ -628,28 +679,32 @@
             ? (firstItem.StripeSessionId.Length > 8 ? firstItem.StripeSessionId.Substring(firstItem.StripeSessionId.Length - 8).ToUpper() : firstItem.StripeSessionId.ToUpper())
             : "N/A";
 
+        // 1. Strict Validation (Only for new completion, not resends)
+        if (!isManualResend)
+        {
+            var pendingItems = order.Where(p => string.IsNullOrEmpty(p.ClipMasterFileName)).ToList();
+            if (pendingItems.Any())
+            {
+                await JSRuntime.InvokeVoidAsync("alert", $"Cannot complete order: {pendingItems.Count} items are missing files. Please Sync or Upload files first.");
+                return;
+            }
+
+            var confirmed = await JSRuntime.InvokeAsync<bool>("confirm", $"Are you sure you want to complete Order #{orderIdDisplay} and send the email to {customerEmail}?");
+            if (!confirmed) return;
+        }
+
         foreach (var p in order)
         {
             if (p.FulfillmentStatus == FulfillmentStatus.Pending || string.IsNullOrEmpty(p.HighResDownloadUrl) || isManualResend)
             {
-                // Auto-copy logic
-                if (p.Clip != null && !string.IsNullOrEmpty(p.Clip.MasterFileName) && string.IsNullOrEmpty(p.ClipMasterFileName))
+                // Strict Safety Check: Do not mark fulfilled if file is missing
+                if (string.IsNullOrEmpty(p.ClipMasterFileName))
                 {
-                    var originalFileName = System.IO.Path.GetFileName(p.Clip.MasterFileName.Replace("\\", "/"));
-                    // Use Order ID folder structure
-                    var folderName = orderIdDisplay;
-                    var newKey = $"{folderName}/{originalFileName}";
-
-                    if (!await StorageService.FileExistsAsync(newKey))
-                    {
-                        await StorageService.CopyFileAsync(p.Clip.MasterFileName, newKey);
-                    }
-                    p.ClipMasterFileName = newKey; // Update to the order-specific path
+                    continue; // Skip this item, it's not ready
                 }
 
                 p.FulfillmentStatus = FulfillmentStatus.Fulfilled;
                 p.FulfilledAt ??= DateTime.UtcNow;
-                // Save the dynamic link as the fallback
                 p.HighResDownloadUrl = deliveryLink;
                 await PurchaseRepository.UpdateAsync(p);
             }

@@ -101,7 +101,7 @@
                 <NotAuthorized>
                         <a href="/faq" class="btn-secondary" style="padding: 0.5rem 1rem; font-size: 0.9rem; white-space: nowrap; margin-right: 0.5rem;" title="Frequently Asked Questions">FAQ</a>
                         <a href="/order-lookup" class="btn-secondary" style="padding: 0.5rem 1rem; font-size: 0.9rem; white-space: nowrap; margin-right: 0.5rem;">Find Order</a>
-                        <a href="/Account/Login" class="btn-secondary" style="padding: 0.5rem 1rem; font-size: 0.9rem; white-space: nowrap;">Login</a>
+                        <button @onclick="NavigateToLogin" class="btn-secondary" style="padding: 0.5rem 1rem; font-size: 0.9rem; white-space: nowrap; background: none; border: 1px solid var(--border-color); color: var(--text-primary); cursor: pointer;">Login</button>
                 </NotAuthorized>
             </AuthorizeView>
             @CartButton
@@ -192,6 +192,11 @@
         _brandLogoUrl = await StoreSettingsService.GetBrandLogoUrlAsync();
         _storeName = await StoreSettingsService.GetStoreNameAsync();
         await InvokeAsync(StateHasChanged);
+    }
+
+    private void NavigateToLogin()
+    {
+        Navigation.NavigateTo("/Account/Login", forceLoad: true);
     }
 
     public void Dispose()

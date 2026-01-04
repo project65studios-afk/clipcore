@@ -40,9 +40,12 @@ public class EmailTemplateService
 
         var itemRows = string.Join("\n", items.Select(i => {
             string thumbUrl = "https://via.placeholder.com/80?text=Clip";
-            if (!string.IsNullOrEmpty(i.ClipThumbnailFileName))
+            // Fallback to global Clip thumbnail if order-specific one is not yet set (common in Receipt email)
+            var thumbFile = !string.IsNullOrEmpty(i.ClipThumbnailFileName) ? i.ClipThumbnailFileName : i.Clip?.ThumbnailFileName;
+            
+            if (!string.IsNullOrEmpty(thumbFile))
             {
-                var cleanName = i.ClipThumbnailFileName.TrimStart('/');
+                var cleanName = thumbFile.TrimStart('/');
                 var storageKey = cleanName.StartsWith("thumbnails/") 
                     ? cleanName 
                     : $"thumbnails/{cleanName}";
@@ -195,9 +198,12 @@ public class EmailTemplateService
         
         var itemRows = string.Join("\n", items.Select(i => {
             string? thumbUrl = null;
-            if (!string.IsNullOrEmpty(i.ClipThumbnailFileName))
+            // Fallback to global Clip thumbnail
+            var thumbFile = !string.IsNullOrEmpty(i.ClipThumbnailFileName) ? i.ClipThumbnailFileName : i.Clip?.ThumbnailFileName;
+
+            if (!string.IsNullOrEmpty(thumbFile))
             {
-                var cleanName = i.ClipThumbnailFileName.TrimStart('/');
+                var cleanName = thumbFile.TrimStart('/');
                 var storageKey = cleanName.StartsWith("thumbnails/") 
                     ? cleanName 
                     : $"thumbnails/{cleanName}";

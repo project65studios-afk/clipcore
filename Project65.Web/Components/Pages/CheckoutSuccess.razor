@@ -12,6 +12,7 @@
 @inject IPromoCodeRepository PromoCodeRepository
 @inject IAuditService AuditService
 @inject Project65.Web.Services.EmailTemplateService EmailTemplateService
+@inject Project65.Web.Services.OrderFulfillmentService OrderFulfillmentService
 @inject IStorageService StorageService
 
 <style>
@@ -293,124 +294,16 @@
     {
         try
         {
-            // 0. Check for existing processing (Idempotency)
-            var existingPurchases = await PurchaseRepository.GetBySessionIdAsync(SessionId!);
-            if (existingPurchases.Any())
-            {
-                _purchases = existingPurchases;
-                _success = true;
-                _isValidating = false;
-                StateHasChanged();
-                return;
-            }
-
-            // 1. Get Purchases from Stripe Session
-            var purchases = (await PaymentService.GetPurchasesFromSessionAsync(SessionId!)).ToList();
+            // 1. Process Order via Service
+            _purchases = await OrderFulfillmentService.FulfillOrderAsync(SessionId!);
             
-            if (purchases.Any())
+            if (_purchases.Any())
             {
-                // 2. Identify User
-                var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
-                var user = authState.User;
-                string? userId = null;
-
-                if (user.Identity != null && user.Identity.IsAuthenticated)
-                {
-                    userId = user.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
-                }
-
-                // Use standard 8-char suffix of Stripe Session ID for Order ID
-                var shortOrderId = !string.IsNullOrEmpty(SessionId) && SessionId.Length >= 8
-                    ? SessionId.Substring(SessionId.Length - 8).ToUpper()
-                    : Guid.NewGuid().ToString("N").Substring(0, 8).ToUpper(); // Fallback
-                
-                foreach (var p in purchases)
-                {
-                    if (p.UserId == null) p.UserId = userId; 
-                    
-                    // Only check duplication if we have a userId and ClipId
-                    bool shouldAdd = true;
-                    if (!string.IsNullOrEmpty(p.UserId) && !string.IsNullOrEmpty(p.ClipId))
-                    {
-                         if (await PurchaseRepository.HasPurchasedAsync(p.UserId, p.ClipId, p.LicenseType))
-                         {
-                             shouldAdd = false;
-                         }
-                    }
-
-                    if (shouldAdd && !string.IsNullOrEmpty(p.ClipId))
-                    {
-                        p.FulfillmentStatus = FulfillmentStatus.Pending;
-                        p.StripeSessionId = SessionId!;
-                        p.OrderId = shortOrderId; 
-                        p.CreatedAt = DateTime.UtcNow;
-
-                        // Healing Snapshots: If Stripe metadata failed but clip exists in DB, populate snapshots
-                        var dbClip = await ClipRepository.GetByIdAsync(p.ClipId!);
-                        if (dbClip != null)
-                        {
-                            if (string.IsNullOrEmpty(p.ClipTitle)) p.ClipTitle = dbClip.Title;
-                            if (string.IsNullOrEmpty(p.EventName)) p.EventName = dbClip.Event?.Name ?? "Event Name Missing in DB";
-                            if (!p.EventDate.HasValue) p.EventDate = dbClip.Event?.Date;
-                            if (!p.ClipRecordingStartedAt.HasValue) p.ClipRecordingStartedAt = dbClip.RecordingStartedAt;
-                            if (!p.ClipDurationSec.HasValue) p.ClipDurationSec = dbClip.DurationSec;
-                            if (string.IsNullOrEmpty(p.ClipMasterFileName)) p.ClipMasterFileName = dbClip.MasterFileName;
-                            if (string.IsNullOrEmpty(p.ClipThumbnailFileName)) p.ClipThumbnailFileName = dbClip.ThumbnailFileName;
-                            if (string.IsNullOrEmpty(p.ClipThumbnailFileName)) p.ClipThumbnailFileName = dbClip.ThumbnailFileName;
-                        }
-                        else 
-                        {
-                            // Clip not found in DB
-                        }
-
-                        await PurchaseRepository.AddAsync(p);
-                    }
-                }
-
-                _purchases = purchases;
-                _success = true;
-
-                // 3. Clear Cart
+                // 3. Clear Cart (UI Specific)
                 await CartService.InitializeAsync();
                 await CartService.ClearAsync();
 
-                // 4. Handle Promo Code Usage
-                var promoId = await PaymentService.GetPromoCodeIdFromSessionAsync(SessionId!);
-                if (promoId.HasValue)
-                {
-                    await PromoCodeRepository.IncrementUsageAsync(promoId.Value);
-                    var promo = await PromoCodeRepository.GetByIdAsync(promoId.Value);
-                    await AuditService.LogActionAsync(
-                        userId, 
-                        null, 
-                        "Apply Promo Code", 
-                        "PromoCode", 
-                        promoId.Value.ToString(), 
-                        $"Code: {promo?.Code ?? "Unknown"} used in order {SessionId}");
-                }
-
-                // 5. Send Branded Email Receipt
-                try
-                {
-                    // UPDATE: Use dynamic subject
-                    var subject = $"{_storeName ?? "Project65"} Order Receipt";
-                    var customerEmail = await PaymentService.GetCustomerEmailFromSessionAsync(SessionId!) ?? "customer@example.com";
-                    var customerName = _purchases.FirstOrDefault()?.CustomerName ?? "Customer";
-                    
-                    var htmlBody = await EmailTemplateService.GenerateOrderReceiptHtmlAsync(shortOrderId, _purchases, customerName);
-                    await EmailService.SendEmailAsync(customerEmail, subject, htmlBody);
-                }
-                catch (Exception)
-                {
-                    // Log the error but don't fail the whole page - the user already paid!
-                    await AuditService.LogActionAsync(
-                        userId,
-                        null,
-                        "Email Receipt Failed",
-                        "Email",
-                        SessionId,
-                        $"Error: Receipt email failed");
-                }
+                _success = true;
             }
         }
         catch (Exception)

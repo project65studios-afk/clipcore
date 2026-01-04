@@ -1,5 +1,5 @@
 @page "/delivery/{OrderId}"
-@implements IAsyncDisposable
+
 @using Project65.Core.Entities
 @using Project65.Core.Interfaces
 @inject IPurchaseRepository PurchaseRepository
@@ -17,9 +17,9 @@
             
             <div class="text-center mb-5">
                 <h1 class="display-5 fw-bold mb-3">Your Order is Ready</h1>
-                <p class="lead text-muted">
+                <p class="lead" style="color: var(--text-main); font-weight: 500;">
                     Below are the high-resolution master files for your order. 
-                    <br><span class="small"><i class="bi bi-shield-lock me-1"></i> For security, these download links are temporary. If a link expires, simply **reload this page** to generate new ones.</span>
+                    <br><span class="small" style="color: var(--text-secondary); opacity: 0.9;"><i class="bi bi-shield-lock me-1"></i> For security, these download links are temporary. If a link expires, simply **reload this page** to generate new ones.</span>
                 </p>
                 <div class="d-flex justify-content-center align-items-center gap-2 mt-3">
                     <div class="badge bg-dark text-secondary border border-secondary px-3 py-2 rounded-pill">
@@ -51,11 +51,6 @@
                     <div class="card-header bg-primary text-white p-4 text-center border-0">
                         <i class="bi bi-cloud-download fs-1 mb-2"></i>
                         <h5 class="mb-0">@_items.Count Files Available</h5>
-                        @if (_items.Count > 1)
-                        {
-                            <button class="btn btn-light btn-sm ms-3 fw-bold text-primary shadow-sm" @onclick="DownloadAll">
-                                <i class="bi bi-collection me-1"></i> Download All
-                            </button>
                         }
                     </div>
                     <div class="list-group list-group-flush">
@@ -64,7 +59,7 @@
                             <div class="list-group-item p-4 border-bottom-0 border-top border-secondary">
                                 <div class="d-flex align-items-center justify-content-between">
                                     <div class="me-3 overflow-hidden">
-                                        <h5 class="mb-1 text-truncate">@(item.Clip?.Title ?? item.Purchase.ClipTitle ?? "Deleted Clip")</h5>
+                                        <h5 class="mb-1 text-truncate" style="color: var(--text-main);">@(item.Clip?.Title ?? item.Purchase.ClipTitle ?? "Deleted Clip")</h5>
                                         @if (item.Clip?.Event != null)
                                         {
                                             <span class="badge bg-dark text-info border border-info-subtle">@item.Clip.Event.Name</span>
@@ -90,7 +85,7 @@
                             </div>
                         }
                     </div>
-                    <div class="card-footer bg-transparent p-4 text-center text-muted small border-top border-secondary">
+                    <div class="card-footer bg-transparent p-4 text-center small border-top border-secondary" style="color: var(--text-secondary);">
                         Need help? Contact support with your Order ID.
                     </div>
                 </div>
@@ -101,15 +96,12 @@
 </div>
 
 @code {
-    [Inject] IJSRuntime JSRuntime { get; set; } = default!;
-
     [Parameter]
     public string OrderId { get; set; } = "";
 
     private List<DeliveryItem>? _items;
     private bool _isLoading = true;
     private string? _storeName;
-    private IJSObjectReference? _jsModule;
 
     private class DeliveryItem
     {
@@ -136,10 +128,10 @@
 
         try
         {
-            // Fetch all purchases for this Order ID (StripeSessionId)
-            var allPurchases = await PurchaseRepository.ListAsync();
-            var orderPurchases = allPurchases
-                .Where(p => p.StripeSessionId == OrderId && p.FulfillmentStatus == FulfillmentStatus.Fulfilled)
+            // Fetch all purchases for this Order ID (StripeSessionId) using optimized query
+            var orderPurchases = await PurchaseRepository.GetBySessionIdAsync(OrderId);
+            orderPurchases = orderPurchases
+                .Where(p => p.FulfillmentStatus == FulfillmentStatus.Fulfilled)
                 .ToList();
 
             if (orderPurchases.Any())
@@ -148,19 +140,44 @@
 
                 foreach (var p in orderPurchases)
                 {
-                    if (p.Clip != null && !string.IsNullOrEmpty(p.Clip.MasterFileName))
+                    // 1. Determine the best file key to use
+                    string? targetKey = null;
+
+                    // Priority A: Order-specific file
+                    if (!string.IsNullOrEmpty(p.ClipMasterFileName))
                     {
-                        var url = StorageService.GetPresignedDownloadUrl(p.Clip.MasterFileName);
+                        targetKey = p.ClipMasterFileName;
+                        // Console.WriteLine($"[Delivery] Using order file: {targetKey}");
+                    }
+                    else
+                    {
+                        // Priority B: Fallback (Legacy Only)
+                        // Only use global file if it was fulfilled before the folder system was strictly enforced
+                        // OR if we failed to copy the file.
+                        // We prefer to fail safe (show "Processing") than show a potentially wrong file if the copy failed.
+                        
+                        if (p.Clip != null && !string.IsNullOrEmpty(p.Clip.MasterFileName))
+                        {
+                            // Optional: Could log a warning here that we are falling back
+                             targetKey = p.Clip.MasterFileName;
+                        }
+                    }
+
+                    if (targetKey != null)
+                    {
+                        var url = StorageService.GetPresignedDownloadUrl(targetKey);
+                        if (string.IsNullOrEmpty(url)) Console.WriteLine($"[Delivery] Generated empty URL for key {targetKey}");
+                        
                         _items.Add(new DeliveryItem
                         {
                             Purchase = p,
-                            Clip = p.Clip,
+                            Clip = p.Clip ?? new Clip { Title = p.ClipTitle ?? "Video Clip" },
                             DownloadUrl = url
                         });
                     }
                     else if (!string.IsNullOrEmpty(p.HighResDownloadUrl))
                     {
-                         // Fallback to manual link if set
+                         // Fallback to manual link if set and no file key found
                         _items.Add(new DeliveryItem
                         {
                             Purchase = p,
@@ -168,56 +185,18 @@
                             DownloadUrl = p.HighResDownloadUrl
                         });
                     }
-                    else if (p.Clip == null && !string.IsNullOrEmpty(p.HighResDownloadUrl)) // Redundant but safe
-                    {
-                        _items.Add(new DeliveryItem
-                        {
-                            Purchase = p,
-                            Clip = new Clip { Title = p.ClipTitle ?? "Video Clip" },
-                            DownloadUrl = p.HighResDownloadUrl
-                        });
-                    }
                 }
             }
         }
-        catch (Exception)
+        catch (Exception ex)
         {
+            Console.WriteLine($"[Delivery] Error loading order: {ex.Message}");
             // Error loading delivery
             _isLoading = false;
         }
         finally
         {
             _isLoading = false;
-        }
-    }
-    
-    protected override async Task OnAfterRenderAsync(bool firstRender)
-    {
-        if (firstRender)
-        {
-            try 
-            {
-                _jsModule = await JSRuntime.InvokeAsync<IJSObjectReference>("import", "./js/download.js");
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error loading download.js: {ex.Message}");
-            }
-        }
-    }
-    
-    private async Task DownloadAll()
-    {
-        if (_items == null || !_items.Any() || _jsModule == null) return;
-        
-        var urls = _items
-            .Where(i => !string.IsNullOrEmpty(i.DownloadUrl))
-            .Select(i => i.DownloadUrl)
-            .ToList();
-            
-        if (urls.Any())
-        {
-            await _jsModule.InvokeVoidAsync("downloadFiles", urls);
         }
     }
     
@@ -238,13 +217,5 @@
     public void Dispose()
     {
         StoreSettingsService.OnChange -= HandleSettingsChange;
-    }
-
-    public async ValueTask DisposeAsync()
-    {
-        if (_jsModule != null)
-        {
-            await _jsModule.DisposeAsync();
-        }
     }
 }
