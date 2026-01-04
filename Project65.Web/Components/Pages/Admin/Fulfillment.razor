@@ -733,16 +733,18 @@
                 var htmlBody = await EmailTemplateService.GenerateFulfillmentEmailHtmlAsync(orderIdDisplay, order, customerName);
 
                 await EmailService.SendEmailAsync(customerEmail, $"Your Video Order is Ready! (#{orderIdDisplay})", htmlBody);
+                
+                if (isManualResend)
+                {
+                    await JSRuntime.InvokeVoidAsync("alert", $"Email sent successfully to {customerEmail}!");
+                }
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                // Silent catch or use proper logging if available
+                var errorMsg = $"Failed to send fulfillment email to {customerEmail}: {ex.Message}";
+                await AuditService.LogActionAsync(userIdFinal, userEmailFinal, "Email Error", "Order", firstItem.StripeSessionId, errorMsg);
+                await JSRuntime.InvokeVoidAsync("alert", "⚠️ ERROR: " + errorMsg + "\n\nIf you are in AWS SES Sandbox, the destination email MUST be a verified identity.");
             }
-        }
-
-        if (isManualResend && !string.IsNullOrEmpty(customerEmail))
-        {
-             await JSRuntime.InvokeVoidAsync("alert", $"Email sent successfully to {customerEmail}!");
         }
         
         // Switch to "Fulfilled" tab to show the result

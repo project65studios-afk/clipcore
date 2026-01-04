@@ -16,7 +16,6 @@ public class ClipRepository : IClipRepository
     public async Task<Clip?> GetByIdAsync(string id)
     {
         return await _context.Clips
-            .AsNoTracking()
             .Include(c => c.Event)
             .FirstOrDefaultAsync(c => c.Id == id);
     }

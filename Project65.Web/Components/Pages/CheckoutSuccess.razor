@@ -1,4 +1,5 @@
 @page "/checkout/success"
+@rendermode RenderMode.InteractiveServer
 @using Project65.Core.Entities
 @using Project65.Core.Interfaces
 @using Project65.Infrastructure.Data.Repositories
@@ -217,9 +218,15 @@
         <div style="padding: 6rem 2rem; text-align: center;">
             <div style="font-size: 4rem; margin-bottom: 1.5rem;">⚠️</div>
             <h2 class="fw-bold mb-3">Verification Error</h2>
-            <p class="text-secondary mb-5">
+            <p class="text-secondary mb-2">
                  We're having trouble verifying your payment session. If you received a confirmation from Stripe, don't worry—your order is safe.
             </p>
+            @if (!string.IsNullOrEmpty(_errorMessage))
+            {
+                <div class="alert alert-danger mb-5 small py-2">
+                    <i class="bi bi-exclamation-triangle me-2"></i> @(_errorMessage)
+                </div>
+            }
             <div class="d-grid">
                 <a href="/cart" class="btn-secondary py-3">Return to Cart</a>
             </div>
@@ -290,6 +297,8 @@
         }
     }
 
+    private string? _errorMessage;
+
     private async Task ProcessOrderAsync()
     {
         try
@@ -305,10 +314,16 @@
 
                 _success = true;
             }
+            else
+            {
+                _errorMessage = "No purchases found in this session.";
+            }
         }
-        catch (Exception)
+        catch (Exception ex)
         {
             _success = false;
+            _errorMessage = ex.Message + (ex.InnerException != null ? " -> " + ex.InnerException.Message : "");
+            Console.WriteLine($"[CHECKOUT ERROR] {ex}");
         }
         finally
         {
