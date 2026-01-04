@@ -39,7 +39,7 @@ public class EmailTemplateService
         var orderDate = firstItem?.CreatedAt.ToString("yyyy-MM-dd") ?? DateTime.UtcNow.ToString("yyyy-MM-dd");
 
         var itemRows = string.Join("\n", items.Select(i => {
-            string thumbUrl = "https://via.placeholder.com/80?text=Clip";
+            string? thumbUrl = null;
             // Fallback to global Clip thumbnail if order-specific one is not yet set (common in Receipt email)
             var thumbFile = !string.IsNullOrEmpty(i.ClipThumbnailFileName) ? i.ClipThumbnailFileName : i.Clip?.ThumbnailFileName;
             
@@ -52,10 +52,16 @@ public class EmailTemplateService
                 thumbUrl = _storageService.GetPresignedDownloadUrl(storageKey);
             }
 
+            var imgHtml = !string.IsNullOrEmpty(thumbUrl) 
+                ? $@"<img src=""{thumbUrl}"" alt=""{i.ClipTitle}"" style=""width: 80px; height: 80px; object-fit: cover; border-radius: 4px; display: block; background-color: #333;"" />"
+                : $@"<div style=""width: 80px; height: 80px; background-color: #f1f5f9; border-radius: 4px; border: 1px solid #e2e8f0; display: table-cell; vertical-align: middle; text-align: center;"">
+                        <span style=""font-size: 24px; color: #cbd5e1;"">📹</span>
+                     </div>";
+
             return $@"
             <tr style=""border-bottom: 1px solid #eeeeee;"">
                 <td style=""padding: 20px 0; width: 80px; vertical-align: top;"">
-                    <img src=""{thumbUrl}"" alt=""{i.ClipTitle}"" style=""width: 80px; height: 80px; object-fit: cover; border-radius: 4px;"" />
+                    {imgHtml}
                 </td>
                 <td style=""padding: 20px 0 20px 20px; vertical-align: top;"">
                     <div style=""font-weight: 600; color: #111111; font-size: 16px; margin-bottom: 4px;"">{i.ClipTitle}</div>

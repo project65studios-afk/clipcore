@@ -109,6 +109,7 @@ public class OrderFulfillmentService
                 var dbClip = await _clipRepository.GetByIdAsync(p.ClipId!);
                 if (dbClip != null)
                 {
+                    p.Clip = dbClip; // Link for Email Template
                     if (!p.ClipDurationSec.HasValue) p.ClipDurationSec = dbClip.DurationSec;
                     
                     // CRITICAL: Explicitly clear any filename that might have come from Stripe Metadata or other sources.

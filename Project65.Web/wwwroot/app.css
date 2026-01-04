@@ -156,11 +156,11 @@ a {
 }
 
 :root.light-theme .text-dark {
-    color: #0f172a !important;
+    color: var(--text-main) !important;
 }
 
 :root.light-theme ::placeholder {
-    color: #64748b !important;
+    color: var(--text-muted) !important;
 }
 
 .bg-white {
@@ -217,19 +217,19 @@ a {
 .border-top,
 .border-start,
 .border-end {
-    border-color: #334155 !important;
+    border-color: var(--border-color);
 }
 
 .border-secondary-subtle {
-    border-color: #475569 !important;
+    border-color: color-mix(in srgb, var(--border-color), var(--text-main) 20%);
 }
 
 .border-secondary {
-    border-color: #64748b !important;
+    border-color: color-mix(in srgb, var(--border-color), var(--text-main) 40%);
 }
 
 hr {
-    border-color: #475569 !important;
+    border-color: var(--border-color);
     opacity: 0.3;
 }
 
@@ -280,39 +280,39 @@ hr {
 }
 
 :root.light-theme .bg-white {
-    background-color: #ffffff !important;
+    background-color: var(--bg-surface) !important;
 }
 
 :root.light-theme .bg-light {
-    background-color: #f8fafc !important;
+    background-color: var(--bg-main) !important;
 }
 
 :root.light-theme .table thead th {
-    background-color: #f1f5f9 !important;
-    color: #475569 !important;
+    background-color: var(--bg-subtle) !important;
+    color: var(--text-secondary) !important;
 }
 
 :root.light-theme .card {
-    background-color: #ffffff !important;
-    border-color: #e2e8f0 !important;
-    color: #0f172a !important;
+    background-color: var(--bg-surface) !important;
+    border-color: var(--border-color) !important;
+    color: var(--text-main) !important;
 }
 
 :root.light-theme .form-control,
 :root.light-theme .form-select {
-    background-color: #ffffff !important;
-    border-color: #e2e8f0 !important;
-    color: #0f172a !important;
+    background-color: var(--bg-surface) !important;
+    border-color: var(--border-color) !important;
+    color: var(--text-main) !important;
 }
 
 :root.light-theme .form-label {
-    color: #1e293b !important;
+    color: var(--text-secondary) !important;
 }
 
 :root.light-theme .modal-content {
-    background-color: #ffffff !important;
-    border-color: #e2e8f0 !important;
-    color: #0f172a !important;
+    background-color: var(--bg-surface) !important;
+    border-color: var(--border-color) !important;
+    color: var(--text-main) !important;
 }
 
 /* Layout */
@@ -692,10 +692,13 @@ h3 {
     padding: 0.75rem 1.5rem;
     border-radius: var(--radius-md);
     cursor: pointer;
+    transition: all 0.2s ease;
 }
 
 .btn-secondary:hover {
-    border-color: var(--text-secondary);
+    background: var(--accent-secondary);
+    border-color: var(--accent-secondary);
+    color: white;
 }
 
 /* Video Grid and Hover */
