@@ -55,8 +55,11 @@ public class VideoCompressionController : ControllerBase
 
             try
             {
-                // Save uploaded file
-                var inputPath = Path.Combine(tempDir, file.FileName);
+                // Sanitize input: Use a secure extension-only filename to prevent path traversal/command injection
+                var inputExtension = Path.GetExtension(file.FileName);
+                if (string.IsNullOrEmpty(inputExtension)) inputExtension = ".mp4"; 
+                var inputPath = Path.Combine(tempDir, "input" + inputExtension);
+
                 using (var stream = new FileStream(inputPath, FileMode.Create))
                 {
                     await file.CopyToAsync(stream);
