@@ -289,4 +289,35 @@ public class SmokeTests : PageTest
             await Expect(uploadBtn.First).ToBeVisibleAsync();
         }
     }
+    [Fact]
+    public async Task Verify_ManageAccount_Password_Navigation()
+    {
+        // 1. Register/Login
+        var userEmail = $"user_{Guid.NewGuid()}@example.com";
+        await RegisterAndLoginUser(userEmail, "User123!");
+
+        // 2. Navigate to Manage Account
+        await Page.GotoAsync($"{_baseUrl}/Identity/Account/Manage");
+        
+        // 3. Click Password link
+        await Page.ClickAsync("a:has-text('Password')");
+        
+        // 4. Verify we are on Change Password page
+        await Expect(Page).ToHaveURLAsync(new System.Text.RegularExpressions.Regex(@".*\/ChangePassword"));
+        await Expect(Page.Locator("h3")).ToContainTextAsync("Change password");
+        
+        // 5. Verify no 404
+        var title = await Page.TitleAsync();
+        Assert.DoesNotContain("Not Found", title);
+    }
+
+    private async Task RegisterAndLoginUser(string email, string password)
+    {
+        await Page.GotoAsync($"{_baseUrl}/Identity/Account/Register");
+        await Page.FillAsync("input[name='Input.Email']", email);
+        await Page.FillAsync("input[name='Input.Password']", password);
+        await Page.FillAsync("input[name='Input.ConfirmPassword']", password);
+        await Page.ClickAsync("button[type='submit']");
+        await Page.WaitForLoadStateAsync(LoadState.NetworkIdle);
+    }
 }
