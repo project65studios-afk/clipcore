@@ -23,6 +23,24 @@
 
 <PageTitle>@_clip?.Title - @(_storeName ?? "Project65 Studios")</PageTitle>
 
+@if (_clip != null)
+{
+    <HeadContent>
+        <meta name="description" content="Watch @_clip.Title. Exclusive 4K footage from Project65." />
+        <meta property="og:title" content="@_clip.Title | @(_storeName ?? "Project65 Studios")" />
+        <meta property="og:description" content="Watch @_clip.Title. Exclusive 4K footage." />
+        <meta property="og:type" content="video.other" />
+        <meta property="og:url" content="@Navigation.Uri" />
+        @if (!string.IsNullOrEmpty(_clip.ThumbnailFileName))
+        {
+            var thumbKey = _clip.ThumbnailFileName.Contains("/") 
+                ? _clip.ThumbnailFileName 
+                : $"thumbnails/{_clip.ThumbnailFileName}";
+             <meta property="og:image" content="@($"{Navigation.BaseUri}{thumbKey}")" />
+        }
+    </HeadContent>
+}
+
 @if (_loading)
 {
     <div style="display:flex;justify-content:center;align-items:center;min-height:50vh;">

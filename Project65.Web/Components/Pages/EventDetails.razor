@@ -22,6 +22,7 @@
     @if (_event != null)
     {
         <meta property="og:title" content="@_event.Name | @(_storeName ?? "Project65 Studios")" />
+        <meta name="description" content="@_event.Summary" />
         <meta property="og:description" content="@_event.Summary" />
         <meta property="og:type" content="website" />
         <meta property="og:url" content="@Navigation.Uri" />

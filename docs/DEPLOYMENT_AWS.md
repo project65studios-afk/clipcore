@@ -45,6 +45,19 @@ We are building a "Cost-Optimized" infrastructure:
 
 ---
 
+## 🌐 Step 0: Buy Your Domain (Optional but Recommended)
+
+Using a custom domain (like `project65video.com`) looks professional and is easier to manage if bought in AWS.
+
+1.  Log in to the **AWS Console** and search for **Route 53**.
+2.  Click **Registered domains** on the left menu.
+3.  Click the orange **Register Domain** button.
+4.  Search for your desired name (e.g., `project65video.com`).
+5.  Add to cart and complete the purchase (~$12-15/year).
+    *   *Note: Using AWS Route 53 simplifies connecting your specific "App Runner" service later because AWS handles the DNS automatically.*
+
+---
+
 ## 🚀 Step 1: Create the Database (RDS)
 
 1.  Log in to the [AWS Console](https://console.aws.amazon.com/).
