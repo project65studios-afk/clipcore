@@ -15,7 +15,24 @@ We will focus on **keeping costs low** (approx. $22/month) while using professio
 - **Parameter Store**: A secure vault for your detailed secrets (like API keys) so they aren't written in plain text.
 - **CI/CD (Continuous Integration/Deployment)**: A robot that watches your code. When you save changes, the robot automatically updates your live website.
 
----
+## 🧠 Understanding Configuration: Where does it go?
+
+Your application needs different settings for different environments. Here is the simple breakdown:
+
+1.  **The Switch (Environment Variables)**
+    *   **Where**: App Runner Console.
+    *   **What**: `ASPNETCORE_ENVIRONMENT` = `Production`.
+    *   **Why**: Tells the app to "Act like Production" (Use PostgreSQL, send real emails).
+
+2.  **The Secrets (Parameter Store)**
+    *   **Where**: AWS Systems Manager (The Vault).
+    *   **What**: Passwords, API Keys, Connection Strings.
+    *   **Why**: **Security**. We never write passwords in code.
+
+3.  **The Defaults (appsettings.json)**
+    *   **Where**: In your source code.
+    *   **What**: Boring stuff like Logging levels.
+    *   **Why**: Safe to be public.
 
 ## 💰 The Plan (Budget: ~$22/mo)
 
@@ -69,6 +86,7 @@ Don't put passwords in your code! We'll put them in the vault.
 - Name: `/project65/Stripe/SecretKey` -> Value: `sk_test_...`
 - Name: `/project65/Mux/TokenId` -> Value: `...`
 - Name: `/project65/Mux/TokenSecret` -> Value: `...`
+- Name: `/project65/SEED_ADMIN_PASSWORD` -> Value: `YourStrongPasswordHere!` (For Admin Account Creation)
 
 ---
 

@@ -27,8 +27,25 @@ builder.Services.AddRazorComponents()
 builder.Services.AddCascadingAuthenticationState();
 builder.Services.AddSignalR();
 
-builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")));
+// Database Configuration
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") 
+                       ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
+
+if (builder.Environment.IsDevelopment())
+{
+    builder.Services.AddDbContext<AppDbContext>(options =>
+        options.UseSqlite(connectionString));
+}
+else
+{
+    // Register PostgresDbContext as the concrete implementation
+    builder.Services.AddDbContext<PostgresDbContext>(options =>
+        options.UseNpgsql(connectionString));
+
+    // Map AppDbContext to use the PostgresDbContext instance
+    builder.Services.AddScoped<AppDbContext>(provider => 
+        provider.GetRequiredService<PostgresDbContext>());
+}
 
 builder.Services.AddDefaultIdentity<ApplicationUser>(options => options.SignIn.RequireConfirmedAccount = false)
     .AddRoles<Microsoft.AspNetCore.Identity.IdentityRole>()
@@ -308,7 +325,7 @@ using (var scope = app.Services.CreateScope())
     await storageService.ConfigureCorsAsync();
     
     await context.Database.MigrateAsync();
-    await Project65.Infrastructure.DataSeeder.SeedAsync(context, userManager, roleManager);
+    await Project65.Infrastructure.DataSeeder.SeedAsync(context, userManager, roleManager, app.Configuration, app.Environment.IsDevelopment());
 }
 
 app.Run();
