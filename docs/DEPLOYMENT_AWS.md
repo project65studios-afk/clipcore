@@ -172,6 +172,42 @@ You couldn't set up the Webhook **before** proper deployment because Stripe need
 
 ---
 
+## 🔒 Step 3.6: Allow Your Domain in Cloudflare R2 (CORS)
+
+Your images/videos are stored in Cloudflare R2. By default, it might block your new website from displaying them.
+
+1.  Log in to the **[Cloudflare Dashboard](https://dash.cloudflare.com/)**.
+2.  Go to **R2** -> Select your bucket (`project65-files` or similar).
+3.  Click **Settings** tab.
+4.  Scroll down to **CORS Policy**.
+5.  Click **Edit CORS Policy** and ensure your new domains are listed. It should look like this:
+
+```json
+[
+  {
+    "AllowedOrigins": [
+      "http://localhost:5094",
+      "https://project65video.com",
+      "https://www.project65video.com",
+      "https://your-app-runner-url.awsapprunner.com" 
+    ],
+    "AllowedMethods": [
+      "GET",
+      "PUT",
+      "POST",
+      "DELETE",
+      "HEAD"
+    ],
+    "AllowedHeaders": [
+      "*"
+    ]
+  }
+]
+```
+6.  Click **Save**.
+
+---
+
 ## 🔄 Step 4: Automate It (GitHub Actions)
 
 We want the site to update automatically when you push code.
