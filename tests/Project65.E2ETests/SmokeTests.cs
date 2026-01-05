@@ -61,7 +61,11 @@ public class SmokeTests : PageTest
         await Page.WaitForURLAsync("**/clips/**");
 
         // 3. Add to cart on details page
-        var addToCartBtn = Page.Locator("button:has-text('Add to Cart')");
+        // Wait for potential hydration
+        await Page.WaitForLoadStateAsync(LoadState.NetworkIdle);
+        
+        var addToCartBtn = Page.GetByRole(AriaRole.Button, new() { Name = "Add to Cart" });
+        await Expect(addToCartBtn).ToBeVisibleAsync();
         await addToCartBtn.ClickAsync();
 
         // 4. Handle License Modal
@@ -143,18 +147,21 @@ public class SmokeTests : PageTest
     {
         await Page.GotoAsync(_baseUrl);
         
-        // 1. Go to an event
-        await Page.Locator(".grid-card").First.ClickAsync();
+        // 1. Go to "LA Night Run" event (guaranteed to have >3 clips)
+        await Page.Locator(".grid-card h3", new() { HasText = "LA Night Run" }).ClickAsync();
         await Page.WaitForURLAsync("**/events/**");
 
         // 2. Add 3 different clips to cart using Quick Add buttons
-        var quickAddButtons = Page.Locator(".quick-add-btn");
-        await quickAddButtons.Nth(0).ClickAsync();
-        await Task.Delay(500);
-        await quickAddButtons.Nth(1).ClickAsync();
-        await Task.Delay(500);
-        await quickAddButtons.Nth(2).ClickAsync();
-        await Task.Delay(500);
+        // Since buttons disappear when added, we can repeatedly click the first available button
+        var quickAddBtn = Page.Locator(".quick-add-btn").First;
+        
+        for(int i=0; i<3; i++)
+        {
+            await quickAddBtn.ClickAsync();
+            // Wait for UI update (button removal)
+            await Expect(quickAddBtn).ToHaveCountAsync(1); // Wait for the locator to re-resolve to the next item
+            await Task.Delay(200); // Small stability delay for Blazor
+        }
 
         // 3. Go to Cart
         await Page.GotoAsync($"{_baseUrl}/cart");

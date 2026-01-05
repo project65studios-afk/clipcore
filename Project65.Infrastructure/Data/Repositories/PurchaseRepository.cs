@@ -21,6 +21,8 @@ public class PurchaseRepository : IPurchaseRepository
 
     public async Task<bool> HasPurchasedAsync(string? userId, string clipId, LicenseType license)
     {
+        if (string.IsNullOrEmpty(userId)) return false;
+
         return await _context.Purchases
             .AnyAsync(p => p.UserId == userId && p.ClipId == clipId && p.LicenseType == license);
     }
