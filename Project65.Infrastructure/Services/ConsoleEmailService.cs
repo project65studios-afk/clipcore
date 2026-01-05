@@ -1,9 +1,11 @@
 using Microsoft.Extensions.Logging;
 using Project65.Core.Interfaces;
 
+using Microsoft.AspNetCore.Identity.UI.Services;
+
 namespace Project65.Infrastructure.Services;
 
-public class ConsoleEmailService : IEmailService
+public class ConsoleEmailService : IEmailService, IEmailSender
 {
     private readonly ILogger<ConsoleEmailService> _logger;
 

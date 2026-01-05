@@ -5,9 +5,11 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Project65.Core.Interfaces;
 
+using Microsoft.AspNetCore.Identity.UI.Services;
+
 namespace Project65.Infrastructure.Services;
 
-public class AmazonSESEmailService : IEmailService
+public class AmazonSESEmailService : IEmailService, IEmailSender
 {
     private readonly IAmazonSimpleEmailService _sesClient;
     private readonly ILogger<AmazonSESEmailService> _logger;

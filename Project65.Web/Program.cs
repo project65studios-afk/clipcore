@@ -108,15 +108,17 @@ else
 
 if (!string.IsNullOrEmpty(builder.Configuration["AWS:AccessKeyId"]))
 {
-    builder.Services.AddScoped<IEmailService, AmazonSESEmailService>();
-}
-else if (!string.IsNullOrEmpty(builder.Configuration["SendGrid:ApiKey"]))
-{
-    builder.Services.AddScoped<IEmailService, SendGridEmailService>();
+    // Register as concrete type first to share instance if needed
+    builder.Services.AddScoped<AmazonSESEmailService>();
+    // Forward interfaces
+    builder.Services.AddScoped<IEmailService>(sp => sp.GetRequiredService<AmazonSESEmailService>());
+    builder.Services.AddScoped<Microsoft.AspNetCore.Identity.UI.Services.IEmailSender>(sp => sp.GetRequiredService<AmazonSESEmailService>());
 }
 else
 {
-    builder.Services.AddScoped<IEmailService, ConsoleEmailService>();
+    builder.Services.AddScoped<ConsoleEmailService>();
+    builder.Services.AddScoped<IEmailService>(sp => sp.GetRequiredService<ConsoleEmailService>());
+    builder.Services.AddScoped<Microsoft.AspNetCore.Identity.UI.Services.IEmailSender>(sp => sp.GetRequiredService<ConsoleEmailService>());
 }
 
 builder.Services.AddScoped<Project65.Web.Services.CartService>();
