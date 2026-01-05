@@ -1,4 +1,44 @@
 ﻿@page "/not-found"
+@inject Project65.Web.Services.StoreSettingsService StoreSettingsService
+
+<PageTitle>Page Not Found - Project65</PageTitle>
+
+<div class="container my-5 fade-in">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="glass-panel p-5 text-center">
+                <i class="bi bi-compass text-secondary display-1 mb-4"></i>
+                <h1 class="display-4 mb-3" style="color: var(--text-main)">404</h1>
+                <h2 class="h4 mb-4" style="color: var(--text-secondary)">Lost in Space?</h2>
+                <p class="text-muted mb-5">Sorry, the content you are looking for does not exist or has been moved.</p>
+
+                <a href="/" class="btn btn-primary px-4 py-2 rounded-pill">
+                    <i class="bi bi-arrow-left me-2"></i>Return Home
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .glass-panel {
+        background: var(--glass-bg);
+        backdrop-filter: var(--glass-blur);
+        -webkit-backdrop-filter: var(--glass-blur);
+        border: 1px solid var(--glass-border);
+        border-radius: var(--radius-lg);
+        box-shadow: var(--glass-shadow);
+    }
+    
+    .fade-in {
+        animation: fadeIn 0.8s ease-out;
+    }
+    
+    @@keyframes fadeIn {
+        from { opacity: 0; transform: translateY(20px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+</style>
 @layout MainLayout
 
 <h3>Not Found</h3>
