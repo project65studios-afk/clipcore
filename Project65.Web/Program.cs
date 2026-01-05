@@ -16,7 +16,30 @@ using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.AspNetCore.Identity;
 // Ensure Repositories namespace is included, which it is.
 
+
 var builder = WebApplication.CreateBuilder(args);
+
+// Configure Logging for CloudWatch
+builder.Logging.ClearProviders(); // Start fresh
+if (builder.Environment.IsDevelopment())
+{
+    // Pretty text for humans
+    builder.Logging.AddConsole();
+    builder.Logging.AddDebug();
+}
+else
+{
+    // Structured JSON for machines (CloudWatch)
+    builder.Logging.AddJsonConsole(options =>
+    {
+        options.IncludeScopes = false;
+        options.TimestampFormat = "yyyy-MM-dd HH:mm:ss ";
+        options.JsonWriterOptions = new System.Text.Json.JsonWriterOptions
+        {
+            Indented = false // Compact JSON
+        };
+    });
+}
 
 // Add services to the container.
 builder.Services.AddRazorComponents()

@@ -188,6 +188,19 @@ jobs:
 
 ---
 
+## 📈 Step 5: Monitoring (Where are my logs?)
+
+Once your app is in the cloud, you can't see the console window anymore. Here is how you debug issues:
+
+1.  Go to **[AWS App Runner Console](https://console.aws.amazon.com/apprunner/home)**.
+2.  Click on your service (`project65-web`).
+3.  Click the **Logs** tab.
+4.  **Event Logs**: Shows you deployment steps ("Pulling image", "Starting container"). Check here if your deployment fails.
+5.  **Application Logs**: Click "View in CloudWatch". This shows you your standard `Console.WriteLine` output!
+    *   This is where you will see "User X logged in" or "Exception: Database connection failed".
+
+---
+
 ## 🆘 Troubleshooting: "Help, it broke!"
 
 **Problem**: The site says "502 Bad Gateway".
