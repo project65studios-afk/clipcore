@@ -1,0 +1,37 @@
+@using Microsoft.AspNetCore.Identity
+@using Project65.Core.Entities
+@inject SignInManager<ApplicationUser> SignInManager
+@inject UserManager<ApplicationUser> UserManager
+@{
+    var user = await UserManager.GetUserAsync(User);
+    var hasPassword = user != null && await UserManager.HasPasswordAsync(user);
+}
+<ul class="nav nav-pills flex-column">
+    <li class="nav-item">
+        <a class="nav-link @ManageNavPages.IndexNavClass(ViewContext)" id="profile" asp-page="./Index">
+            <i class="bi bi-person"></i> Profile
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link @ManageNavPages.EmailNavClass(ViewContext)" id="email" asp-page="./Email">
+            <i class="bi bi-envelope"></i> Email
+        </a>
+    </li>
+    @if (hasPassword)
+    {
+        <li class="nav-item">
+            <a class="nav-link @ManageNavPages.ChangePasswordNavClass(ViewContext)" id="change-password" asp-page="./ChangePassword">
+                <i class="bi bi-key"></i> Password
+            </a>
+        </li>
+    }
+    else
+    {
+        <li class="nav-item">
+            <a class="nav-link @ManageNavPages.SetPasswordNavClass(ViewContext)" id="set-password" asp-page="./SetPassword">
+                <i class="bi bi-key"></i> Set Password
+            </a>
+        </li>
+    }
+</ul>
+

@@ -393,7 +393,7 @@ hr {
     border-radius: var(--radius-md);
     padding: 0.5rem 1rem;
     color: var(--text-main);
-    width: 400px;
+    width: 300px !important;
     max-width: 100%;
 }
 
@@ -1896,4 +1896,132 @@ h3 {
     100% {
         background-position: 200% 0;
     }
+}
+
+/* Identity UI Layout Overrides (Account Management) */
+.identity-container {
+    min-height: calc(100vh - 120px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 3rem 1.5rem;
+}
+
+.identity-card {
+    width: 100%;
+    max-width: 900px;
+    background: var(--glass-bg);
+    backdrop-filter: var(--glass-blur);
+    -webkit-backdrop-filter: var(--glass-blur);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius-lg);
+    padding: 3rem;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+}
+
+.identity-card h1,
+.identity-card h2,
+.identity-card h3,
+.identity-card h4 {
+    color: var(--text-main);
+    font-weight: 700;
+}
+
+.identity-card .text-danger {
+    color: var(--accent-secondary) !important;
+}
+
+/* Identity Form Overrides */
+.identity-card .form-floating>.form-control {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--border-color);
+    color: var(--text-main);
+    border-radius: var(--radius-md);
+}
+
+/* Hide all placeholders in floating labels */
+.identity-card .form-floating>.form-control::placeholder {
+    color: transparent !important;
+    opacity: 0 !important;
+}
+
+.identity-card .form-floating>.form-control:focus::placeholder {
+    color: transparent !important;
+    opacity: 0 !important;
+}
+
+.identity-card .form-floating>.form-control:focus {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: var(--accent-primary);
+    box-shadow: 0 0 0 0.25rem rgba(6, 182, 212, 0.1);
+}
+
+.identity-card .form-floating>label {
+    color: var(--text-muted);
+    padding-left: 1rem;
+}
+
+.identity-card .form-floating>.form-control:focus~label,
+.identity-card .form-floating>.form-control:not(:placeholder-shown)~label,
+.identity-card .form-floating>.form-control-plaintext~label {
+    transform: scale(0.85) translateY(-0.5rem) translateX(0.15rem);
+    color: var(--accent-primary);
+    opacity: 1;
+}
+
+/* Fix for readonly/disabled inputs in floating labels */
+.identity-card .form-control:disabled,
+.identity-card .form-control[readonly] {
+    background-color: rgba(255, 255, 255, 0.05) !important;
+    opacity: 0.7;
+    cursor: not-allowed;
+}
+
+.identity-card .btn-primary {
+    background: var(--accent-primary);
+    border: none;
+    font-weight: 600;
+    padding: 0.8rem 1.5rem;
+    border-radius: var(--radius-md);
+    transition: all 0.2s;
+}
+
+.identity-card .btn-primary:hover {
+    background: var(--accent-primary-hover);
+    transform: translateY(-1px);
+}
+
+/* Manage Sidebar */
+.identity-card .nav-pills .nav-link {
+    color: var(--text-muted);
+    border-radius: var(--radius-md);
+    margin-bottom: 0.3rem;
+    padding: 0.8rem 1.2rem;
+    transition: all 0.2s;
+}
+
+.identity-card .nav-pills .nav-link:hover:not(.active) {
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--text-main);
+}
+
+.identity-card .nav-pills .nav-link.active {
+    background: var(--accent-primary) !important;
+    color: white !important;
+    font-weight: 600;
+}
+
+.identity-card .nav-pills .nav-link i {
+    margin-right: 0.5rem;
+}
+
+.identity-card .list-group-item {
+    background: transparent;
+    border-color: var(--border-color);
+    color: var(--text-main);
+}
+
+.identity-card hr {
+    border-color: var(--border-color);
+    opacity: 0.1;
 }

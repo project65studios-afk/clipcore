@@ -13,6 +13,7 @@ using Amazon.Extensions.NETCore.Setup;
 using Microsoft.AspNetCore.RateLimiting;
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.ResponseCompression;
+using Microsoft.AspNetCore.Identity;
 // Ensure Repositories namespace is included, which it is.
 
 var builder = WebApplication.CreateBuilder(args);
@@ -131,10 +132,10 @@ builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<IUsageRepository, UsageRepository>();
 builder.Services.AddMemoryCache();
 // Configure Antiforgery to use a custom header for API calls
-builder.Services.AddAntiforgery(options => 
-{
-    options.HeaderName = "X-XSRF-TOKEN";
-});
+// builder.Services.AddAntiforgery(options => 
+// {
+//     options.HeaderName = "X-XSRF-TOKEN";
+// });
 
 // Implementation of Rate Limiting
 builder.Services.AddRateLimiter(options => 
@@ -242,7 +243,7 @@ app.Use(async (context, next) =>
     
     string csp = "default-src 'self'; " +
                  "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://unpkg.com https://releases.transloadit.com https://js.stripe.com https://www.gstatic.com http://www.gstatic.com https://maps.googleapis.com chrome-extension:; " +
-                 "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://releases.transloadit.com https://fonts.googleapis.com; " +
+                 "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://releases.transloadit.com https://fonts.googleapis.com https://fonts.gstatic.com; " +
                  "img-src 'self' data: blob: https://*.mux.com https://*.r2.cloudflarestorage.com https://*.stripe.com https://www.gstatic.com http://www.gstatic.com; " +
                  $"connect-src 'self' {appOrigins} https://*.mux.com https://*.r2.cloudflarestorage.com https://api.stripe.com https://www.gstatic.com http://www.gstatic.com https://maps.googleapis.com https://cdn.jsdelivr.net https://unpkg.com https://releases.transloadit.com wss://localhost:* ws://localhost:* chrome-extension:; " +
                  "frame-src 'self' https://js.stripe.com; " +
@@ -254,14 +255,15 @@ app.Use(async (context, next) =>
     context.Response.Headers["Content-Security-Policy"] = csp;
     
     // Antiforgery Token Cookie for JS (XHR/Fetch)
-    var antiforgery = context.RequestServices.GetRequiredService<Microsoft.AspNetCore.Antiforgery.IAntiforgery>();
-    var tokens = antiforgery.GetAndStoreTokens(context);
-    context.Response.Cookies.Append("XSRF-TOKEN", tokens.RequestToken!, 
-        new CookieOptions { 
-            HttpOnly = false, // Must be accessible by JS
-            Secure = !builder.Environment.IsDevelopment(), 
-            SameSite = SameSiteMode.Strict 
-        });
+    // var antiforgery = context.RequestServices.GetRequiredService<Microsoft.AspNetCore.Antiforgery.IAntiforgery>();
+    // var tokens = antiforgery.GetAndStoreTokens(context);
+    // context.Response.Cookies.Append("XSRF-TOKEN", tokens.RequestToken!, 
+    //    new CookieOptions { HttpOnly = false, Secure = true, SameSite = SameSiteMode.Strict }); 
+    //     new CookieOptions { 
+    //         HttpOnly = false, // Must be accessible by JS
+    //         Secure = !builder.Environment.IsDevelopment(), 
+    //         SameSite = SameSiteMode.Strict 
+    //     });
 
     await next();
 });
@@ -278,7 +280,7 @@ if (!app.Environment.IsDevelopment())
 app.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages: true);
 app.UseHttpsRedirection();
 app.UseCors("ProductionOrigins");
-app.UseRateLimiter();
+    // app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
 app.UseAntiforgery();
