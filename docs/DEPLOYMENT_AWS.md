@@ -138,6 +138,27 @@ Don't put passwords in your code! We'll put them in the vault.
 
 ---
 
+## 💳 Step 3.5: Finish Stripe Setup (The "Chicken and Egg" Problem)
+
+You couldn't set up the Webhook **before** proper deployment because Stripe needs your **URL**. Now that you have it:
+
+1.  **Copy your App Runner URL** (e.g., `https://xyz.awsapprunner.com`).
+2.  Go to **[Stripe Dashboard > Developers > Webhooks](https://dashboard.stripe.com/test/webhooks)**.
+3.  Click **Add Endpoint**.
+4.  **Endpoint URL**: Paste your URL and add `/api/webhooks/stripe` to the end.
+    *   Example: `https://xyz.awsapprunner.com/api/webhooks/stripe`
+5.  **Select events**:
+    *   `checkout.session.completed` (Crucial for fulfilling orders!)
+6.  Click **Add endpoint**.
+7.  **Reveal Signing Secret**: Look for `Current secret` (starts with `whsec_...`). Copy it.
+8.  **Update AWS**:
+    *   Go back to **AWS Parameter Store**.
+    *   Create a new parameter: `/project65/Stripe/WebhookSecret`.
+    *   Value: Paste the `whsec_...` key.
+    *   **Restart App Runner**: Go to App Runner service -> "Actions" -> "Deploy" (to pick up the new secret).
+
+---
+
 ## 🔄 Step 4: Automate It (GitHub Actions)
 
 We want the site to update automatically when you push code.
