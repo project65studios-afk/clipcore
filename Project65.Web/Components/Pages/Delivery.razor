@@ -8,6 +8,7 @@
 @inject ISettingsRepository SettingsRepository
 @implements IDisposable
 @inject Project65.Web.Services.StoreSettingsService StoreSettingsService
+@inject IVideoService VideoService
 
 <PageTitle>Order Delivery - @(_storeName ?? "Project65 Studios")</PageTitle>
 
@@ -50,8 +51,7 @@
                 <div class="card border-0 shadow-lg rounded-4 overflow-hidden">
                     <div class="card-header bg-primary text-white p-4 text-center border-0">
                         <i class="bi bi-cloud-download fs-1 mb-2"></i>
-                        <h5 class="mb-0">@_items.Count Files Available</h5>
-                        }
+                        <h5 class="mb-0">@(_items?.Count ?? 0) Files Available</h5>
                     </div>
                     <div class="list-group list-group-flush">
                         @foreach (var item in _items)
@@ -167,6 +167,24 @@
                     {
                         var url = StorageService.GetPresignedDownloadUrl(targetKey);
                         if (string.IsNullOrEmpty(url)) Console.WriteLine($"[Delivery] Generated empty URL for key {targetKey}");
+                        
+                        _items.Add(new DeliveryItem
+                        {
+                            Purchase = p,
+                            Clip = p.Clip ?? new Clip { Title = p.ClipTitle ?? "Video Clip" },
+                            DownloadUrl = url
+                        });
+                    }
+                    else if (!string.IsNullOrEmpty(p.FulfillmentMuxAssetId))
+                    {
+                        // Priority C: Mux Direct Download
+                        var fileName = p.Clip?.MasterFileName ?? p.ClipMasterFileName ?? p.Clip?.Title ?? p.ClipTitle ?? "video.mov";
+                        if (!fileName.EndsWith(".mov", StringComparison.OrdinalIgnoreCase) && !fileName.EndsWith(".mp4", StringComparison.OrdinalIgnoreCase))
+                        {
+                            fileName += ".mov"; // Default to mov for high-quality masters
+                        }
+
+                        var url = await VideoService.GetDownloadUrlAsync(p.FulfillmentMuxAssetId, fileName);
                         
                         _items.Add(new DeliveryItem
                         {

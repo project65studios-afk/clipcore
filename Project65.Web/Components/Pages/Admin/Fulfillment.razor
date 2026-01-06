@@ -264,7 +264,13 @@
                                                     else if (!string.IsNullOrEmpty(p.ClipMasterFileName))
                                                     {
                                                         <span class="badge bg-info text-dark rounded-pill px-3 border border-info-subtle">
-                                                            <i class="bi bi-cloud-check me-1"></i> Ready
+                                                            <i class="bi bi-cloud-check me-1"></i> Ready (R2)
+                                                        </span>
+                                                    }
+                                                    else if (p.Clip?.IsDirectUpload == true)
+                                                    {
+                                                        <span class="badge rounded-pill px-3" style="background: rgba(255, 193, 7, 0.1); color: #ffc107; border: 1px solid #ffc107;">
+                                                            <i class="bi bi-lightning-charge-fill me-1"></i> Ready (Mux)
                                                         </span>
                                                     }
                                                     else
@@ -277,13 +283,28 @@
                                                 <td class="text-end pe-4" data-label="Action">
                                                     @if (p.FulfillmentStatus == FulfillmentStatus.Pending) 
                                                     {
-                                                        <button class="btn btn-sm btn-primary shadow-sm" @onclick="() => OpenFulfillModal(p)">
-                                                            <i class="bi bi-upload me-1"></i> Fulfill
-                                                        </button>
-                                                        @if (p.ClipId == null)
-                                                        {
-                                                            <div class="text-danger extra-small mt-1" style="font-size: 0.7rem;">Clip Deleted</div>
-                                                        }
+                                                        <div class="d-flex flex-column gap-1 align-items-end">
+                                                            @if (p.Clip?.IsDirectUpload == true)
+                                                            {
+                                                                <button class="btn btn-sm btn-success shadow-sm" @onclick="() => CompleteOrder(new List<Purchase> { p })">
+                                                                    <i class="bi bi-magic me-1"></i> Auto-Fulfill
+                                                                </button>
+                                                                <button class="btn btn-sm btn-outline-secondary btn-xs" style="font-size: 0.7rem;" @onclick="() => OpenFulfillModal(p)">
+                                                                    Manual R2 Upload
+                                                                </button>
+                                                            }
+                                                            else 
+                                                            {
+                                                                <button class="btn btn-sm btn-primary shadow-sm" @onclick="() => OpenFulfillModal(p)">
+                                                                    <i class="bi bi-upload me-1"></i> Fulfill
+                                                                </button>
+                                                            }
+
+                                                            @if (p.ClipId == null)
+                                                            {
+                                                                <div class="text-danger extra-small mt-1" style="font-size: 0.7rem;">Clip Deleted</div>
+                                                            }
+                                                        </div>
                                                     }
                                                     else
                                                     {
@@ -682,7 +703,7 @@
         // 1. Strict Validation (Only for new completion, not resends)
         if (!isManualResend)
         {
-            var pendingItems = order.Where(p => string.IsNullOrEmpty(p.ClipMasterFileName)).ToList();
+            var pendingItems = order.Where(p => string.IsNullOrEmpty(p.ClipMasterFileName) && p.Clip?.IsDirectUpload != true).ToList();
             if (pendingItems.Any())
             {
                 await JSRuntime.InvokeVoidAsync("alert", $"Cannot complete order: {pendingItems.Count} items are missing files. Please Sync or Upload files first.");
@@ -697,10 +718,16 @@
         {
             if (p.FulfillmentStatus == FulfillmentStatus.Pending || string.IsNullOrEmpty(p.HighResDownloadUrl) || isManualResend)
             {
-                // Strict Safety Check: Do not mark fulfilled if file is missing
-                if (string.IsNullOrEmpty(p.ClipMasterFileName))
+                // Strict Safety Check: Do not mark fulfilled if file is missing AND not direct upload
+                if (string.IsNullOrEmpty(p.ClipMasterFileName) && p.Clip?.IsDirectUpload != true)
                 {
                     continue; // Skip this item, it's not ready
+                }
+
+                // If Direct Upload, we need to ensure FulfillMuxAssetId is set from Clip
+                if (p.Clip?.IsDirectUpload == true && string.IsNullOrEmpty(p.FulfillmentMuxAssetId))
+                {
+                    p.FulfillmentMuxAssetId = p.Clip.MuxAssetId;
                 }
 
                 p.FulfillmentStatus = FulfillmentStatus.Fulfilled;
