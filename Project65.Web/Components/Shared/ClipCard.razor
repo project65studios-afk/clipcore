@@ -189,7 +189,11 @@
 
     private async Task<(string type, string token)> GetSpecificTokenAsync(string playbackId, string type)
     {
-        var token = await VideoService.GetPlaybackToken(playbackId, type, "540p");
+        // For Direct Uploads (Masters), allow full resolution (null = unrestricted).
+        // For Legacy uploads (540p), limit to 540p to save bandwidth/processing if applicable, though they are only 540p anyway.
+        string? maxRes = Clip.IsDirectUpload ? null : "540p";
+        
+        var token = await VideoService.GetPlaybackToken(playbackId, type, maxRes);
         return (type, token);
     }
 

@@ -7,10 +7,14 @@ namespace Project65.Infrastructure.Data.Repositories;
 public class EventRepository : IEventRepository
 {
     private readonly AppDbContext _context;
+    private readonly IVideoService _videoService;
+    private readonly IStorageService _storageService;
 
-    public EventRepository(AppDbContext context)
+    public EventRepository(AppDbContext context, IVideoService videoService, IStorageService storageService)
     {
         _context = context;
+        _videoService = videoService;
+        _storageService = storageService;
     }
 
     public async Task<Event?> GetByIdAsync(string id)
@@ -100,9 +104,37 @@ public class EventRepository : IEventRepository
             
         if (evt != null)
         {
-            // Explicitly remove clips to ensure EF tracks the deletion
+            // CLEANUP: Delete External Assets (Mux & R2)
             if (evt.Clips.Any())
             {
+                foreach (var clip in evt.Clips.ToList()) 
+                {
+                    try 
+                    {
+                        // 1. Delete Mux Asset
+                        if (!string.IsNullOrEmpty(clip.MuxAssetId))
+                        {
+                            await _videoService.DeleteAssetAsync(clip.MuxAssetId);
+                        }
+
+                        // 2. Delete R2 Thumbnail
+                        if (!string.IsNullOrEmpty(clip.ThumbnailFileName))
+                        {
+                            await _storageService.DeleteAsync(clip.ThumbnailFileName);
+                        }
+                        
+                        // 3. Delete R2 Master (if any)
+                        if (!string.IsNullOrEmpty(clip.MasterFileName))
+                        {
+                            await _storageService.DeleteAsync(clip.MasterFileName);
+                        }
+                    }
+                    catch 
+                    {
+                         // Swallow errors to ensure DB cleanup continues. Or log them if ILogger injected.
+                    }
+                }
+
                 _context.Clips.RemoveRange(evt.Clips);
             }
             

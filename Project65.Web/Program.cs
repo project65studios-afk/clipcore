@@ -121,7 +121,9 @@ builder.Services.AddSingleton<IAmazonS3>(sp =>
     var r2Config = new AmazonS3Config
     {
         ServiceURL = $"https://{builder.Configuration["R2:AccountId"]}.r2.cloudflarestorage.com",
-        ForcePathStyle = true
+        ForcePathStyle = true,
+         // Use AuthenticationRegion to force SigV4 region without overriding the endpoint
+        AuthenticationRegion = "us-east-1"
     };
     
     var creds = new Amazon.Runtime.BasicAWSCredentials(

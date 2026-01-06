@@ -265,6 +265,121 @@ public class VideoCompressionController : ControllerBase
         }
     }
 
+    [HttpPost("get-direct-upload-url")]
+    public async Task<IActionResult> GetDirectUploadUrl()
+    {
+        try
+        {
+            var (url, uploadId) = await _videoService.CreateDirectUploadUrlAsync();
+            _logger.LogInformation($"[DirectUpload] Generated URL: '{url}' (ID: {uploadId})");
+            
+            if (string.IsNullOrEmpty(url)) 
+            {
+                 _logger.LogError("[DirectUpload] Mux returned empty URL!");
+                 return StatusCode(500, new { error = "Mux returned empty URL" });
+            }
+            return Ok(new { url, uploadId });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to create direct upload URL");
+            return StatusCode(500, new { error = "Could not create upload URL" });
+        }
+    }
+
+    [HttpPost("confirm-direct-upload")]
+    public async Task<IActionResult> ConfirmDirectUpload([FromBody] DirectUploadConfirmRequest request)
+    {
+        try
+        {
+            if (string.IsNullOrEmpty(request.MuxUploadId) || string.IsNullOrEmpty(request.EventId))
+                return BadRequest(new { error = "Missing required fields" });
+
+            // 1. Create Clip Entity
+            var clipId = Guid.NewGuid().ToString();
+            var clip = new Clip
+            {
+                Id = clipId,
+                EventId = request.EventId,
+                Title = request.Title ?? "Untitled",
+                PriceCents = request.PriceCents,
+                PriceCommercialCents = 0, // Default
+                MuxUploadId = request.MuxUploadId,
+                IsDirectUpload = true,
+                ThumbnailFileName = request.ThumbnailKeys.FirstOrDefault(), // Primary thumb
+                PublishedAt = DateTime.UtcNow
+            };
+
+            // 2. Parse creation date
+            if (DateTime.TryParse(request.LastModified, out var modifiedDate))
+            {
+                clip.RecordingStartedAt = modifiedDate;
+            }
+
+            // 3. AI Analysis (Parallel)
+            if (request.ThumbnailKeys != null && request.ThumbnailKeys.Any())
+            {
+                var allTags = new List<string>();
+                using var http = new HttpClient();
+
+                // Analyze up to 3 thumbnails
+                var tasks = request.ThumbnailKeys.Take(3).Select(async key => 
+                {
+                    try 
+                    {
+                        // Get secure URL to read the file from R2
+                        var url = _storageService.GetPresignedDownloadUrl(key);
+                        using var stream = await http.GetStreamAsync(url);
+                        var tags = await _visionService.AnalyzeImageAsync(stream);
+                        lock (allTags) 
+                        {
+                            allTags.AddRange(tags);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, $"[AI] Failed to analyze direct thumb {key}");
+                    }
+                });
+
+                await Task.WhenAll(tasks);
+
+                if (allTags.Any())
+                {
+                    // De-duplicate and save
+                    var uniqueTags = allTags.Distinct().ToArray();
+                    clip.TagsJson = System.Text.Json.JsonSerializer.Serialize(uniqueTags);
+                    _logger.LogInformation($"[AI] Direct Analysis found tags: {string.Join(", ", uniqueTags)}");
+                }
+            }
+
+            // 4. Save to DB
+            await _clipRepository.AddAsync(clip);
+            _logger.LogInformation($"[DirectUpload] Clip saved: {clipId}");
+
+            // 5. Start Background Polling
+            _ = ResolveMuxDetailsAsync(clip);
+
+            return Ok(new { success = true, clipId });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to confirm direct upload");
+            return StatusCode(500, new { error = ex.Message });
+        }
+    }
+
+    public class DirectUploadConfirmRequest
+    {
+        public string MuxUploadId { get; set; } = string.Empty;
+        public string EventId { get; set; } = string.Empty;
+        public string Title { get; set; } = string.Empty;
+        public int PriceCents { get; set; }
+        public string UserId { get; set; } = string.Empty;
+        public string? LastModified { get; set; }
+        public List<string> ThumbnailKeys { get; set; } = new();
+    }
+
     private async Task ResolveMuxDetailsAsync(Clip clip)
     {
         if (string.IsNullOrEmpty(clip.MuxUploadId)) return;

@@ -96,6 +96,19 @@ public class MuxVideoService : IVideoService
         return (result.Data.Url, result.Data.Id);
     }
 
+    public async Task<(string url, string uploadId)> CreateDirectUploadUrlAsync()
+    {
+        var assetSettings = new CreateAssetRequest(
+            playbackPolicy: new List<PlaybackPolicy> { PlaybackPolicy.Signed }
+        );
+        
+        var request = new CreateUploadRequest(newAssetSettings: assetSettings);
+        request.CorsOrigin = GetAppOrigin();
+        
+        var result = await _resiliencePipeline.ExecuteAsync(async ct => await _directUploadsApi.CreateDirectUploadAsync(request, cancellationToken: ct));
+        return (result.Data.Url, result.Data.Id);
+    }
+
     public async Task<(string url, string uploadId)> CreateFulfillmentUploadUrlAsync(int purchaseId)
     {
         // Passthrough belongs on CreateAssetRequest, not AssetMetadata in some SDK versions, 

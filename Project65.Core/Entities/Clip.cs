@@ -28,6 +28,7 @@ public class Clip
     
     public string? MasterFileName { get; set; }
     public string? ThumbnailFileName { get; set; } // Local high-res thumbnail
+    public bool IsDirectUpload { get; set; } = false;
     
     public DateTime PublishedAt { get; set; } = DateTime.UtcNow;
 }

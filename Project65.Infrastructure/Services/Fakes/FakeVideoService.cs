@@ -12,6 +12,11 @@ public class FakeVideoService : IVideoService
         return Task.FromResult(("https://fake-mux.com/upload/123", "fake-upload-123"));
     }
 
+    public Task<(string url, string uploadId)> CreateDirectUploadUrlAsync()
+    {
+        return Task.FromResult(("https://fake-mux.com/direct/upload/123", "fake-direct-123"));
+    }
+
     public Task<(string url, string uploadId)> CreateFulfillmentUploadUrlAsync(int purchaseId)
     {
         return Task.FromResult(("https://fake-mux.com/upload/fulfillment/456", "fake-upload-456"));
