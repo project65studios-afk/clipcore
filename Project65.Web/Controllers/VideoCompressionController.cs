@@ -265,6 +265,22 @@ public class VideoCompressionController : ControllerBase
         }
     }
 
+    [HttpPost("batch-delete-errored")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> BatchDeleteErrored()
+    {
+        try
+        {
+            var count = await _videoService.DeleteErroredAssetsAsync();
+            return Ok(new { message = $"Successfully deleted {count} errored assets from Mux." });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to batch delete errored assets");
+            return StatusCode(500, new { error = "Internal server error during Mux cleanup" });
+        }
+    }
+    
     [HttpPost("get-direct-upload-url")]
     public async Task<IActionResult> GetDirectUploadUrl([FromBody] DirectUploadUrlRequest request)
     {

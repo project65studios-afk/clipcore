@@ -10,6 +10,7 @@
 @inject IAuditService AuditService
 @inject IStorageService StorageService
 @inject Project65.Web.Services.StoreSettingsService StoreSettingsService
+@inject IVideoService VideoService
 
 <div class="admin-container" style="max-width: 1200px; margin: 2rem auto; padding: 0 1rem;">
     <!-- Header -->
@@ -144,6 +145,41 @@
                     </div>
                 </div>
 
+                <!-- System Maintenance Card -->
+                <div class="card shadow-sm" style="background: var(--bg-surface); border: 1px solid var(--border-color);">
+                    <div class="card-header bg-transparent py-3" style="border-bottom: 1px solid var(--border-color);">
+                        <h5 class="mb-0" style="color: var(--text-main);"><i class="bi bi-tools me-2 text-danger"></i>System Maintenance</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="d-flex flex-column gap-3">
+                            <div>
+                                <h6 class="mb-1" style="color: var(--text-main);">Mux Asset Cleanup</h6>
+                                <p class="text-muted small mb-3">Scanning all assets in Mux and permanently deleting those with "Errored" status. This helps keep your dashboard clean and stays within trial limits.</p>
+                                
+                                @if (_muxCleanupResult != null)
+                                {
+                                    <div class="alert alert-success py-2 px-3 small border-0 shadow-sm mb-3 animate-fade-in" style="background: rgba(25, 135, 84, 0.1); color: #198754;">
+                                        <i class="bi bi-check-circle-fill me-2"></i>@_muxCleanupResult
+                                    </div>
+                                }
+
+                                <button class="btn btn-outline-danger w-100 py-2 d-flex align-items-center justify-content-center gap-2" @onclick="CleanMuxErrors" disabled="@_isCleaningMux">
+                                    @if (_isCleaningMux)
+                                    {
+                                        <span class="spinner-border spinner-border-sm" role="status"></span>
+                                        <span>Purging Errors...</span>
+                                    }
+                                    else
+                                    {
+                                        <i class="bi bi-trash3"></i>
+                                        <span>Purge All Mux Errors</span>
+                                    }
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
             </div>
         </div>
 
@@ -251,6 +287,9 @@
     private bool _showSuccess;
     private bool _useLogoUpload = true;
     private bool _useUpload = true;
+    
+    private bool _isCleaningMux;
+    private string? _muxCleanupResult;
 
     [CascadingParameter]
     private Task<AuthenticationState> AuthenticationStateTask { get; set; } = null!;
@@ -393,6 +432,34 @@
         finally 
         {
             _isSaving = false;
+        }
+    }
+
+    private async Task CleanMuxErrors()
+    {
+        _isCleaningMux = true;
+        _muxCleanupResult = null;
+        StateHasChanged();
+
+        try 
+        {
+            var count = await VideoService.DeleteErroredAssetsAsync();
+            _muxCleanupResult = $"Successfully deleted {count} errored assets from Mux.";
+        }
+        catch (Exception ex)
+        {
+            _muxCleanupResult = $"Cleanup failed: {ex.Message}";
+        }
+        finally 
+        {
+            _isCleaningMux = false;
+            StateHasChanged();
+            
+            // Clear message after 5 seconds
+            _ = Task.Delay(5000).ContinueWith(_ => { 
+                _muxCleanupResult = null; 
+                InvokeAsync(StateHasChanged); 
+            });
         }
     }
 }

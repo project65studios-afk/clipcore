@@ -467,4 +467,57 @@ public class MuxVideoService : IVideoService
             return null;
         }
     }
+
+    public async Task<int> DeleteErroredAssetsAsync()
+    {
+        var idsToDelete = new List<string>();
+        int page = 1;
+        bool hasMore = true;
+
+        try 
+        {
+            // 1. Collect ALL IDs first to avoid pagination shifts during deletion
+            while (hasMore)
+            {
+                _logger.LogInformation($"[MuxCleanup] Fetching asset page {page}...");
+                var response = await _resiliencePipeline.ExecuteAsync(async ct => 
+                    await _assetsApi.ListAssetsAsync(limit: 100, page: page, cancellationToken: ct));
+                
+                if (response?.Data == null || response.Data.Count == 0) break;
+
+                foreach (var asset in response.Data)
+                {
+                    if (asset.Status == Asset.StatusEnum.Errored)
+                    {
+                        idsToDelete.Add(asset.Id);
+                    }
+                }
+
+                if (response.Data.Count < 100) hasMore = false;
+                else page++;
+            }
+
+            // 2. Perform the deletions
+            int deletedCount = 0;
+            foreach (var id in idsToDelete)
+            {
+                try 
+                {
+                    _logger.LogInformation($"[MuxCleanup] Deleting errored asset: {id}");
+                    await DeleteAssetAsync(id);
+                    deletedCount++;
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning($"[MuxCleanup] Failed to delete specific asset {id}: {ex.Message}");
+                }
+            }
+            return deletedCount;
+        }
+        catch (Exception ex)
+        {
+             _logger.LogError(ex, "[MuxCleanup] Critical failure during batch fetch/delete");
+             return 0;
+        }
+    }
 }

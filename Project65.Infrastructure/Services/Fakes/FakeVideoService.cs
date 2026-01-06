@@ -61,4 +61,8 @@ public class FakeVideoService : IVideoService
     {
         return Task.FromResult<string?>("https://fake-mux.com/download/fake-asset-999");
     }
+    public Task<int> DeleteErroredAssetsAsync()
+    {
+        return Task.FromResult(0);
+    }
 }

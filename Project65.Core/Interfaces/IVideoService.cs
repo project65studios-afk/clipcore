@@ -13,4 +13,5 @@ public interface IVideoService
     Task<double?> GetAssetDurationAsync(string assetId);
     Task<(double? duration, DateTime? startedAt)> GetAssetDetailsAsync(string assetId);
     Task<string?> GetDownloadUrlAsync(string assetId, string? fileName = null);
+    Task<int> DeleteErroredAssetsAsync();
 }
