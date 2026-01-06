@@ -12,7 +12,7 @@ public class FakeVideoService : IVideoService
         return Task.FromResult(("https://fake-mux.com/upload/123", "fake-upload-123"));
     }
 
-    public Task<(string url, string uploadId)> CreateDirectUploadUrlAsync()
+    public Task<(string url, string uploadId)> CreateDirectUploadUrlAsync(string? title = null, string? creatorId = null, string? passthrough = null)
     {
         return Task.FromResult(("https://fake-mux.com/direct/upload/123", "fake-direct-123"));
     }

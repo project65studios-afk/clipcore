@@ -84,11 +84,16 @@ export function initDirectUpload(dotNetHelper, eventId, userId) {
         shouldUseMultipart: false,
         getUploadParameters: async (file) => {
             try {
-                const response = await fetch('/api/admin/VideoCompression/get-direct-upload-url', { method: 'POST' });
+                const response = await fetch('/api/admin/VideoCompression/get-direct-upload-url', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ title: file.name, userId: userId })
+                });
                 if (!response.ok) throw new Error("Backend response error");
 
                 const data = await response.json();
                 file.meta.muxUploadId = data.uploadId;
+                file.meta.clipId = data.clipId;
 
                 return {
                     url: data.url,
@@ -116,6 +121,7 @@ export function initDirectUpload(dotNetHelper, eventId, userId) {
 
             const payload = {
                 muxUploadId: file.meta.muxUploadId,
+                clipId: file.meta.clipId,
                 eventId: eventId,
                 title: file.name,
                 priceCents: 1500,

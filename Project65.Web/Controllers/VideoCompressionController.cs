@@ -266,25 +266,32 @@ public class VideoCompressionController : ControllerBase
     }
 
     [HttpPost("get-direct-upload-url")]
-    public async Task<IActionResult> GetDirectUploadUrl()
+    public async Task<IActionResult> GetDirectUploadUrl([FromBody] DirectUploadUrlRequest request)
     {
         try
         {
-            var (url, uploadId) = await _videoService.CreateDirectUploadUrlAsync();
-            _logger.LogInformation($"[DirectUpload] Generated URL: '{url}' (ID: {uploadId})");
+            var clipId = Guid.NewGuid().ToString();
+            var (url, uploadId) = await _videoService.CreateDirectUploadUrlAsync(request.Title, request.UserId, clipId);
+            _logger.LogInformation($"[DirectUpload] Generated URL for '{request.Title}': '{url}' (ID: {uploadId}, ClipID: {clipId})");
             
             if (string.IsNullOrEmpty(url)) 
             {
                  _logger.LogError("[DirectUpload] Mux returned empty URL!");
                  return StatusCode(500, new { error = "Mux returned empty URL" });
             }
-            return Ok(new { url, uploadId });
+            return Ok(new { url, uploadId, clipId });
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to create direct upload URL");
             return StatusCode(500, new { error = "Could not create upload URL" });
         }
+    }
+
+    public class DirectUploadUrlRequest
+    {
+        public string? Title { get; set; }
+        public string? UserId { get; set; }
     }
 
     [HttpPost("confirm-direct-upload")]
@@ -296,7 +303,7 @@ public class VideoCompressionController : ControllerBase
                 return BadRequest(new { error = "Missing required fields" });
 
             // 1. Create Clip Entity
-            var clipId = Guid.NewGuid().ToString();
+            var clipId = request.ClipId ?? Guid.NewGuid().ToString();
             var clip = new Clip
             {
                 Id = clipId,
@@ -372,6 +379,7 @@ public class VideoCompressionController : ControllerBase
     public class DirectUploadConfirmRequest
     {
         public string MuxUploadId { get; set; } = string.Empty;
+        public string? ClipId { get; set; }
         public string EventId { get; set; } = string.Empty;
         public string Title { get; set; } = string.Empty;
         public int PriceCents { get; set; }

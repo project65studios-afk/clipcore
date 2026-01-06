@@ -96,10 +96,19 @@ public class MuxVideoService : IVideoService
         return (result.Data.Url, result.Data.Id);
     }
 
-    public async Task<(string url, string uploadId)> CreateDirectUploadUrlAsync()
+    public async Task<(string url, string uploadId)> CreateDirectUploadUrlAsync(string? title = null, string? creatorId = null, string? passthrough = null)
     {
+        var metadata = new AssetMetadata 
+        {
+            Title = title ?? "Direct Upload",
+            CreatorId = creatorId ?? "Admin",
+            ExternalId = passthrough
+        };
+
         var assetSettings = new CreateAssetRequest(
-            playbackPolicy: new List<PlaybackPolicy> { PlaybackPolicy.Signed }
+            playbackPolicy: new List<PlaybackPolicy> { PlaybackPolicy.Signed },
+            passthrough: passthrough,
+            meta: metadata
         );
         
         var request = new CreateUploadRequest(newAssetSettings: assetSettings);
