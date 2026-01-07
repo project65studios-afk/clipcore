@@ -115,5 +115,4 @@ pings/
 .env
 appsettings.Development.json
 secrets.json
-Project65.Web/appsettings.json
 Project65.Web/wwwroot/thumbnails/

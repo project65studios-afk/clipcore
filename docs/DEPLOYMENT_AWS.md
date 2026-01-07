@@ -45,7 +45,7 @@ We are building a "Cost-Optimized" infrastructure:
 
 ---
 
-## 🌐 Step 0: Buy Your Domain (Optional but Recommended)
+## 🌐 Step 0: Buy Your Domain (Optional but Recommended) ✅ Completed
 
 Using a custom domain (like `project65video.com`) looks professional and is easier to manage if bought in AWS.
 
@@ -58,7 +58,7 @@ Using a custom domain (like `project65video.com`) looks professional and is easi
 
 ---
 
-## 🚀 Step 1: Create the Database (RDS)
+## 🚀 Step 1: Create the Database (RDS) ✅ Completed
 
 1.  Log in to the [AWS Console](https://console.aws.amazon.com/).
 2.  In the top search bar, type `RDS` and click **RDS**.
@@ -79,7 +79,7 @@ Using a custom domain (like `project65video.com`) looks professional and is easi
 
 ---
 
-## 🔐 Step 2: Secure Your Secrets (Parameter Store)
+## 🔐 Step 2: Secure Your Secrets (Parameter Store) ✅ Completed
 
 Don't put passwords in your code! We'll put them in the vault.
 

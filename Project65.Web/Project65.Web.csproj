@@ -6,6 +6,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="Amazon.Extensions.Configuration.SystemsManager" Version="7.0.1" />
     <PackageReference Include="AWSSDK.Extensions.NETCore.Setup" Version="4.0.3.17" />
     <PackageReference Include="FuzzySharp" Version="2.0.2" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.Facebook" Version="10.0.1" />

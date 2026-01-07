@@ -19,6 +19,11 @@ using Microsoft.AspNetCore.Identity;
 
 var builder = WebApplication.CreateBuilder(args);
 
+if (!builder.Environment.IsDevelopment())
+{
+    builder.Configuration.AddSystemsManager("/project65");
+}
+
 // Configure Logging for CloudWatch
 builder.Logging.ClearProviders(); // Start fresh
 if (builder.Environment.IsDevelopment())
