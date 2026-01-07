@@ -82,6 +82,66 @@ public class PurchaseRepository : IPurchaseRepository
             .ToListAsync();
     }
 
+    public async Task<List<Purchase>> ListFilteredAsync(FulfillmentStatus? status = null, DateTime? since = null, string? search = null)
+    {
+        var query = _context.Purchases
+            .AsNoTracking()
+            .Include(p => p.Clip)
+            .ThenInclude(c => c!.Event)
+            .AsQueryable();
+
+        if (status.HasValue)
+        {
+            query = query.Where(p => p.FulfillmentStatus == status.Value);
+        }
+
+        if (since.HasValue && string.IsNullOrEmpty(search))
+        {
+            query = query.Where(p => p.CreatedAt >= since.Value);
+        }
+
+        if (!string.IsNullOrEmpty(search))
+        {
+            var s = search.ToLower().Trim();
+            
+            // Normalize variants of the search term to handle common human errors (O vs 0)
+            var sWithZero = s.Replace("o", "0");
+            var sWithO = s.Replace("0", "o");
+            
+            // Strip ORD- prefix if present for ID searches
+            var sId = s.StartsWith("ord-") ? s.Substring(4) : s;
+            var sIdWithZero = sId.Replace("o", "0");
+            var sIdWithO = sId.Replace("0", "o");
+
+            query = query.Where(p => 
+                (p.CustomerEmail != null && p.CustomerEmail.ToLower().Contains(s)) ||
+                (p.CustomerName != null && p.CustomerName.ToLower().Contains(s)) ||
+                (p.StripeSessionId != null && (
+                    p.StripeSessionId.ToLower().Contains(s) || 
+                    p.StripeSessionId.ToLower().Contains(sWithZero) ||
+                    p.StripeSessionId.ToLower().Contains(sWithO) ||
+                    p.StripeSessionId.ToLower().Contains(sId) ||
+                    p.StripeSessionId.ToLower().Contains(sIdWithZero) ||
+                    p.StripeSessionId.ToLower().Contains(sIdWithO)
+                )) ||
+                (p.OrderId != null && (
+                    p.OrderId.ToLower().Contains(s) || 
+                    p.OrderId.ToLower().Contains(sWithZero) ||
+                    p.OrderId.ToLower().Contains(sWithO) ||
+                    p.OrderId.ToLower().Contains(sId) ||
+                    p.OrderId.ToLower().Contains(sIdWithZero) ||
+                    p.OrderId.ToLower().Contains(sIdWithO)
+                )) ||
+                (p.ClipTitle != null && p.ClipTitle.ToLower().Contains(s)) ||
+                (p.EventName != null && p.EventName.ToLower().Contains(s))
+            );
+        }
+
+        return await query
+            .OrderByDescending(p => p.CreatedAt)
+            .ToListAsync();
+    }
+
     public async Task UpdateAsync(Purchase purchase)
     {
         var existingPurchase = await _context.Purchases

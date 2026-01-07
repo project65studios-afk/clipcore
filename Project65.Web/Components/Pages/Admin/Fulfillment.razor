@@ -13,6 +13,7 @@
 @inject IAuditService AuditService
 @inject Project65.Web.Services.EmailTemplateService EmailTemplateService
 @rendermode RenderMode.InteractiveServer
+@implements IAsyncDisposable
 
 <div class="container-fluid py-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
@@ -25,24 +26,54 @@
     </div>
 
     <div class="card border-0 shadow-sm" style="background: var(--bg-surface);">
-        <div class="card-header bg-transparent border-bottom py-3 d-flex justify-content-between align-items-center">
-            <h5 class="mb-0 text-primary">Delivery Queue</h5>
-            <div class="btn-group shadow-sm">
-                <button class="btn btn-sm @(_currentFilter == "Pending" ? "btn-warning text-white" : "btn-outline-secondary border-secondary-subtle")" 
-                        @onclick='() => SetFilter("Pending")'>Pending</button>
-                <button class="btn btn-sm @(_currentFilter == "Fulfilled" ? "btn-success" : "btn-outline-secondary border-secondary-subtle")" 
-                        @onclick='() => SetFilter("Fulfilled")'>Fulfilled</button>
-                <button class="btn btn-sm @(_currentFilter == "All" ? "btn-dark" : "btn-outline-secondary border-secondary-subtle")" 
-                        @onclick='() => SetFilter("All")'>All</button>
+        <div class="card-header bg-transparent border-bottom py-3">
+            <div class="row align-items-center g-3">
+                <div class="col-md-3">
+                    <h5 class="mb-0 text-primary"><i class="bi bi-filter-circle me-2"></i>Delivery Queue</h5>
+                </div>
+                <div class="col-md-9">
+                    <div class="d-flex flex-wrap gap-2 justify-content-md-end align-items-center">
+                        <!-- Status Filter -->
+                        <div class="btn-group shadow-sm">
+                            <button class="btn btn-sm @(_currentFilter == "Pending" ? "btn-warning text-white" : "btn-outline-secondary border-secondary-subtle")" 
+                                    @onclick='() => SetFilter("Pending")'>Pending</button>
+                            <button class="btn btn-sm @(_currentFilter == "Fulfilled" ? "btn-success" : "btn-outline-secondary border-secondary-subtle")" 
+                                    @onclick='() => SetFilter("Fulfilled")'>Fulfilled</button>
+                            <button class="btn btn-sm @(_currentFilter == "All" ? "btn-dark" : "btn-outline-secondary border-secondary-subtle")" 
+                                    @onclick='() => SetFilter("All")'>All</button>
+                        </div>
+
+                        <!-- Date Range Filter -->
+                        <div class="d-flex align-items-center gap-2 ms-md-2">
+                            <span class="text-muted small d-none d-lg-block">Time:</span>
+                            <select class="form-select form-select-sm shadow-sm" style="width: 170px;" @onchange="OnDateFilterChanged" value="@_dateFilter">
+                                <option value="recent">Recent (14 Days)</option>
+                                <option value="30">Last 30 Days</option>
+                                <option value="90">Last 3 Months</option>
+                                <option value="all">Fulfillment History</option>
+                            </select>
+                        </div>
+
+                        <!-- Search -->
+                        <div class="input-group input-group-sm shadow-sm" style="width: 220px;">
+                            <span class="input-group-text bg-dark border-secondary text-muted"><i class="bi bi-search"></i></span>
+                            <input type="text" class="form-control bg-dark border-secondary text-white" 
+                                   placeholder="Search name, email, ID..." 
+                                   @oninput="OnSearchInput" 
+                                   value="@_searchTerm" />
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
         <div class="card-body p-0 bg-transparent">
-                @if (_filteredPurchases == null)
+                @if (_isLoading || _filteredPurchases == null)
                 {
                     <div class="text-center py-5">
                         <div class="spinner-border text-primary" role="status">
                             <span class="visually-hidden">Loading...</span>
                         </div>
+                        <div class="mt-2 text-muted small">Update queue...</div>
                     </div>
                 }
                 else if (!_filteredPurchases.Any())
@@ -404,9 +435,11 @@
 @inject IVideoService VideoService
 
 @code {
-    private List<Purchase>? _allPurchases;
     private List<Purchase>? _filteredPurchases;
     private string _currentFilter = "Pending";
+    private string _dateFilter = "recent";
+    private string? _searchTerm;
+    private bool _isLoading = false;
     
     private bool _showModal = false;
     private Purchase? _selectedPurchase;
@@ -428,32 +461,67 @@
 
     private async Task LoadDataAsync()
     {
-        _allPurchases = await PurchaseRepository.ListAsync();
-        ApplyFilter();
+        _isLoading = true;
+        StateHasChanged();
+
+        try 
+        {
+            FulfillmentStatus? status = null;
+            if (string.IsNullOrEmpty(_searchTerm))
+            {
+                status = _currentFilter switch
+                {
+                    "Pending" => FulfillmentStatus.Pending,
+                    "Fulfilled" => FulfillmentStatus.Fulfilled,
+                    _ => null
+                };
+            }
+
+            DateTime? since = null;
+            // If viewing specific status and NO search, we can filter by date too.
+            if (_currentFilter != "Pending" && string.IsNullOrEmpty(_searchTerm))
+            {
+                since = _dateFilter switch
+                {
+                    "recent" => DateTime.UtcNow.AddDays(-14),
+                    "30" => DateTime.UtcNow.AddDays(-30),
+                    "90" => DateTime.UtcNow.AddDays(-90),
+                    _ => null
+                };
+            }
+
+            _filteredPurchases = await PurchaseRepository.ListFilteredAsync(status, since, _searchTerm);
+        }
+        finally
+        {
+            _isLoading = false;
+            StateHasChanged();
+        }
     }
     
-    private void SetFilter(string filter)
+    private async Task SetFilter(string filter)
     {
         _currentFilter = filter;
-        ApplyFilter();
+        await LoadDataAsync();
     }
 
-    private void ApplyFilter()
+    private async Task OnDateFilterChanged(ChangeEventArgs e)
     {
-        if (_allPurchases == null) return;
+        _dateFilter = e.Value?.ToString() ?? "recent";
+        await LoadDataAsync();
+    }
+
+    private System.Threading.Timer? _searchTimer;
+    private void OnSearchInput(ChangeEventArgs e)
+    {
+        _searchTerm = e.Value?.ToString();
         
-        switch (_currentFilter)
+        // Debounce search
+        _searchTimer?.Dispose();
+        _searchTimer = new System.Threading.Timer(async _ => 
         {
-            case "Pending":
-                _filteredPurchases = _allPurchases.Where(p => p.FulfillmentStatus == FulfillmentStatus.Pending).ToList();
-                break;
-            case "Fulfilled":
-                _filteredPurchases = _allPurchases.Where(p => p.FulfillmentStatus == FulfillmentStatus.Fulfilled).ToList();
-                break;
-            default:
-                _filteredPurchases = _allPurchases.ToList();
-                break;
-        }
+            await InvokeAsync(LoadDataAsync);
+        }, null, 400, System.Threading.Timeout.Infinite);
     }
 
     private IJSObjectReference? _jsUppy;
@@ -574,7 +642,7 @@
              if (purchase == null) 
              {
                  // Fallback to all purchases if not in current list (shouldn't happen in bulk mode)
-                 purchase = _allPurchases?.FirstOrDefault(p => p.Id == purchaseId);
+                 purchase = _filteredPurchases?.FirstOrDefault(p => p.Id == purchaseId);
              }
              
              if (purchase == null) return;
@@ -821,6 +889,7 @@
 
     public async ValueTask DisposeAsync()
     {
+        _searchTimer?.Dispose();
         _objRef?.Dispose();
         if (_jsUppy != null)
         {

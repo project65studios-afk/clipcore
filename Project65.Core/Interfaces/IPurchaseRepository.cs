@@ -14,6 +14,7 @@ public interface IPurchaseRepository
     Task<List<Purchase>> GetByOrderNumberAsync(string email, string partialOrderId);
     Task<List<Purchase>> GetBySessionIdAsync(string sessionId);
     Task<List<Purchase>> ListAsync();
+    Task<List<Purchase>> ListFilteredAsync(FulfillmentStatus? status = null, DateTime? since = null, string? search = null);
     Task UpdateAsync(Purchase purchase);
     Task<long> GetTotalRevenueAsync();
     Task<int> GetTotalSalesCountAsync();
