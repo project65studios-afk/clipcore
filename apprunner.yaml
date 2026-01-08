@@ -1,0 +1,6 @@
+version: 1.0
+runtime: build
+build:
+  dockerfile: Dockerfile
+run:
+  port: 8080
