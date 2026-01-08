@@ -21,7 +21,7 @@ public static class DataSeeder
         }
 
         // Seed Admin User (Production Safe)
-        var adminEmail = "admin@project65.com";
+        var adminEmail = configuration["SEED_ADMIN_EMAIL"] ?? "admin@project65.com";
         var user = await userManager.FindByEmailAsync(adminEmail);
         
         // In Production, require SEED_ADMIN_PASSWORD env var. In Dev, fallback to default.
@@ -59,22 +59,8 @@ public static class DataSeeder
         // ---------------------------------------------------------
         if (isDevelopment)
         {
-            // Seed Regular User
-            var userEmail = "carandreyn@gmail.com";
-            var regularUser = await userManager.FindByEmailAsync(userEmail);
-            if (regularUser == null)
-            {
-                regularUser = new ApplicationUser
-                {
-                    UserName = userEmail,
-                    Email = userEmail,
-                    EmailConfirmed = true
-                };
-                await userManager.CreateAsync(regularUser, "User123!");
-            }
-
-            // Seed Test User
-            var testEmail = "test@project65.com";
+            // Seed Demo User
+            var testEmail = "demo@project65.com";
             var testUser = await userManager.FindByEmailAsync(testEmail);
             if (testUser == null)
             {
@@ -84,7 +70,7 @@ public static class DataSeeder
                     Email = testEmail,
                     EmailConfirmed = true
                 };
-                await userManager.CreateAsync(testUser, "Test123!");
+                await userManager.CreateAsync(testUser, "Demo123!");
             }
 
             // Check for existing events to update their locations if needed
