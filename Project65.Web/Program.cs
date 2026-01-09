@@ -17,6 +17,19 @@ using Microsoft.AspNetCore.Identity;
 // Ensure Repositories namespace is included, which it is.
 
 
+// Force stdout/stderr to flush immediately for App Runner debugging
+Console.SetOut(new StreamWriter(Console.OpenStandardOutput()) { AutoFlush = true });
+Console.SetError(new StreamWriter(Console.OpenStandardError()) { AutoFlush = true });
+
+Console.Error.WriteLine(">>> DEPLOYMENT START: Process ID " + Environment.ProcessId);
+
+// 60-second Watchdog to force a log flush if we hang
+_ = Task.Run(async () => {
+    await Task.Delay(TimeSpan.FromSeconds(60));
+    Console.Error.WriteLine(">>> CRITICAL WATCHDOG: App hasn't reached app.Run() after 60s. EXPORTING LOGS AND QUITTING.");
+    Environment.Exit(99); 
+});
+
 try 
 {
     Console.Error.WriteLine(">>> DEPLOYMENT DEBUG: Builder Init...");
@@ -400,6 +413,19 @@ using (var scope = app.Services.CreateScope())
     var storageService = services.GetRequiredService<IStorageService>();
     await storageService.ConfigureCorsAsync();
     
+    Console.Error.WriteLine(">>> DEPLOYMENT DEBUG: Testing RDS Connection...");
+    try 
+    {
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+        await context.Database.CanConnectAsync(cts.Token);
+        Console.Error.WriteLine(">>> DEPLOYMENT DEBUG: RDS Connected Successfully.");
+    }
+    catch (Exception dbEx)
+    {
+        Console.Error.WriteLine(">>> DATABASE CONNECTION FAILED: " + dbEx.Message);
+        throw; // Let the outer catch handle and exit
+    }
+
     Console.Error.WriteLine(">>> DEPLOYMENT DEBUG: Database Migrations...");
     await context.Database.MigrateAsync();
     Console.Error.WriteLine(">>> DEPLOYMENT DEBUG: Data Seeding...");
@@ -407,8 +433,8 @@ using (var scope = app.Services.CreateScope())
     Console.Error.WriteLine(">>> DEPLOYMENT DEBUG: Startup Sequence Success.");
 }
 
-    Console.Error.WriteLine(">>> DEPLOYMENT DEBUG: Kestrel app.Run()...");
-    app.Run();
+Console.Error.WriteLine(">>> DEPLOYMENT DEBUG: Kestrel app.Run()...");
+app.Run();
 }
 catch (Exception ex)
 {
