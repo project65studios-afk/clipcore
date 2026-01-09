@@ -40,11 +40,7 @@ if (!builder.Environment.IsDevelopment())
         "OpenAI:ApiKey",
         "AWS:AccessKeyId",
         "AWS:SecretAccessKey",
-        "AWS:Region",
-        "Authentication:Google:ClientId",
-        "Authentication:Google:ClientSecret",
-        "Authentication:Facebook:AppId",
-        "Authentication:Facebook:AppSecret"
+        "AWS:Region"
     );
 }
 
