@@ -38,8 +38,15 @@ try
 if (!builder.Environment.IsDevelopment())
 {
     Console.Error.WriteLine(">>> DEPLOYMENT DEBUG: Loading SSM Params...");
-    builder.Configuration.AddSystemsManager("/project65");
-    Console.Error.WriteLine(">>> DEPLOYMENT DEBUG: SSM Params Loaded.");
+    try 
+    {
+        builder.Configuration.AddSystemsManager("/project65");
+        Console.Error.WriteLine(">>> DEPLOYMENT DEBUG: SSM Params Loaded.");
+    }
+    catch (Exception ssmEx)
+    {
+        Console.Error.WriteLine(">>> SSM LOAD FAILURE: " + ssmEx.Message);
+    }
     
     // Validate required keys after loading from SSM
     ConfigurationValidation.ValidateRequiredKeys(builder.Configuration,
@@ -102,28 +109,28 @@ if (builder.Environment.IsDevelopment())
 }
 else
 {
-    // Use AddDbContextFactory for health and concurrency in Blazor Server
+    // Use ONE factory for everything in Prod to avoid concurrency collisions
     builder.Services.AddDbContextFactory<PostgresDbContext>(options =>
     {
         options.UseNpgsql(connectionString);
         options.ConfigureWarnings(w => w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning));
     });
 
-    // Provide AppDbContext factory for components/services that use the base class
-    builder.Services.AddDbContextFactory<AppDbContext>(options =>
-    {
-        options.UseNpgsql(connectionString);
-        options.ConfigureWarnings(w => w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning));
-    });
-
-    // Register Scoped DbContext for Identity and Background tasks using the factory
-    builder.Services.AddScoped<AppDbContext>(p => p.GetRequiredService<IDbContextFactory<AppDbContext>>().CreateDbContext());
+    // Provide Scoped PostgresDbContext (for non-Blazor parts or simple injections)
     builder.Services.AddScoped<PostgresDbContext>(p => p.GetRequiredService<IDbContextFactory<PostgresDbContext>>().CreateDbContext());
+    
+    // Alias Scoped AppDbContext for Identity and base-class injections
+    builder.Services.AddScoped<AppDbContext>(p => p.GetRequiredService<PostgresDbContext>());
+
+    // Crucial: Alias the Factory itself so repositories using IDbContextFactory<AppDbContext> 
+    // use the SAME underlying singleton factory and connection pool as PostgresDbContext.
+    builder.Services.AddSingleton<IDbContextFactory<AppDbContext>>(p => 
+        new DelegatingDbContextFactory<AppDbContext, PostgresDbContext>(p.GetRequiredService<IDbContextFactory<PostgresDbContext>>()));
 }
 
 builder.Services.AddDefaultIdentity<ApplicationUser>(options => options.SignIn.RequireConfirmedAccount = false)
     .AddRoles<Microsoft.AspNetCore.Identity.IdentityRole>()
-    .AddEntityFrameworkStores<AppDbContext>();
+    .AddEntityFrameworkStores<PostgresDbContext>(); // Use concrete type for Identity stores
 
 builder.Services.ConfigureApplicationCookie(options =>
 {
@@ -434,7 +441,7 @@ using (var scope = app.Services.CreateScope())
 }
 
 Console.Error.WriteLine(">>> DEPLOYMENT DEBUG: Kestrel app.Run()...");
-app.Run();
+    app.Run();
 }
 catch (Exception ex)
 {
@@ -442,4 +449,13 @@ catch (Exception ex)
     Console.Error.WriteLine(ex.Message);
     Console.Error.WriteLine(ex.StackTrace);
     throw; // Still throw to ensure non-zero exit code
+}
+
+// Simple wrapper to allow IDbContextFactory<Base> to use IDbContextFactory<Derived>
+// This ensures we only have ONE singleton factory in the entire application scope.
+public class DelegatingDbContextFactory<TBase, TDerived>(IDbContextFactory<TDerived> inner) : IDbContextFactory<TBase>
+    where TBase : DbContext
+    where TDerived : TBase
+{
+    public TBase CreateDbContext() => inner.CreateDbContext();
 }
