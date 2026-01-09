@@ -17,7 +17,9 @@ using Microsoft.AspNetCore.Identity;
 // Ensure Repositories namespace is included, which it is.
 
 
-var builder = WebApplication.CreateBuilder(args);
+try 
+{
+    var builder = WebApplication.CreateBuilder(args);
 
 if (!builder.Environment.IsDevelopment())
 {
@@ -376,4 +378,12 @@ using (var scope = app.Services.CreateScope())
     await Project65.Infrastructure.DataSeeder.SeedAsync(context, userManager, roleManager, app.Configuration, app.Environment.IsDevelopment());
 }
 
-app.Run();
+    app.Run();
+}
+catch (Exception ex)
+{
+    Console.Error.WriteLine("CRITICAL STARTUP FAILURE:");
+    Console.Error.WriteLine(ex.Message);
+    Console.Error.WriteLine(ex.StackTrace);
+    throw; // Still throw to ensure non-zero exit code
+}
