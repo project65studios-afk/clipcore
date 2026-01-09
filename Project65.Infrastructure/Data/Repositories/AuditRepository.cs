@@ -9,22 +9,24 @@ namespace Project65.Infrastructure.Data.Repositories
 {
     public class AuditRepository : IAuditRepository
     {
-        private readonly AppDbContext _context;
+        private readonly IDbContextFactory<AppDbContext> _contextFactory;
 
-        public AuditRepository(AppDbContext context)
+        public AuditRepository(IDbContextFactory<AppDbContext> contextFactory)
         {
-            _context = context;
+            _contextFactory = contextFactory;
         }
 
         public async Task AddAsync(AuditLog log)
         {
-            _context.AuditLogs.Add(log);
-            await _context.SaveChangesAsync();
+            using var context = await _contextFactory.CreateDbContextAsync();
+            context.AuditLogs.Add(log);
+            await context.SaveChangesAsync();
         }
 
         public async Task<List<AuditLog>> GetAllAsync(int count = 100)
         {
-            return await _context.AuditLogs
+            using var context = await _contextFactory.CreateDbContextAsync();
+            return await context.AuditLogs
                 .OrderByDescending(l => l.Timestamp)
                 .Take(count)
                 .ToListAsync();
@@ -32,7 +34,8 @@ namespace Project65.Infrastructure.Data.Repositories
 
         public async Task<List<AuditLog>> GetByUserIdAsync(string userId, int count = 100)
         {
-            return await _context.AuditLogs
+            using var context = await _contextFactory.CreateDbContextAsync();
+            return await context.AuditLogs
                 .Where(l => l.UserId == userId)
                 .OrderByDescending(l => l.Timestamp)
                 .Take(count)
@@ -41,7 +44,8 @@ namespace Project65.Infrastructure.Data.Repositories
 
         public async Task<List<AuditLog>> GetByEntityTypeAsync(string entityType, string entityId, int count = 100)
         {
-            return await _context.AuditLogs
+            using var context = await _contextFactory.CreateDbContextAsync();
+            return await context.AuditLogs
                 .Where(l => l.EntityType == entityType && l.EntityId == entityId)
                 .OrderByDescending(l => l.Timestamp)
                 .Take(count)

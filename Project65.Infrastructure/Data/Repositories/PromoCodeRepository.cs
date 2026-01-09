@@ -10,28 +10,31 @@ namespace Project65.Infrastructure.Data.Repositories
 {
     public class PromoCodeRepository : IPromoCodeRepository
     {
-        private readonly AppDbContext _context;
+        private readonly IDbContextFactory<AppDbContext> _contextFactory;
 
-        public PromoCodeRepository(AppDbContext context)
+        public PromoCodeRepository(IDbContextFactory<AppDbContext> contextFactory)
         {
-            _context = context;
+            _contextFactory = contextFactory;
         }
 
         public async Task<PromoCode?> GetByIdAsync(int id)
         {
-            return await _context.PromoCodes.FindAsync(id);
+            using var context = await _contextFactory.CreateDbContextAsync();
+            return await context.PromoCodes.FindAsync(id);
         }
 
         public async Task<PromoCode?> GetByCodeAsync(string code)
         {
-            return await _context.PromoCodes
+            using var context = await _contextFactory.CreateDbContextAsync();
+            return await context.PromoCodes
                 .AsNoTracking()
                 .FirstOrDefaultAsync(p => p.Code.ToUpper() == code.ToUpper());
         }
 
         public async Task<List<PromoCode>> ListAsync()
         {
-            return await _context.PromoCodes
+            using var context = await _contextFactory.CreateDbContextAsync();
+            return await context.PromoCodes
                 .AsNoTracking()
                 .OrderByDescending(p => p.CreatedAt)
                 .ToListAsync();
@@ -39,39 +42,37 @@ namespace Project65.Infrastructure.Data.Repositories
 
         public async Task AddAsync(PromoCode promoCode)
         {
-            _context.PromoCodes.Add(promoCode);
-            await _context.SaveChangesAsync();
+            using var context = await _contextFactory.CreateDbContextAsync();
+            context.PromoCodes.Add(promoCode);
+            await context.SaveChangesAsync();
         }
 
         public async Task UpdateAsync(PromoCode promoCode)
         {
-            var trackedEntity = _context.PromoCodes.Local.FirstOrDefault(e => e.Id == promoCode.Id);
-            if (trackedEntity != null)
-            {
-                _context.Entry(trackedEntity).State = EntityState.Detached;
-            }
-
-            _context.PromoCodes.Update(promoCode);
-            await _context.SaveChangesAsync();
+            using var context = await _contextFactory.CreateDbContextAsync();
+            context.PromoCodes.Update(promoCode);
+            await context.SaveChangesAsync();
         }
 
         public async Task DeleteAsync(int id)
         {
-            var promoCode = await _context.PromoCodes.FindAsync(id);
+            using var context = await _contextFactory.CreateDbContextAsync();
+            var promoCode = await context.PromoCodes.FindAsync(id);
             if (promoCode != null)
             {
-                _context.PromoCodes.Remove(promoCode);
-                await _context.SaveChangesAsync();
+                context.PromoCodes.Remove(promoCode);
+                await context.SaveChangesAsync();
             }
         }
 
         public async Task IncrementUsageAsync(int id)
         {
-            var promoCode = await _context.PromoCodes.FindAsync(id);
+            using var context = await _contextFactory.CreateDbContextAsync();
+            var promoCode = await context.PromoCodes.FindAsync(id);
             if (promoCode != null)
             {
                 promoCode.UsageCount++;
-                await _context.SaveChangesAsync();
+                await context.SaveChangesAsync();
             }
         }
     }

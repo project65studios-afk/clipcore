@@ -6,20 +6,21 @@ namespace Project65.Infrastructure.Data.Repositories;
 
 public class EventRepository : IEventRepository
 {
-    private readonly AppDbContext _context;
+    private readonly IDbContextFactory<AppDbContext> _contextFactory;
     private readonly IVideoService _videoService;
     private readonly IStorageService _storageService;
 
-    public EventRepository(AppDbContext context, IVideoService videoService, IStorageService storageService)
+    public EventRepository(IDbContextFactory<AppDbContext> contextFactory, IVideoService videoService, IStorageService storageService)
     {
-        _context = context;
+        _contextFactory = contextFactory;
         _videoService = videoService;
         _storageService = storageService;
     }
 
     public async Task<Event?> GetByIdAsync(string id)
     {
-        return await _context.Events
+        using var context = await _contextFactory.CreateDbContextAsync();
+        return await context.Events
             .AsNoTracking()
             .Include(e => e.Clips)
             .Include(e => e.FeaturedProducts)
@@ -29,7 +30,8 @@ public class EventRepository : IEventRepository
 
     public async Task<List<Event>> ListAsync()
     {
-        return await _context.Events
+        using var context = await _contextFactory.CreateDbContextAsync();
+        return await context.Events
             .AsNoTracking()
             .Include(e => e.Clips)
             .Include(e => e.FeaturedProducts)
@@ -40,7 +42,8 @@ public class EventRepository : IEventRepository
 
     public async Task<List<Event>> SearchAsync(string query)
     {
-        return await _context.Events
+        using var context = await _contextFactory.CreateDbContextAsync();
+        return await context.Events
             .AsNoTracking()
             .Include(e => e.Clips) // Include clips so we can show counts
             .Where(e => e.Name.ToLower().Contains(query.ToLower()) || (e.Summary != null && e.Summary.ToLower().Contains(query.ToLower())))
@@ -50,14 +53,16 @@ public class EventRepository : IEventRepository
 
     public async Task AddAsync(Event evt)
     {
-        await _context.Events.AddAsync(evt);
-        await _context.SaveChangesAsync();
+        using var context = await _contextFactory.CreateDbContextAsync();
+        await context.Events.AddAsync(evt);
+        await context.SaveChangesAsync();
     }
 
     public async Task UpdateAsync(Event evt)
     {
+        using var context = await _contextFactory.CreateDbContextAsync();
         // Eager load everything to ensure we're updating the graph correctly
-        var existing = await _context.Events
+        var existing = await context.Events
             .Include(e => e.FeaturedProducts)
             .FirstOrDefaultAsync(e => e.Id == evt.Id);
         
@@ -73,7 +78,7 @@ public class EventRepository : IEventRepository
             existing.FeaturedProducts.Clear();
             foreach (var prod in evt.FeaturedProducts)
             {
-                var trackedProd = await _context.ExternalProducts.FindAsync(prod.Id);
+                var trackedProd = await context.ExternalProducts.FindAsync(prod.Id);
                 if (trackedProd != null)
                 {
                     existing.FeaturedProducts.Add(trackedProd);
@@ -83,7 +88,7 @@ public class EventRepository : IEventRepository
             // Update Clip Prices
             foreach (var clip in evt.Clips)
             {
-                var existingClip = await _context.Clips.FindAsync(clip.Id);
+                var existingClip = await context.Clips.FindAsync(clip.Id);
                 if (existingClip != null)
                 {
                     existingClip.PriceCents = clip.PriceCents;
@@ -92,13 +97,14 @@ public class EventRepository : IEventRepository
                 }
             }
             
-            await _context.SaveChangesAsync();
+            await context.SaveChangesAsync();
         }
     }
 
     public async Task DeleteAsync(string id)
     {
-        var evt = await _context.Events
+        using var context = await _contextFactory.CreateDbContextAsync();
+        var evt = await context.Events
             .Include(e => e.Clips)
             .FirstOrDefaultAsync(e => e.Id == id);
             
@@ -135,11 +141,11 @@ public class EventRepository : IEventRepository
                     }
                 }
 
-                _context.Clips.RemoveRange(evt.Clips);
+                context.Clips.RemoveRange(evt.Clips);
             }
             
-            _context.Events.Remove(evt);
-            await _context.SaveChangesAsync();
+            context.Events.Remove(evt);
+            await context.SaveChangesAsync();
         }
     }
 }

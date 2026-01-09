@@ -6,23 +6,25 @@ namespace Project65.Infrastructure.Data.Repositories;
 
 public class UsageRepository : IUsageRepository
 {
-    private readonly AppDbContext _context;
+    private readonly IDbContextFactory<AppDbContext> _contextFactory;
 
-    public UsageRepository(AppDbContext context)
+    public UsageRepository(IDbContextFactory<AppDbContext> contextFactory)
     {
-        _context = context;
+        _contextFactory = contextFactory;
     }
 
     public async Task<DailyWatchUsage> GetUsageAsync(string ipAddress, DateOnly date)
     {
-        return await _context.DailyWatchUsages
+        using var context = await _contextFactory.CreateDbContextAsync();
+        return await context.DailyWatchUsages
             .FirstOrDefaultAsync(u => u.IpAddress == ipAddress && u.Date == date) 
             ?? new DailyWatchUsage { IpAddress = ipAddress, Date = date };
     }
 
     public async Task IncrementUsageAsync(string ipAddress, DateOnly date, string? userId = null)
     {
-        var usage = await _context.DailyWatchUsages
+        using var context = await _contextFactory.CreateDbContextAsync();
+        var usage = await context.DailyWatchUsages
             .FirstOrDefaultAsync(u => u.IpAddress == ipAddress && u.Date == date);
 
         if (usage == null)
@@ -34,7 +36,7 @@ public class UsageRepository : IUsageRepository
                 UserId = userId,
                 TokenRequestCount = 1
             };
-            _context.DailyWatchUsages.Add(usage);
+            context.DailyWatchUsages.Add(usage);
         }
         else
         {
@@ -46,6 +48,6 @@ public class UsageRepository : IUsageRepository
             }
         }
 
-        await _context.SaveChangesAsync();
+        await context.SaveChangesAsync();
     }
 }

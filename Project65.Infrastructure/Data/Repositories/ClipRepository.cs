@@ -6,23 +6,25 @@ namespace Project65.Infrastructure.Data.Repositories;
 
 public class ClipRepository : IClipRepository
 {
-    private readonly AppDbContext _context;
+    private readonly IDbContextFactory<AppDbContext> _contextFactory;
 
-    public ClipRepository(AppDbContext context)
+    public ClipRepository(IDbContextFactory<AppDbContext> contextFactory)
     {
-        _context = context;
+        _contextFactory = contextFactory;
     }
 
     public async Task<Clip?> GetByIdAsync(string id)
     {
-        return await _context.Clips
+        using var context = await _contextFactory.CreateDbContextAsync();
+        return await context.Clips
             .Include(c => c.Event)
             .FirstOrDefaultAsync(c => c.Id == id);
     }
 
     public async Task<List<Clip>> SearchAsync(string query)
     {
-        return await _context.Clips
+        using var context = await _contextFactory.CreateDbContextAsync();
+        return await context.Clips
             .AsNoTracking()
             .Include(c => c.Event)
             .Where(c => c.Title.ToLower().Contains(query.ToLower()) || c.TagsJson.ToLower().Contains(query.ToLower()))
@@ -32,7 +34,8 @@ public class ClipRepository : IClipRepository
 
     public async Task<List<Clip>> GetByEventIdAsync(string eventId)
     {
-        return await _context.Clips
+        using var context = await _contextFactory.CreateDbContextAsync();
+        return await context.Clips
             .AsNoTracking()
             .Where(c => c.EventId == eventId)
             .OrderBy(c => c.RecordingStartedAt)
@@ -41,8 +44,9 @@ public class ClipRepository : IClipRepository
 
     public async Task<List<Clip>> GetRelatedAsync(string eventId, string[] tags, string excludeClipId, int count = 4)
     {
+        using var context = await _contextFactory.CreateDbContextAsync();
         // 1. Get other clips from same event
-        var query = _context.Clips
+        var query = context.Clips
             .AsNoTracking()
             .Where(c => c.EventId == eventId && c.Id != excludeClipId);
 
@@ -73,13 +77,15 @@ public class ClipRepository : IClipRepository
 
     public async Task AddAsync(Clip clip)
     {
-        await _context.Clips.AddAsync(clip);
-        await _context.SaveChangesAsync();
+        using var context = await _contextFactory.CreateDbContextAsync();
+        await context.Clips.AddAsync(clip);
+        await context.SaveChangesAsync();
     }
 
     public async Task UpdateAsync(Clip clip)
     {
-        _context.Entry(clip).State = EntityState.Modified;
-        await _context.SaveChangesAsync();
+        using var context = await _contextFactory.CreateDbContextAsync();
+        context.Entry(clip).State = EntityState.Modified;
+        await context.SaveChangesAsync();
     }
 }

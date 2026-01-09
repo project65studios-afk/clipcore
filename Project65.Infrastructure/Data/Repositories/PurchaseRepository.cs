@@ -6,30 +6,33 @@ namespace Project65.Infrastructure.Data.Repositories;
 
 public class PurchaseRepository : IPurchaseRepository
 {
-    private readonly AppDbContext _context;
+    private readonly IDbContextFactory<AppDbContext> _contextFactory;
 
-    public PurchaseRepository(AppDbContext context)
+    public PurchaseRepository(IDbContextFactory<AppDbContext> contextFactory)
     {
-        _context = context;
+        _contextFactory = contextFactory;
     }
 
     public async Task AddAsync(Purchase purchase)
     {
-        await _context.Purchases.AddAsync(purchase);
-        await _context.SaveChangesAsync();
+        using var context = await _contextFactory.CreateDbContextAsync();
+        await context.Purchases.AddAsync(purchase);
+        await context.SaveChangesAsync();
     }
 
     public async Task<bool> HasPurchasedAsync(string? userId, string clipId, LicenseType license)
     {
         if (string.IsNullOrEmpty(userId)) return false;
 
-        return await _context.Purchases
+        using var context = await _contextFactory.CreateDbContextAsync();
+        return await context.Purchases
             .AnyAsync(p => p.UserId == userId && p.ClipId == clipId && p.LicenseType == license);
     }
 
     public async Task<List<Purchase>> GetByUserIdAsync(string? userId)
     {
-        return await _context.Purchases
+        using var context = await _contextFactory.CreateDbContextAsync();
+        return await context.Purchases
             .AsNoTracking()
             .Include(p => p.Clip)
             .ThenInclude(c => c!.Event)
@@ -40,7 +43,8 @@ public class PurchaseRepository : IPurchaseRepository
 
     public async Task<List<Purchase>> GetByEmailAsync(string email)
     {
-        return await _context.Purchases
+        using var context = await _contextFactory.CreateDbContextAsync();
+        return await context.Purchases
             .AsNoTracking()
             .Include(p => p.Clip)
             .ThenInclude(c => c!.Event)
@@ -51,7 +55,8 @@ public class PurchaseRepository : IPurchaseRepository
 
     public async Task<List<Purchase>> GetByOrderNumberAsync(string email, string partialOrderId)
     {
-        return await _context.Purchases
+        using var context = await _contextFactory.CreateDbContextAsync();
+        return await context.Purchases
             .AsNoTracking()
             .Include(p => p.Clip)
             .ThenInclude(c => c!.Event)
@@ -65,7 +70,8 @@ public class PurchaseRepository : IPurchaseRepository
 
     public async Task<List<Purchase>> GetBySessionIdAsync(string sessionId)
     {
-        return await _context.Purchases
+        using var context = await _contextFactory.CreateDbContextAsync();
+        return await context.Purchases
             .Include(p => p.Clip)
             .ThenInclude(c => c!.Event)
             .Where(p => p.StripeSessionId == sessionId)
@@ -74,7 +80,8 @@ public class PurchaseRepository : IPurchaseRepository
 
     public async Task<List<Purchase>> ListAsync()
     {
-        return await _context.Purchases
+        using var context = await _contextFactory.CreateDbContextAsync();
+        return await context.Purchases
             .AsNoTracking()
             .Include(p => p.Clip)
             .ThenInclude(c => c!.Event)
@@ -84,7 +91,8 @@ public class PurchaseRepository : IPurchaseRepository
 
     public async Task<List<Purchase>> ListFilteredAsync(FulfillmentStatus? status = null, DateTime? since = null, string? search = null)
     {
-        var query = _context.Purchases
+        using var context = await _contextFactory.CreateDbContextAsync();
+        var query = context.Purchases
             .AsNoTracking()
             .Include(p => p.Clip)
             .ThenInclude(c => c!.Event)
@@ -144,7 +152,8 @@ public class PurchaseRepository : IPurchaseRepository
 
     public async Task UpdateAsync(Purchase purchase)
     {
-        var existingPurchase = await _context.Purchases
+        using var context = await _contextFactory.CreateDbContextAsync();
+        var existingPurchase = await context.Purchases
             .FirstOrDefaultAsync(p => p.Id == purchase.Id);
 
         if (existingPurchase != null)
@@ -168,26 +177,26 @@ public class PurchaseRepository : IPurchaseRepository
             existingPurchase.ClipRecordingStartedAt = purchase.ClipRecordingStartedAt;
             existingPurchase.ClipDurationSec = purchase.ClipDurationSec;
 
-            await _context.SaveChangesAsync();
-            
-            // Detach to allow future fresh reads if necessary (optional but helps in Blazor)
-            _context.Entry(existingPurchase).State = EntityState.Detached;
+            await context.SaveChangesAsync();
         }
     }
 
     public async Task<long> GetTotalRevenueAsync()
     {
-        return await _context.Purchases.SumAsync(p => (long)p.PricePaidCents);
+        using var context = await _contextFactory.CreateDbContextAsync();
+        return await context.Purchases.SumAsync(p => (long)p.PricePaidCents);
     }
 
     public async Task<int> GetTotalSalesCountAsync()
     {
-        return await _context.Purchases.CountAsync();
+        using var context = await _contextFactory.CreateDbContextAsync();
+        return await context.Purchases.CountAsync();
     }
 
     public async Task<List<Purchase>> GetRecentSalesAsync(int count)
     {
-        return await _context.Purchases
+        using var context = await _contextFactory.CreateDbContextAsync();
+        return await context.Purchases
             .AsNoTracking()
             .Include(p => p.Clip)
             .OrderByDescending(p => p.CreatedAt)
@@ -197,9 +206,10 @@ public class PurchaseRepository : IPurchaseRepository
 
     public async Task<Dictionary<DateOnly, long>> GetDailyRevenueAsync(int days)
     {
+        using var context = await _contextFactory.CreateDbContextAsync();
         var cutoff = DateTime.UtcNow.AddDays(-days);
         
-        var dailySales = await _context.Purchases
+        var dailySales = await context.Purchases
             .Where(p => p.CreatedAt >= cutoff)
             .GroupBy(p => p.CreatedAt.Date)
             .Select(g => new { Date = g.Key, Total = g.Sum(p => (long)p.PricePaidCents) })

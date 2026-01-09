@@ -6,16 +6,17 @@ namespace Project65.Infrastructure.Data.Repositories;
 
 public class SettingsRepository : ISettingsRepository
 {
-    private readonly AppDbContext _context;
+    private readonly IDbContextFactory<AppDbContext> _contextFactory;
 
-    public SettingsRepository(AppDbContext context)
+    public SettingsRepository(IDbContextFactory<AppDbContext> contextFactory)
     {
-        _context = context;
+        _contextFactory = contextFactory;
     }
 
     public async Task<string?> GetValueAsync(string key)
     {
-        var setting = await _context.Settings
+        using var context = await _contextFactory.CreateDbContextAsync();
+        var setting = await context.Settings
             .AsNoTracking()
             .FirstOrDefaultAsync(s => s.Key == key);
         return setting?.Value;
@@ -23,23 +24,25 @@ public class SettingsRepository : ISettingsRepository
 
     public async Task SetValueAsync(string key, string value)
     {
-        var setting = await _context.Settings.FindAsync(key);
+        using var context = await _contextFactory.CreateDbContextAsync();
+        var setting = await context.Settings.FindAsync(key);
         if (setting == null)
         {
             setting = new Setting { Key = key, Value = value, UpdatedAt = DateTime.UtcNow };
-            await _context.Settings.AddAsync(setting);
+            await context.Settings.AddAsync(setting);
         }
         else
         {
             setting.Value = value;
             setting.UpdatedAt = DateTime.UtcNow;
-            _context.Settings.Update(setting);
+            context.Settings.Update(setting);
         }
-        await _context.SaveChangesAsync();
+        await context.SaveChangesAsync();
     }
 
     public async Task<List<Setting>> ListAllAsync()
     {
-        return await _context.Settings.ToListAsync();
+        using var context = await _contextFactory.CreateDbContextAsync();
+        return await context.Settings.ToListAsync();
     }
 }

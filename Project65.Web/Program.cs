@@ -81,22 +81,28 @@ var connectionString = builder.Configuration.GetConnectionString("DefaultConnect
 
 if (builder.Environment.IsDevelopment())
 {
-    builder.Services.AddDbContext<AppDbContext>(options =>
+    builder.Services.AddDbContextFactory<AppDbContext>(options =>
         options.UseSqlite(connectionString));
 }
 else
 {
-    // Register PostgresDbContext as the concrete implementation
-    builder.Services.AddDbContext<PostgresDbContext>(options =>
+    // Use AddDbContextFactory for health and concurrency in Blazor Server
+    builder.Services.AddDbContextFactory<PostgresDbContext>(options =>
     {
         options.UseNpgsql(connectionString);
-        // Suppress pending model changes error to allow startup in .NET 9+
         options.ConfigureWarnings(w => w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning));
     });
 
-    // Map AppDbContext to use the PostgresDbContext instance
-    builder.Services.AddScoped<AppDbContext>(provider => 
-        provider.GetRequiredService<PostgresDbContext>());
+    // Provide AppDbContext factory for components/services that use the base class
+    builder.Services.AddDbContextFactory<AppDbContext>(options =>
+    {
+        options.UseNpgsql(connectionString);
+        options.ConfigureWarnings(w => w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning));
+    });
+
+    // Register Scoped DbContext for Identity and Background tasks using the factory
+    builder.Services.AddScoped<AppDbContext>(p => p.GetRequiredService<IDbContextFactory<AppDbContext>>().CreateDbContext());
+    builder.Services.AddScoped<PostgresDbContext>(p => p.GetRequiredService<IDbContextFactory<PostgresDbContext>>().CreateDbContext());
 }
 
 builder.Services.AddDefaultIdentity<ApplicationUser>(options => options.SignIn.RequireConfirmedAccount = false)
