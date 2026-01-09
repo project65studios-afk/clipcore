@@ -22,6 +22,24 @@ var builder = WebApplication.CreateBuilder(args);
 if (!builder.Environment.IsDevelopment())
 {
     builder.Configuration.AddSystemsManager("/project65");
+    
+    // Validate required keys after loading from SSM
+    ConfigurationValidation.ValidateRequiredKeys(builder.Configuration,
+        "ConnectionStrings:DefaultConnection",
+        "Mux:TokenId",
+        "Mux:TokenSecret",
+        "Mux:SigningKeyId",
+        "Mux:SigningKeyPrivate",
+        "R2:AccountId",
+        "R2:AccessKeyId",
+        "R2:SecretAccessKey",
+        "R2:BucketName",
+        "Stripe:SecretKey",
+        "OpenAI:ApiKey",
+        "AWS:AccessKeyId",
+        "AWS:SecretAccessKey",
+        "AWS:Region"
+    );
 }
 
 // Configure Logging for CloudWatch

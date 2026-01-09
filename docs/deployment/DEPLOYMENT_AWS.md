@@ -103,7 +103,7 @@ Don't put passwords in your code! We'll put them in the vault.
 
 ---
 
-## 🐳 Step 2.5: Containerize with Docker (Optional but Recommended)
+## 🐳 Step 2.5: Containerize with Docker (Optional but Recommended) ✅ Completed
 
 "Containerizing" means wrapping your app in a box (Container) so it runs exactly the same on your laptop as it does in the cloud. We have included a `Dockerfile` in the project.
 
