@@ -88,7 +88,11 @@ else
 {
     // Register PostgresDbContext as the concrete implementation
     builder.Services.AddDbContext<PostgresDbContext>(options =>
-        options.UseNpgsql(connectionString));
+    {
+        options.UseNpgsql(connectionString);
+        // Suppress pending model changes error to allow startup in .NET 9+
+        options.ConfigureWarnings(w => w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning));
+    });
 
     // Map AppDbContext to use the PostgresDbContext instance
     builder.Services.AddScoped<AppDbContext>(provider => 
