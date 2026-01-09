@@ -19,11 +19,14 @@ using Microsoft.AspNetCore.Identity;
 
 try 
 {
+    Console.Error.WriteLine(">>> DEPLOYMENT DEBUG: Builder Init...");
     var builder = WebApplication.CreateBuilder(args);
 
 if (!builder.Environment.IsDevelopment())
 {
+    Console.Error.WriteLine(">>> DEPLOYMENT DEBUG: Loading SSM Params...");
     builder.Configuration.AddSystemsManager("/project65");
+    Console.Error.WriteLine(">>> DEPLOYMENT DEBUG: SSM Params Loaded.");
     
     // Validate required keys after loading from SSM
     ConfigurationValidation.ValidateRequiredKeys(builder.Configuration,
@@ -385,6 +388,7 @@ app.MapRazorPages().RequireRateLimiting("login"); // Required for Identity UI en
 app.MapControllers(); // Required for API endpoints
 app.MapHub<Project65.Web.Hubs.ProcessingHub>("/processingHub");
 
+Console.Error.WriteLine(">>> DEPLOYMENT DEBUG: Starting Post-Build Tasks (Migrations/Seeding)...");
 using (var scope = app.Services.CreateScope())
 {
     var services = scope.ServiceProvider;
@@ -396,10 +400,14 @@ using (var scope = app.Services.CreateScope())
     var storageService = services.GetRequiredService<IStorageService>();
     await storageService.ConfigureCorsAsync();
     
+    Console.Error.WriteLine(">>> DEPLOYMENT DEBUG: Database Migrations...");
     await context.Database.MigrateAsync();
+    Console.Error.WriteLine(">>> DEPLOYMENT DEBUG: Data Seeding...");
     await Project65.Infrastructure.DataSeeder.SeedAsync(context, userManager, roleManager, app.Configuration, app.Environment.IsDevelopment());
+    Console.Error.WriteLine(">>> DEPLOYMENT DEBUG: Startup Sequence Success.");
 }
 
+    Console.Error.WriteLine(">>> DEPLOYMENT DEBUG: Kestrel app.Run()...");
     app.Run();
 }
 catch (Exception ex)
