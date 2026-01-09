@@ -40,7 +40,11 @@ if (!builder.Environment.IsDevelopment())
         "OpenAI:ApiKey",
         "AWS:AccessKeyId",
         "AWS:SecretAccessKey",
-        "AWS:Region"
+        "AWS:Region",
+        "Authentication:Google:ClientId",
+        "Authentication:Google:ClientSecret",
+        "Authentication:Facebook:AppId",
+        "Authentication:Facebook:AppSecret"
     );
 }
 
@@ -114,17 +118,29 @@ builder.Services.ConfigureApplicationCookie(options =>
     options.SlidingExpiration = true;
 });
 
-builder.Services.AddAuthentication()
-    .AddGoogle(options =>
+var authBuilder = builder.Services.AddAuthentication();
+
+    var googleClientId = builder.Configuration["Authentication:Google:ClientId"];
+    var googleClientSecret = builder.Configuration["Authentication:Google:ClientSecret"];
+    if (!string.IsNullOrEmpty(googleClientId) && !string.IsNullOrEmpty(googleClientSecret))
     {
-        options.ClientId = builder.Configuration["Authentication:Google:ClientId"] ?? string.Empty;
-        options.ClientSecret = builder.Configuration["Authentication:Google:ClientSecret"] ?? string.Empty;
-    })
-    .AddFacebook(options =>
+        authBuilder.AddGoogle(options =>
+        {
+            options.ClientId = googleClientId;
+            options.ClientSecret = googleClientSecret;
+        });
+    }
+
+    var facebookAppId = builder.Configuration["Authentication:Facebook:AppId"];
+    var facebookAppSecret = builder.Configuration["Authentication:Facebook:AppSecret"];
+    if (!string.IsNullOrEmpty(facebookAppId) && !string.IsNullOrEmpty(facebookAppSecret))
     {
-        options.AppId = builder.Configuration["Authentication:Facebook:AppId"] ?? string.Empty;
-        options.AppSecret = builder.Configuration["Authentication:Facebook:AppSecret"] ?? string.Empty;
-    });
+        authBuilder.AddFacebook(options =>
+        {
+            options.AppId = facebookAppId;
+            options.AppSecret = facebookAppSecret;
+        });
+    }
 
 builder.Services.AddScoped<IEventRepository, EventRepository>();
 builder.Services.AddScoped<IClipRepository, ClipRepository>();
