@@ -112,28 +112,30 @@ if (builder.Environment.IsDevelopment())
 }
 else
 {
-    // Use ONE factory for everything in Prod to avoid concurrency collisions
+    // Runtime Factory: Uses AppDbContext directly (Npgsql)
+    // This is what SettingsRepository and UI components will use.
+    builder.Services.AddDbContextFactory<AppDbContext>(options =>
+    {
+        options.UseNpgsql(connectionString);
+        options.ConfigureWarnings(w => w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning));
+    });
+
+    // Identity/Migrations Factory: Uses PostgresDbContext
+    // Kept separate to ensure Identity stores work as expected.
     builder.Services.AddDbContextFactory<PostgresDbContext>(options =>
     {
         options.UseNpgsql(connectionString);
         options.ConfigureWarnings(w => w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning));
     });
 
-    // Provide Scoped PostgresDbContext (for non-Blazor parts or simple injections)
+    // Scoped Registrations (resolved from their respective factories)
+    builder.Services.AddScoped<AppDbContext>(p => p.GetRequiredService<IDbContextFactory<AppDbContext>>().CreateDbContext());
     builder.Services.AddScoped<PostgresDbContext>(p => p.GetRequiredService<IDbContextFactory<PostgresDbContext>>().CreateDbContext());
-    
-    // Alias Scoped AppDbContext for Identity and base-class injections
-    builder.Services.AddScoped<AppDbContext>(p => p.GetRequiredService<PostgresDbContext>());
-
-    // Crucial: Alias the Factory itself so repositories using IDbContextFactory<AppDbContext> 
-    // use the SAME underlying singleton factory and connection pool as PostgresDbContext.
-    builder.Services.AddSingleton<IDbContextFactory<AppDbContext>>(p => 
-        new DelegatingDbContextFactory<AppDbContext, PostgresDbContext>(p.GetRequiredService<IDbContextFactory<PostgresDbContext>>()));
 }
 
 builder.Services.AddDefaultIdentity<ApplicationUser>(options => options.SignIn.RequireConfirmedAccount = false)
     .AddRoles<Microsoft.AspNetCore.Identity.IdentityRole>()
-    .AddEntityFrameworkStores<PostgresDbContext>(); // Use concrete type for Identity stores
+    .AddEntityFrameworkStores<PostgresDbContext>(); // Keep using concrete context for Identity
 
 builder.Services.ConfigureApplicationCookie(options =>
 {
@@ -454,13 +456,4 @@ catch (Exception ex)
     Console.Error.WriteLine(ex.Message);
     Console.Error.WriteLine(ex.StackTrace);
     throw; // Still throw to ensure non-zero exit code
-}
-
-// Simple wrapper to allow IDbContextFactory<Base> to use IDbContextFactory<Derived>
-// This ensures we only have ONE singleton factory in the entire application scope.
-public class DelegatingDbContextFactory<TBase, TDerived>(IDbContextFactory<TDerived> inner) : IDbContextFactory<TBase>
-    where TBase : DbContext
-    where TDerived : TBase
-{
-    public TBase CreateDbContext() => inner.CreateDbContext();
 }
