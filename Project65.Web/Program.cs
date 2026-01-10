@@ -112,25 +112,31 @@ if (builder.Environment.IsDevelopment())
 }
 else
 {
-    // Runtime Factory: Uses AppDbContext directly (Npgsql)
-    // This is what SettingsRepository and UI components will use.
-    builder.Services.AddDbContextFactory<AppDbContext>(options =>
-    {
-        options.UseNpgsql(connectionString);
-        options.ConfigureWarnings(w => w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning));
-    });
-
-    // Identity/Migrations Factory: Uses PostgresDbContext
-    // Kept separate to ensure Identity stores work as expected.
+    // Runtime Factory: Uses PostgresDbContext (Npgsql) as the SINGLE source of truth
     builder.Services.AddDbContextFactory<PostgresDbContext>(options =>
     {
         options.UseNpgsql(connectionString);
         options.ConfigureWarnings(w => w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning));
     });
 
-    // Scoped Registrations (resolved from their respective factories)
-    builder.Services.AddScoped<AppDbContext>(p => p.GetRequiredService<IDbContextFactory<AppDbContext>>().CreateDbContext());
+    // Provide Scoped PostgresDbContext (standard resolution)
     builder.Services.AddScoped<PostgresDbContext>(p => p.GetRequiredService<IDbContextFactory<PostgresDbContext>>().CreateDbContext());
+
+    // Alias Scoped AppDbContext -> PostgresDbContext
+    builder.Services.AddScoped<AppDbContext>(p => p.GetRequiredService<PostgresDbContext>());
+
+    // IMPORTANT: Forward IDbContextFactory<AppDbContext> to the PostgresDbContext factory.
+    // This allows repositories asking for IDbContextFactory<AppDbContext> to get the SAME factory instance.
+    builder.Services.AddSingleton<IDbContextFactory<AppDbContext>>(sp => 
+    {
+        var factory = sp.GetRequiredService<IDbContextFactory<PostgresDbContext>>();
+        // We can't cast the generic interface directly (not covariant), so we wrap it simply.
+        // Or cleaner: since repositories just need a factory that produces a context compatible with AppDbContext...
+        // But the simplest valid compile-time fix that behaves correctly at runtime without wrapper classes:
+        // We re-register the factory with the SAME options? No, that creates two pools.
+        // We use a lambda to return a wrapper?
+        return new Project65.Infrastructure.Data.DbContextFactoryWrapper(factory);
+    });
 }
 
 builder.Services.AddDefaultIdentity<ApplicationUser>(options => options.SignIn.RequireConfirmedAccount = false)
@@ -415,37 +421,39 @@ app.MapRazorPages().RequireRateLimiting("login"); // Required for Identity UI en
 app.MapControllers(); // Required for API endpoints
 app.MapHub<Project65.Web.Hubs.ProcessingHub>("/processingHub");
 
-Console.Error.WriteLine(">>> DEPLOYMENT DEBUG: Starting Post-Build Tasks (Migrations/Seeding)...");
-using (var scope = app.Services.CreateScope())
-{
-    var services = scope.ServiceProvider;
-    var context = services.GetRequiredService<AppDbContext>();
-    var userManager = services.GetRequiredService<Microsoft.AspNetCore.Identity.UserManager<ApplicationUser>>();
-    var roleManager = services.GetRequiredService<Microsoft.AspNetCore.Identity.RoleManager<Microsoft.AspNetCore.Identity.IdentityRole>>();
-    
-    // Configure CORS for R2
-    var storageService = services.GetRequiredService<IStorageService>();
-    await storageService.ConfigureCorsAsync();
-    
-    Console.Error.WriteLine(">>> DEPLOYMENT DEBUG: Testing RDS Connection...");
-    try 
+    Console.Error.WriteLine(">>> DEPLOYMENT DEBUG (v7): Starting Post-Build Tasks (Migrations/Seeding)...");
+    using (var scope = app.Services.CreateScope())
     {
-        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
-        await context.Database.CanConnectAsync(cts.Token);
-        Console.Error.WriteLine(">>> DEPLOYMENT DEBUG: RDS Connected Successfully.");
-    }
-    catch (Exception dbEx)
-    {
-        Console.Error.WriteLine(">>> DATABASE CONNECTION FAILED: " + dbEx.Message);
-        throw; // Let the outer catch handle and exit
-    }
+        var services = scope.ServiceProvider;
+        // Use PostgresDbContext for migrations to ensure full Identity compatibility
+        var context = services.GetRequiredService<PostgresDbContext>(); 
+        var userManager = services.GetRequiredService<Microsoft.AspNetCore.Identity.UserManager<ApplicationUser>>();
+        var roleManager = services.GetRequiredService<Microsoft.AspNetCore.Identity.RoleManager<Microsoft.AspNetCore.Identity.IdentityRole>>();
+        
+        // Configure CORS for R2
+        var storageService = services.GetRequiredService<IStorageService>();
+        await storageService.ConfigureCorsAsync();
+        
+        Console.Error.WriteLine(">>> DEPLOYMENT DEBUG: Testing RDS Connection...");
+        try 
+        {
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            await context.Database.CanConnectAsync(cts.Token);
+            Console.Error.WriteLine(">>> DEPLOYMENT DEBUG: RDS Connected Successfully.");
+        }
+        catch (Exception dbEx)
+        {
+            Console.Error.WriteLine(">>> DATABASE CONNECTION FAILED: " + dbEx.Message);
+            throw; // Let the outer catch handle and exit
+        }
 
-    Console.Error.WriteLine(">>> DEPLOYMENT DEBUG: Database Migrations...");
-    await context.Database.MigrateAsync();
-    Console.Error.WriteLine(">>> DEPLOYMENT DEBUG: Data Seeding...");
-    await Project65.Infrastructure.DataSeeder.SeedAsync(context, userManager, roleManager, app.Configuration, app.Environment.IsDevelopment());
-    Console.Error.WriteLine(">>> DEPLOYMENT DEBUG: Startup Sequence Success.");
-}
+        Console.Error.WriteLine(">>> DEPLOYMENT DEBUG: Database Migrations...");
+        await context.Database.MigrateAsync();
+        Console.Error.WriteLine(">>> DEPLOYMENT DEBUG: Data Seeding...");
+        // Pass context specifically - Seeder might accept AppDbContext, but PostgresDbContext is derived so it runs fine.
+        await Project65.Infrastructure.DataSeeder.SeedAsync(context, userManager, roleManager, app.Configuration, app.Environment.IsDevelopment());
+        Console.Error.WriteLine(">>> DEPLOYMENT DEBUG: Startup Sequence Success (v7).");
+    }
 
 Console.Error.WriteLine(">>> DEPLOYMENT DEBUG: Kestrel app.Run()...");
     app.Run();
