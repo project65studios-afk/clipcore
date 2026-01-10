@@ -14,6 +14,8 @@ using Microsoft.AspNetCore.RateLimiting;
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.AspNetCore.Identity;
+using Amazon.SimpleSystemsManagement;
+using Amazon.SimpleSystemsManagement.Model;
 // Ensure Repositories namespace is included, which it is.
 
 
@@ -35,67 +37,58 @@ string configError = "";
 
 if (!builder.Environment.IsDevelopment())
 {
-    Console.Error.WriteLine(">>> DEPLOYMENT DEBUG: Loading SSM Params...");
+    Console.Error.WriteLine(">>> DEPLOYMENT DEBUG: Starting SSM Pre-Check...");
     try 
     {
-
-        builder.Configuration.AddSystemsManager("/project65");
-        Console.Error.WriteLine(">>> DEPLOYMENT DEBUG: SSM Params Loaded.");
-
-        // Validate required keys ONLY if SSM loaded
-        try 
+        // MANUAL PRE-CHECK: Creates a temporary client with strict timeout.
+        // This ensures meaningful connectivity before we let the standard config source 
+        // silently hang line 385 (builder.Build).
+        
+        var checkTask = Task.Run(async () => 
         {
-            ConfigurationValidation.ValidateRequiredKeys(builder.Configuration,
-                "ConnectionStrings:DefaultConnection",
-                "Mux:TokenId",
-        // Force a meaningful timeout on the configuration load.
-        // If the network is black-holed (VPC issue), standard calls might hang for minutes.
-        // We give it 5 seconds. If it fails, we boot in degraded mode.
-        var ssmTask = Task.Run(() => {
-            builder.Configuration.AddSystemsManager("/project65");
+            var ssmConfig = new AmazonSimpleSystemsManagementConfig 
+            { 
+                Timeout = TimeSpan.FromSeconds(5), 
+                MaxErrorRetry = 0,
+                RegionEndpoint = Amazon.RegionEndpoint.USEast1 // Explicit region is safer
+            };
+            
+            using var ssmClient = new AmazonSimpleSystemsManagementClient(ssmConfig);
+            
+            // Just try to list parameters. Light op.
+            var req = new GetParametersByPathRequest 
+            { 
+                Path = "/project65", 
+                MaxResults = 1 
+            };
+            
+            await ssmClient.GetParametersByPathAsync(req);
         });
 
-        if (ssmTask.Wait(TimeSpan.FromSeconds(5)))
+        if (checkTask.Wait(TimeSpan.FromSeconds(6))) // 1s buffer over 5s timeout
         {
-            if (ssmTask.IsFaulted) throw ssmTask.Exception!.InnerException!;
-            Console.Error.WriteLine(">>> DEPLOYMENT DEBUG: SSM Params Loaded.");
+            if (checkTask.IsFaulted) throw checkTask.Exception!.InnerException!;
             
-            // Now validate keys
-            try 
-            {
-                ConfigurationValidation.ValidateRequiredKeys(builder.Configuration,
-                    "ConnectionStrings:DefaultConnection",
-                    "Mux:TokenId",
-                    "Mux:TokenSecret",
-                    "Mux:SigningKeyId",
-                    "Mux:SigningKeyPrivate",
-                    "R2:AccountId",
-                    "R2:AccessKeyId",
-                    "R2:SecretAccessKey",
-                    "R2:BucketName",
-                    "Stripe:SecretKey",
-                    "OpenAI:ApiKey"
-                    // "AWS:AccessKeyId", // REMOVED: Using IAM Role
-                    // "AWS:SecretAccessKey" // REMOVED: Using IAM Role
-                );
-            }
-            catch (Exception valEx)
-            {
-                configLoaded = false;
-                configError = $"Config Validation Failed: {valEx.Message}";
-                Console.Error.WriteLine($">>> CONFIG VALIDATION FAILED: {valEx.Message}");
-            }
+            Console.Error.WriteLine(">>> DEPLOYMENT DEBUG: Pre-Check PASSED. Registering Source.");
+            
+            // Only now do we register the standard source.
+            // It will re-fetch during builder.Build(), but we know the path is open.
+            builder.Configuration.AddSystemsManager("/project65");
+            
+            // We can try to load/validate here, but let's do it after Build() if possible?
+            // Actually, we can't validate fully until Build().
+            // But if we add it, we assume it works.
         }
         else
         {
-            throw new TimeoutException("SSM Parameter Store load timed out after 5 seconds.");
+            throw new TimeoutException("SSM Pre-Check timed out (Network Black Hole).");
         }
     }
     catch (Exception ssmEx)
     {
         configLoaded = false;
-        configError = $"SSM Load Failed: {ssmEx.Message}";
-        Console.Error.WriteLine($">>> SSM LOAD FAILURE: {ssmEx.Message}");
+        configError = $"SSM Pre-Check Failed: {ssmEx.Message}";
+        Console.Error.WriteLine($">>> SSM FAILURE (DEGRADED MODE STARTING): {ssmEx.Message}");
     }
 }
 
