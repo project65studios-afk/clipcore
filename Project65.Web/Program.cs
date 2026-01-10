@@ -43,24 +43,7 @@ if (!builder.Environment.IsDevelopment())
     Console.Error.WriteLine(">>> DEPLOYMENT DEBUG: Loading SSM Params...");
     try 
     {
-        // Set a timeout for SSM loading so we don't hang forever
-        var ssmSource = new Amazon.Extensions.Configuration.SystemsManager.SystemsManagerConfigurationSource 
-        {
-            Path = "/project65",
-            ReloadAfter = TimeSpan.FromMinutes(90),
-            Optional = false, // We want to know if it fails
-            OnLoadException = ctx => 
-            {
-                Console.Error.WriteLine($">>> SSM ON-LOAD EXCEPTION: {ctx.Exception.Message}");
-                // Returning true allows the app to continue despite the error (we'll catch it below)
-                return false; 
-            }
-        };
 
-        // We wrap the standard AddSystemsManager call to control exception handling better if possible,
-        // but the standard extension method is blocking.
-        // If it hangs, it hangs. The watchdog will kill it.
-        // Ideally we'd use a timeout wrapper, but that's complex for IConfigurationBuilder.
         builder.Configuration.AddSystemsManager("/project65");
         Console.Error.WriteLine(">>> DEPLOYMENT DEBUG: SSM Params Loaded.");
 
