@@ -30,8 +30,7 @@ _ = Task.Run(async () => {
     Environment.Exit(99); 
 });
 
-try 
-{
+
     Console.Error.WriteLine(">>> DEPLOYMENT DEBUG: Builder Init...");
     var builder = WebApplication.CreateBuilder(args);
 
