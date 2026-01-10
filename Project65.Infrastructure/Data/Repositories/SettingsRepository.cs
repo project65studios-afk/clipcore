@@ -6,9 +6,9 @@ namespace Project65.Infrastructure.Data.Repositories;
 
 public class SettingsRepository : ISettingsRepository
 {
-    private readonly IDbContextFactory<AppDbContext> _contextFactory;
+    private readonly IDbContextFactory<PostgresDbContext> _contextFactory;
 
-    public SettingsRepository(IDbContextFactory<AppDbContext> contextFactory)
+    public SettingsRepository(IDbContextFactory<PostgresDbContext> contextFactory)
     {
         _contextFactory = contextFactory;
     }
