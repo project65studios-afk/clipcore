@@ -352,7 +352,17 @@ builder.Services.Configure<Microsoft.AspNetCore.Http.Features.FormOptions>(optio
     options.MultipartBodyLengthLimit = 2_147_483_648; // 2GB
 });
 
+// Configure Kestrel to listen on 0.0.0.0:[PORT]
+var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
+builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
+
+// Register Startup Background Service
+builder.Services.AddHostedService<StartupBackgroundService>();
+
 var app = builder.Build();
+
+// Generic Health Check Endpoint
+app.MapGet("/health", () => Results.Ok("ok"));
 
 // Add Security Headers
 app.Use(async (context, next) =>
@@ -366,11 +376,13 @@ app.Use(async (context, next) =>
     // We add our own allowed origins to the CSP connect-src
     string appOrigins = string.Join(" ", allowedOrigins);
     
+    // Note: Replaced "ws://localhost:*" with "wss://" and "ws://" dynamically if needed, 
+    // but simplified heavily here to ensure it doesn't block local dev.
     string csp = "default-src 'self'; " +
                  "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://unpkg.com https://releases.transloadit.com https://js.stripe.com https://www.gstatic.com http://www.gstatic.com https://maps.googleapis.com chrome-extension:; " +
                  "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://releases.transloadit.com https://fonts.googleapis.com https://fonts.gstatic.com; " +
                  "img-src 'self' data: blob: https://*.mux.com https://*.r2.cloudflarestorage.com https://*.stripe.com https://www.gstatic.com http://www.gstatic.com; " +
-                 $"connect-src 'self' {appOrigins} https://*.mux.com https://*.r2.cloudflarestorage.com https://api.stripe.com https://www.gstatic.com http://www.gstatic.com https://maps.googleapis.com https://cdn.jsdelivr.net https://unpkg.com https://releases.transloadit.com wss://localhost:* ws://localhost:* chrome-extension:; " +
+                 $"connect-src 'self' {appOrigins} https://*.mux.com https://*.r2.cloudflarestorage.com https://api.stripe.com https://www.gstatic.com http://www.gstatic.com https://maps.googleapis.com https://cdn.jsdelivr.net https://unpkg.com https://releases.transloadit.com wss://* ws://* chrome-extension:; " +
                  "frame-src 'self' https://js.stripe.com; " +
                  "media-src 'self' blob: https://*.mux.com; " +
                  "worker-src 'self' blob:; " +
@@ -378,17 +390,6 @@ app.Use(async (context, next) =>
                  "frame-ancestors 'self';";
 
     context.Response.Headers["Content-Security-Policy"] = csp;
-    
-    // Antiforgery Token Cookie for JS (XHR/Fetch)
-    // var antiforgery = context.RequestServices.GetRequiredService<Microsoft.AspNetCore.Antiforgery.IAntiforgery>();
-    // var tokens = antiforgery.GetAndStoreTokens(context);
-    // context.Response.Cookies.Append("XSRF-TOKEN", tokens.RequestToken!, 
-    //    new CookieOptions { HttpOnly = false, Secure = true, SameSite = SameSiteMode.Strict }); 
-    //     new CookieOptions { 
-    //         HttpOnly = false, // Must be accessible by JS
-    //         Secure = !builder.Environment.IsDevelopment(), 
-    //         SameSite = SameSiteMode.Strict 
-    //     });
 
     await next();
 });
@@ -421,47 +422,8 @@ app.MapRazorPages().RequireRateLimiting("login"); // Required for Identity UI en
 app.MapControllers(); // Required for API endpoints
 app.MapHub<Project65.Web.Hubs.ProcessingHub>("/processingHub");
 
-    Console.Error.WriteLine(">>> DEPLOYMENT DEBUG (v7): Starting Post-Build Tasks (Migrations/Seeding)...");
-    using (var scope = app.Services.CreateScope())
-    {
-        var services = scope.ServiceProvider;
-        // Use PostgresDbContext for migrations to ensure full Identity compatibility
-        var context = services.GetRequiredService<PostgresDbContext>(); 
-        var userManager = services.GetRequiredService<Microsoft.AspNetCore.Identity.UserManager<ApplicationUser>>();
-        var roleManager = services.GetRequiredService<Microsoft.AspNetCore.Identity.RoleManager<Microsoft.AspNetCore.Identity.IdentityRole>>();
-        
-        // Configure CORS for R2
-        var storageService = services.GetRequiredService<IStorageService>();
-        await storageService.ConfigureCorsAsync();
-        
-        Console.Error.WriteLine(">>> DEPLOYMENT DEBUG: Testing RDS Connection...");
-        try 
-        {
-            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
-            await context.Database.CanConnectAsync(cts.Token);
-            Console.Error.WriteLine(">>> DEPLOYMENT DEBUG: RDS Connected Successfully.");
-        }
-        catch (Exception dbEx)
-        {
-            Console.Error.WriteLine(">>> DATABASE CONNECTION FAILED: " + dbEx.Message);
-            throw; // Let the outer catch handle and exit
-        }
-
-        Console.Error.WriteLine(">>> DEPLOYMENT DEBUG: Database Migrations...");
-        await context.Database.MigrateAsync();
-        Console.Error.WriteLine(">>> DEPLOYMENT DEBUG: Data Seeding...");
-        // Pass context specifically - Seeder might accept AppDbContext, but PostgresDbContext is derived so it runs fine.
-        await Project65.Infrastructure.DataSeeder.SeedAsync(context, userManager, roleManager, app.Configuration, app.Environment.IsDevelopment());
-        Console.Error.WriteLine(">>> DEPLOYMENT DEBUG: Startup Sequence Success (v7).");
-    }
+// REMOVED: Blocking database migration block. 
+// This is now handled by StartupBackgroundService.cs to ensure port 8080 opens immediately.
 
 Console.Error.WriteLine(">>> DEPLOYMENT DEBUG: Kestrel app.Run()...");
-    app.Run();
-}
-catch (Exception ex)
-{
-    Console.Error.WriteLine("CRITICAL STARTUP FAILURE:");
-    Console.Error.WriteLine(ex.Message);
-    Console.Error.WriteLine(ex.StackTrace);
-    throw; // Still throw to ensure non-zero exit code
-}
+app.Run();
