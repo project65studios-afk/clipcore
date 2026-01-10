@@ -97,7 +97,6 @@ builder.Services.AddRazorComponents()
         options.DisconnectedCircuitMaxRetained = 100;
         options.DisconnectedCircuitRetentionPeriod = TimeSpan.FromMinutes(3);
         options.JSInteropDefaultCallTimeout = TimeSpan.FromMinutes(1);
-        options.MaxBufferedMessageSize = 1024 * 1024; // Increase buffer size
     });
 builder.Services.AddCascadingAuthenticationState();
 builder.Services.AddSignalR();
