@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Identity;
 using Project65.Core.Entities;
 using Project65.Web.Services;
 using Microsoft.Extensions.Configuration; // For IConfiguration
+using Project65.Core.Interfaces;
 
 namespace Project65.Web.Services;
 
