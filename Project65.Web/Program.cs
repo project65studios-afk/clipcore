@@ -48,24 +48,47 @@ if (!builder.Environment.IsDevelopment())
             ConfigurationValidation.ValidateRequiredKeys(builder.Configuration,
                 "ConnectionStrings:DefaultConnection",
                 "Mux:TokenId",
-                "Mux:TokenSecret",
-                "Mux:SigningKeyId",
-                "Mux:SigningKeyPrivate",
-                "R2:AccountId",
-                "R2:AccessKeyId",
-                "R2:SecretAccessKey",
-                "R2:BucketName",
-                "Stripe:SecretKey",
-                "OpenAI:ApiKey"
-                // "AWS:AccessKeyId", // REMOVED: Using IAM Role
-                // "AWS:SecretAccessKey" // REMOVED: Using IAM Role
-            );
-        }
-        catch (Exception valEx)
+        // Force a meaningful timeout on the configuration load.
+        // If the network is black-holed (VPC issue), standard calls might hang for minutes.
+        // We give it 5 seconds. If it fails, we boot in degraded mode.
+        var ssmTask = Task.Run(() => {
+            builder.Configuration.AddSystemsManager("/project65");
+        });
+
+        if (ssmTask.Wait(TimeSpan.FromSeconds(5)))
         {
-            configLoaded = false;
-            configError = $"Config Validation Failed: {valEx.Message}";
-            Console.Error.WriteLine($">>> CONFIG VALIDATION FAILED: {valEx.Message}");
+            if (ssmTask.IsFaulted) throw ssmTask.Exception!.InnerException!;
+            Console.Error.WriteLine(">>> DEPLOYMENT DEBUG: SSM Params Loaded.");
+            
+            // Now validate keys
+            try 
+            {
+                ConfigurationValidation.ValidateRequiredKeys(builder.Configuration,
+                    "ConnectionStrings:DefaultConnection",
+                    "Mux:TokenId",
+                    "Mux:TokenSecret",
+                    "Mux:SigningKeyId",
+                    "Mux:SigningKeyPrivate",
+                    "R2:AccountId",
+                    "R2:AccessKeyId",
+                    "R2:SecretAccessKey",
+                    "R2:BucketName",
+                    "Stripe:SecretKey",
+                    "OpenAI:ApiKey"
+                    // "AWS:AccessKeyId", // REMOVED: Using IAM Role
+                    // "AWS:SecretAccessKey" // REMOVED: Using IAM Role
+                );
+            }
+            catch (Exception valEx)
+            {
+                configLoaded = false;
+                configError = $"Config Validation Failed: {valEx.Message}";
+                Console.Error.WriteLine($">>> CONFIG VALIDATION FAILED: {valEx.Message}");
+            }
+        }
+        else
+        {
+            throw new TimeoutException("SSM Parameter Store load timed out after 5 seconds.");
         }
     }
     catch (Exception ssmEx)
