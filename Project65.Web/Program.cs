@@ -56,10 +56,9 @@ if (!builder.Environment.IsDevelopment())
                 "R2:SecretAccessKey",
                 "R2:BucketName",
                 "Stripe:SecretKey",
-                "OpenAI:ApiKey",
-                "AWS:AccessKeyId",
-                "AWS:SecretAccessKey",
-                "AWS:Region"
+                "OpenAI:ApiKey"
+                // "AWS:AccessKeyId", // REMOVED: Using IAM Role
+                // "AWS:SecretAccessKey" // REMOVED: Using IAM Role
             );
         }
         catch (Exception valEx)
