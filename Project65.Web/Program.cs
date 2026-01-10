@@ -93,7 +93,11 @@ else
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents(options =>
     {
-        options.DetailedErrors = builder.Environment.IsDevelopment(); // Only enable detailed exceptions in Dev
+        options.DetailedErrors = true; // FORCE ENABLE for App Runner debugging
+        options.DisconnectedCircuitMaxRetained = 100;
+        options.DisconnectedCircuitRetentionPeriod = TimeSpan.FromMinutes(3);
+        options.JSInteropDefaultCallTimeout = TimeSpan.FromMinutes(1);
+        options.MaxBufferedMessageSize = 1024 * 1024; // Increase buffer size
     });
 builder.Services.AddCascadingAuthenticationState();
 builder.Services.AddSignalR();
@@ -387,7 +391,9 @@ app.UseResponseCompression();
 // Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment())
 {
-    app.UseExceptionHandler("/Error", createScopeForErrors: true);
+    // app.UseExceptionHandler("/Error", createScopeForErrors: true);
+    app.UseDeveloperExceptionPage(); // FORCE ENABLE to print stack trace to logs for v6 debugging
+    
     // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
     app.UseHsts();
 }
