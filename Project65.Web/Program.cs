@@ -23,12 +23,7 @@ Console.SetError(new StreamWriter(Console.OpenStandardError()) { AutoFlush = tru
 
 Console.Error.WriteLine(">>> DEPLOYMENT START: Process ID " + Environment.ProcessId);
 
-// 60-second Watchdog to force a log flush if we hang
-_ = Task.Run(async () => {
-    await Task.Delay(TimeSpan.FromSeconds(60));
-    Console.Error.WriteLine(">>> CRITICAL WATCHDOG: App hasn't reached app.Run() after 60s. EXPORTING LOGS AND QUITTING.");
-    Environment.Exit(99); 
-});
+
 
 
     Console.Error.WriteLine(">>> DEPLOYMENT DEBUG: Builder Init...");
