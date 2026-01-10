@@ -117,46 +117,54 @@ builder.Services.AddCascadingAuthenticationState();
 builder.Services.AddSignalR();
 
 // Database Configuration
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") 
-                       ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
-
-if (builder.Environment.IsDevelopment())
+string connectionString = "";
+if (configLoaded) 
 {
-    builder.Services.AddDbContextFactory<AppDbContext>(options =>
-        options.UseSqlite(connectionString));
-}
-else
-{
-    // Runtime Factory: Uses PostgresDbContext (Npgsql) as the SINGLE source of truth
-    builder.Services.AddDbContextFactory<PostgresDbContext>(options =>
-    {
-        options.UseNpgsql(connectionString);
-        options.ConfigureWarnings(w => w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning));
-    });
-
-    // Provide Scoped PostgresDbContext (standard resolution)
-    builder.Services.AddScoped<PostgresDbContext>(p => p.GetRequiredService<IDbContextFactory<PostgresDbContext>>().CreateDbContext());
-
-    // Alias Scoped AppDbContext -> PostgresDbContext
-    builder.Services.AddScoped<AppDbContext>(p => p.GetRequiredService<PostgresDbContext>());
-
-    // IMPORTANT: Forward IDbContextFactory<AppDbContext> to the PostgresDbContext factory.
-    // This allows repositories asking for IDbContextFactory<AppDbContext> to get the SAME factory instance.
-    builder.Services.AddSingleton<IDbContextFactory<AppDbContext>>(sp => 
-    {
-        var factory = sp.GetRequiredService<IDbContextFactory<PostgresDbContext>>();
-        // We can't cast the generic interface directly (not covariant), so we wrap it simply.
-        // Or cleaner: since repositories just need a factory that produces a context compatible with AppDbContext...
-        // But the simplest valid compile-time fix that behaves correctly at runtime without wrapper classes:
-        // We re-register the factory with the SAME options? No, that creates two pools.
-        // We use a lambda to return a wrapper?
-        return new Project65.Infrastructure.Data.DbContextFactoryWrapper(factory);
-    });
+    connectionString = builder.Configuration.GetConnectionString("DefaultConnection")!;
+    // Note: We used ! because configLoaded implies config validation passed, so key exists.
 }
 
-builder.Services.AddDefaultIdentity<ApplicationUser>(options => options.SignIn.RequireConfirmedAccount = false)
-    .AddRoles<Microsoft.AspNetCore.Identity.IdentityRole>()
-    .AddEntityFrameworkStores<PostgresDbContext>(); // Keep using concrete context for Identity
+// ---------------------------
+// DA T A B A S E   S E T U P
+// ---------------------------
+if (configLoaded)
+{
+    if (builder.Environment.IsDevelopment())
+    {
+        builder.Services.AddDbContextFactory<AppDbContext>(options =>
+            options.UseSqlite(connectionString));
+    }
+    else
+    {
+        // Runtime Factory: Uses PostgresDbContext (Npgsql) as the SINGLE source of truth
+        builder.Services.AddDbContextFactory<PostgresDbContext>(options =>
+        {
+            options.UseNpgsql(connectionString);
+            options.ConfigureWarnings(w => w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning));
+        });
+
+        // Provide Scoped PostgresDbContext (standard resolution)
+        builder.Services.AddScoped<PostgresDbContext>(p => p.GetRequiredService<IDbContextFactory<PostgresDbContext>>().CreateDbContext());
+
+        // Alias Scoped AppDbContext -> PostgresDbContext
+        builder.Services.AddScoped<AppDbContext>(p => p.GetRequiredService<PostgresDbContext>());
+
+        // IMPORTANT: Forward IDbContextFactory<AppDbContext> to the PostgresDbContext factory.
+        builder.Services.AddSingleton<IDbContextFactory<AppDbContext>>(sp => 
+        {
+            var factory = sp.GetRequiredService<IDbContextFactory<PostgresDbContext>>();
+            return new Project65.Infrastructure.Data.DbContextFactoryWrapper(factory);
+        });
+    }
+
+    builder.Services.AddDefaultIdentity<ApplicationUser>(options => options.SignIn.RequireConfirmedAccount = false)
+        .AddRoles<Microsoft.AspNetCore.Identity.IdentityRole>()
+        .AddEntityFrameworkStores<PostgresDbContext>(); 
+}
+else 
+{
+    Console.Error.WriteLine(">>> SKIPPING DB SETUP: Config load failed.");
+}
 
 builder.Services.ConfigureApplicationCookie(options =>
 {
@@ -372,7 +380,10 @@ var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
 builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
 
 // Register Startup Background Service
-builder.Services.AddHostedService<StartupBackgroundService>();
+if (configLoaded)
+{
+    builder.Services.AddHostedService<StartupBackgroundService>();
+}
 
 var app = builder.Build();
 
