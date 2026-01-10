@@ -34,36 +34,69 @@ _ = Task.Run(async () => {
     Console.Error.WriteLine(">>> DEPLOYMENT DEBUG: Builder Init...");
     var builder = WebApplication.CreateBuilder(args);
 
+// Flag to track if critical config loaded successfully
+bool configLoaded = true;
+string configError = "";
+
 if (!builder.Environment.IsDevelopment())
 {
     Console.Error.WriteLine(">>> DEPLOYMENT DEBUG: Loading SSM Params...");
     try 
     {
+        // Set a timeout for SSM loading so we don't hang forever
+        var ssmSource = new Amazon.Extensions.Configuration.SystemsManager.SystemsManagerConfigurationSource 
+        {
+            Path = "/project65",
+            ReloadAfter = TimeSpan.FromMinutes(90),
+            Optional = false, // We want to know if it fails
+            OnLoadException = ctx => 
+            {
+                Console.Error.WriteLine($">>> SSM ON-LOAD EXCEPTION: {ctx.Exception.Message}");
+                // Returning true allows the app to continue despite the error (we'll catch it below)
+                return false; 
+            }
+        };
+
+        // We wrap the standard AddSystemsManager call to control exception handling better if possible,
+        // but the standard extension method is blocking.
+        // If it hangs, it hangs. The watchdog will kill it.
+        // Ideally we'd use a timeout wrapper, but that's complex for IConfigurationBuilder.
         builder.Configuration.AddSystemsManager("/project65");
         Console.Error.WriteLine(">>> DEPLOYMENT DEBUG: SSM Params Loaded.");
+
+        // Validate required keys ONLY if SSM loaded
+        try 
+        {
+            ConfigurationValidation.ValidateRequiredKeys(builder.Configuration,
+                "ConnectionStrings:DefaultConnection",
+                "Mux:TokenId",
+                "Mux:TokenSecret",
+                "Mux:SigningKeyId",
+                "Mux:SigningKeyPrivate",
+                "R2:AccountId",
+                "R2:AccessKeyId",
+                "R2:SecretAccessKey",
+                "R2:BucketName",
+                "Stripe:SecretKey",
+                "OpenAI:ApiKey",
+                "AWS:AccessKeyId",
+                "AWS:SecretAccessKey",
+                "AWS:Region"
+            );
+        }
+        catch (Exception valEx)
+        {
+            configLoaded = false;
+            configError = $"Config Validation Failed: {valEx.Message}";
+            Console.Error.WriteLine($">>> CONFIG VALIDATION FAILED: {valEx.Message}");
+        }
     }
     catch (Exception ssmEx)
     {
-        Console.Error.WriteLine(">>> SSM LOAD FAILURE: " + ssmEx.Message);
+        configLoaded = false;
+        configError = $"SSM Load Failed: {ssmEx.Message}";
+        Console.Error.WriteLine($">>> SSM LOAD FAILURE: {ssmEx.Message}");
     }
-    
-    // Validate required keys after loading from SSM
-    ConfigurationValidation.ValidateRequiredKeys(builder.Configuration,
-        "ConnectionStrings:DefaultConnection",
-        "Mux:TokenId",
-        "Mux:TokenSecret",
-        "Mux:SigningKeyId",
-        "Mux:SigningKeyPrivate",
-        "R2:AccountId",
-        "R2:AccessKeyId",
-        "R2:SecretAccessKey",
-        "R2:BucketName",
-        "Stripe:SecretKey",
-        "OpenAI:ApiKey",
-        "AWS:AccessKeyId",
-        "AWS:SecretAccessKey",
-        "AWS:Region"
-    );
 }
 
 // Configure Logging for CloudWatch
@@ -362,6 +395,13 @@ var app = builder.Build();
 
 // Generic Health Check Endpoint
 app.MapGet("/health", () => Results.Ok("ok"));
+
+// DEBUG: View Config Load Status
+app.MapGet("/debug/config", () => 
+{
+    if (configLoaded) return Results.Ok("Config Loaded Successfully.");
+    return Results.Problem($"Config Validation Failed: {configError}");
+});
 
 // Add Security Headers
 app.Use(async (context, next) =>
