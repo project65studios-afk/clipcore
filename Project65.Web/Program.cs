@@ -442,18 +442,32 @@ app.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages:
 app.UseHttpsRedirection();
 app.UseCors("ProductionOrigins");
     // app.UseRateLimiter();
-app.UseAuthentication();
-app.UseAuthorization();
+if (configLoaded)
+{
+    app.UseAuthentication();
+    app.UseAuthorization();
+}
+
 app.UseAntiforgery();
 
 
 app.MapStaticAssets();
-app.MapRazorComponents<App>()
-    .AddInteractiveServerRenderMode();
 
-app.MapRazorPages().RequireRateLimiting("login"); // Required for Identity UI endpoints
-app.MapControllers(); // Required for API endpoints
-app.MapHub<Project65.Web.Hubs.ProcessingHub>("/processingHub");
+if (configLoaded)
+{
+    app.MapRazorComponents<App>()
+        .AddInteractiveServerRenderMode();
+
+    app.MapRazorPages().RequireRateLimiting("login"); // Required for Identity UI endpoints
+    app.MapControllers(); // Required for API endpoints
+    app.MapHub<Project65.Web.Hubs.ProcessingHub>("/processingHub");
+}
+else
+{
+    // In degraded mode, we map a fallback homepage or just let the static assets/debug endpoints work.
+    // If we map App.razor without services, it will crash on injection.
+    app.MapGet("/", () => Results.Redirect("/debug/config"));
+}
 
 // REMOVED: Blocking database migration block. 
 // This is now handled by StartupBackgroundService.cs to ensure port 8080 opens immediately.
