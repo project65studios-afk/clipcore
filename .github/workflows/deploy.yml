@@ -37,7 +37,7 @@ jobs:
       - name: Deploy to App Runner
         uses: awslabs/amazon-app-runner-deploy@v1
         with:
-          service: project65-web
+          service: project65-web-v2
           region: us-east-1
           image: ${{ steps.build-image.outputs.image }}
           access-role-arn: arn:aws:iam::016981601583:role/service-role/AppRunnerECRAccessRole
