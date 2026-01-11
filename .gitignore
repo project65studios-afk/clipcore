@@ -116,3 +116,9 @@ pings/
 appsettings.Development.json
 secrets.json
 Project65.Web/wwwroot/thumbnails/
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.backup
+*.tfvars
