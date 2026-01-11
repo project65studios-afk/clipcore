@@ -129,11 +129,11 @@ builder.Services.AddSignalR();
     
     // Configure ForwardedHeaders for App Runner (Envoy)
     // This fixes the "WebSocket failed to connect" error by ensuring HTTPS is detected correctly.
+    // Configure ForwardedHeaders for App Runner (Envoy)
+    // Refined to only trust Proto and For to avoid Host header confusion
     builder.Services.Configure<ForwardedHeadersOptions>(options =>
     {
-        options.ForwardedHeaders = ForwardedHeaders.All; // Allow everything
-        // App Runner's load balancer IP changes, so we must rely on the headers being implicitly trusted 
-        // within the secure VPC environment or just clear the filters.
+        options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
         options.KnownNetworks.Clear(); 
         options.KnownProxies.Clear();
     });
