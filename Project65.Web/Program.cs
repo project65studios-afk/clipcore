@@ -415,6 +415,24 @@ app.MapGet("/health", () => Results.Ok("ok"));
 // Enable Forwarded Headers Middleware (Must be early in the pipeline)
 app.UseForwardedHeaders();
 
+// DEBUG: Log Headers to debug App Runner Proxy
+app.Use(async (context, next) =>
+{
+    // Only log for the health check or initial load to avoid noise? 
+    // Actually, log everything for now since traffic is low.
+    Console.WriteLine($">>> DEBUG REQUEST: {context.Request.Method} {context.Request.Path}");
+    Console.WriteLine($"    Scheme: {context.Request.Scheme}");
+    Console.WriteLine($"    IsHttps: {context.Request.IsHttps}");
+    foreach (var header in context.Request.Headers)
+    {
+        if (header.Key.StartsWith("X-Forwarded") || header.Key == "Host")
+        {
+            Console.WriteLine($"    Header {header.Key}: {header.Value}");
+        }
+    }
+    await next();
+});
+
 // DEBUG: View Config Load Status
 app.MapGet("/debug/config", () => 
 {

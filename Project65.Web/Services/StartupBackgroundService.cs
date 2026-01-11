@@ -65,8 +65,19 @@ public sealed class StartupBackgroundService : BackgroundService
                 _logger.LogError(">>> STARTUP BACKGROUND SERVICE: CanConnectAsync returned false.");
             }
 
-            _logger.LogInformation(">>> STARTUP BACKGROUND SERVICE: Running Migrations...");
-            await context.Database.MigrateAsync(stoppingToken);
+            _logger.LogInformation(">>> STARTUP BACKGROUND SERVICE: Checking for pending migrations...");
+            var pendingMigrations = await context.Database.GetPendingMigrationsAsync(stoppingToken);
+            if (pendingMigrations.Any())
+            {
+                _logger.LogInformation($">>> STARTUP BACKGROUND SERVICE: Found {pendingMigrations.Count()} pending migrations: {string.Join(", ", pendingMigrations)}");
+                _logger.LogInformation(">>> STARTUP BACKGROUND SERVICE: Running MigrateAsync...");
+                await context.Database.MigrateAsync(stoppingToken);
+                _logger.LogInformation(">>> STARTUP BACKGROUND SERVICE: Migrations Applied.");
+            }
+            else
+            {
+                _logger.LogInformation(">>> STARTUP BACKGROUND SERVICE: No pending migrations found. Database is up to date.");
+            }
 
             _logger.LogInformation(">>> STARTUP BACKGROUND SERVICE: Running Seeder...");
             await Project65.Infrastructure.DataSeeder.SeedAsync(context, userManager, roleManager, _configuration, _environment.IsDevelopment());

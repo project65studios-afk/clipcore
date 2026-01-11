@@ -20,7 +20,7 @@ resource "aws_apprunner_service" "project65_v2" {
     }
 
     image_repository {
-      image_identifier      = "016981601583.dkr.ecr.us-east-1.amazonaws.com/project65-web:v10.8"
+      image_identifier      = "016981601583.dkr.ecr.us-east-1.amazonaws.com/project65-web:v10.9"
       image_repository_type = "ECR"
       image_configuration {
         port = "8080"
@@ -63,7 +63,7 @@ output "service_url" {
 resource "aws_apprunner_custom_domain_association" "project65_domain" {
   domain_name = "project65video.com"
   service_arn = aws_apprunner_service.project65_v2.arn
-  enable_www  = true
+  enable_www_subdomain = true
 }
 
 output "dns_target" {
