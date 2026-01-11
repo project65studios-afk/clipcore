@@ -172,7 +172,7 @@ You couldn't set up the Webhook **before** proper deployment because Stripe need
 
 ---
 
-## 🔒 Step 3.6: Allow Your Domain in Cloudflare R2 (CORS)
+## 🔒 Step 3.6: Allow Your Domain in Cloudflare R2 (CORS) ✅ Completed
 
 Your images/videos are stored in Cloudflare R2. By default, it might block your new website from displaying them.
 

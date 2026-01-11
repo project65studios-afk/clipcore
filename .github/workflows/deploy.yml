@@ -26,25 +26,24 @@ jobs:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           ECR_REPOSITORY: project65-web
           IMAGE_TAG: ${{ github.sha }}
+          LATEST_TAG: latest
         run: |
           # Build a docker container and
           # push it to ECR so that it can
           # be deployed to App Runner.
-          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG -t $ECR_REGISTRY/$ECR_REPOSITORY:$LATEST_TAG .
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$LATEST_TAG
           echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
 
       - name: Deploy to App Runner
-        uses: awslabs/amazon-app-runner-deploy@v1
-        with:
-          service: project65-web-v2
-          region: us-east-1
-          image: ${{ steps.build-image.outputs.image }}
-          access-role-arn: arn:aws:iam::016981601583:role/service-role/AppRunnerECRAccessRole
-          cpu : 1024
-          memory : 2048
-          port: 8080
-          wait-for-service-stability-seconds: 1200
+        run: |
+          # Get Service ARN
+          SERVICE_ARN=$(aws apprunner list-services --query "ServiceSummaryList[?ServiceName=='project65-web-v2'].ServiceArn" --output text)
+          echo "Deploying to Service ARN: $SERVICE_ARN"
+          
+          # Start Deployment (This pulls the newly pushed 'latest' image)
+          aws apprunner start-deployment --service-arn $SERVICE_ARN --region us-east-1
 
       # Note: We are deploying the image v10.8 which matches our current manual target.
       # Ideally, a build step would build a NEW image tag per commit (e.g. SHA), 
