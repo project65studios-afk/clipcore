@@ -20,7 +20,7 @@ resource "aws_apprunner_service" "project65_v2" {
     }
 
     image_repository {
-      image_identifier      = "016981601583.dkr.ecr.us-east-1.amazonaws.com/project65-web:v10.7"
+      image_identifier      = "016981601583.dkr.ecr.us-east-1.amazonaws.com/project65-web:v10.8"
       image_repository_type = "ECR"
       image_configuration {
         port = "8080"

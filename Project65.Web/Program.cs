@@ -14,6 +14,7 @@ using Microsoft.AspNetCore.RateLimiting;
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.HttpOverrides;
 using Amazon.SimpleSystemsManagement;
 using Amazon.SimpleSystemsManagement.Model;
 // Ensure Repositories namespace is included, which it is.
@@ -125,6 +126,17 @@ builder.Services.AddRazorComponents()
     });
 builder.Services.AddCascadingAuthenticationState();
 builder.Services.AddSignalR();
+    
+    // Configure ForwardedHeaders for App Runner (Envoy)
+    // This fixes the "WebSocket failed to connect" error by ensuring HTTPS is detected correctly.
+    builder.Services.Configure<ForwardedHeadersOptions>(options =>
+    {
+        options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+        // App Runner's load balancer IP changes, so we must rely on the headers being implicitly trusted 
+        // within the secure VPC environment or just clear the filters.
+        options.KnownNetworks.Clear(); 
+        options.KnownProxies.Clear();
+    });
 
 // Database Configuration
 string connectionString = "";
@@ -399,6 +411,9 @@ var app = builder.Build();
 
 // Generic Health Check Endpoint
 app.MapGet("/health", () => Results.Ok("ok"));
+
+// Enable Forwarded Headers Middleware (Must be early in the pipeline)
+app.UseForwardedHeaders();
 
 // DEBUG: View Config Load Status
 app.MapGet("/debug/config", () => 

@@ -1,0 +1,64 @@
+name: Deploy to Production
+on:
+  push:
+    branches: [ "main" ]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build, tag, and push image to Amazon ECR
+        id: build-image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY: project65-web
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          # Build a docker container and
+          # push it to ECR so that it can
+          # be deployed to App Runner.
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
+
+      - name: Deploy to App Runner
+        uses: awslabs/amazon-app-runner-deploy@v1
+        with:
+          service: project65-web
+          region: us-east-1
+          image: ${{ steps.build-image.outputs.image }}
+          access-role-arn: arn:aws:iam::016981601583:role/service-role/AppRunnerECRAccessRole
+          cpu : 1024
+          memory : 2048
+          port: 8080
+          wait-for-service-stability-seconds: 1200
+
+      # Note: We are deploying the image v10.8 which matches our current manual target.
+      # Ideally, a build step would build a NEW image tag per commit (e.g. SHA), 
+      # but for now we are just automating the "Deploy" trigger for the existing setup 
+      # or assuming the build happens elsewhere or matches this tag.
+      #
+      # ACTUALLY: The user's goal is full automation. 
+      # The previous manual steps did: Check out -> Build -> Push -> Deploy.
+      # This workflow currently only does DEPLOY.
+      # To fully automate, we should probably include the Build & Push steps here too.
+      # Let's start with just the Deploy step as requested in the guide, 
+      # but acknowledging that without a build step, it just redeploys the *same* static tag 
+      # unless the tag is updated elsewhere.
+      #
+      # Given the user wants to "Automate Deployment", and we have a Dockerfile, 
+      # let's add the Build & Push steps to make it a COMPLETE pipeline.
+      
