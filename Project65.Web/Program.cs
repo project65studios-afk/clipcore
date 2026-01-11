@@ -131,7 +131,7 @@ builder.Services.AddSignalR();
     // This fixes the "WebSocket failed to connect" error by ensuring HTTPS is detected correctly.
     builder.Services.Configure<ForwardedHeadersOptions>(options =>
     {
-        options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+        options.ForwardedHeaders = ForwardedHeaders.All; // Allow everything
         // App Runner's load balancer IP changes, so we must rely on the headers being implicitly trusted 
         // within the secure VPC environment or just clear the filters.
         options.KnownNetworks.Clear(); 
@@ -423,12 +423,11 @@ app.Use(async (context, next) =>
     Console.WriteLine($">>> DEBUG REQUEST: {context.Request.Method} {context.Request.Path}");
     Console.WriteLine($"    Scheme: {context.Request.Scheme}");
     Console.WriteLine($"    IsHttps: {context.Request.IsHttps}");
+    Console.WriteLine("    Headers:");
     foreach (var header in context.Request.Headers)
     {
-        if (header.Key.StartsWith("X-Forwarded") || header.Key == "Host")
-        {
-            Console.WriteLine($"    Header {header.Key}: {header.Value}");
-        }
+        // Log ALL headers to catch lowercase cases or unexpected naming
+        Console.WriteLine($"      {header.Key}: {header.Value}");
     }
     await next();
 });

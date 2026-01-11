@@ -52,31 +52,29 @@ public sealed class StartupBackgroundService : BackgroundService
             await storageService.ConfigureCorsAsync();
 
             _logger.LogInformation(">>> STARTUP BACKGROUND SERVICE: Testing connection...");
-             // Connection test with timeout
-            using var connectCts = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken);
-            connectCts.CancelAfter(TimeSpan.FromSeconds(15));
-            
-            if (await context.Database.CanConnectAsync(connectCts.Token))
+            try 
             {
-                _logger.LogInformation(">>> STARTUP BACKGROUND SERVICE: Connected!");
-            }
-            else
-            {
-                _logger.LogError(">>> STARTUP BACKGROUND SERVICE: CanConnectAsync returned false.");
-            }
+                var connString = context.Database.GetConnectionString();
+                var host = connString?.Split(';').FirstOrDefault(s => s.StartsWith("Host=")) ?? "Unknown";
+                _logger.LogInformation($">>> STARTUP BACKGROUND SERVICE: Target DB Host: {host}");
 
-            _logger.LogInformation(">>> STARTUP BACKGROUND SERVICE: Checking for pending migrations...");
-            var pendingMigrations = await context.Database.GetPendingMigrationsAsync(stoppingToken);
-            if (pendingMigrations.Any())
-            {
-                _logger.LogInformation($">>> STARTUP BACKGROUND SERVICE: Found {pendingMigrations.Count()} pending migrations: {string.Join(", ", pendingMigrations)}");
-                _logger.LogInformation(">>> STARTUP BACKGROUND SERVICE: Running MigrateAsync...");
-                await context.Database.MigrateAsync(stoppingToken);
-                _logger.LogInformation(">>> STARTUP BACKGROUND SERVICE: Migrations Applied.");
+                _logger.LogInformation(">>> STARTUP BACKGROUND SERVICE: Checking for pending migrations...");
+                var pendingMigrations = await context.Database.GetPendingMigrationsAsync(stoppingToken);
+                if (pendingMigrations.Any())
+                {
+                    _logger.LogInformation($">>> STARTUP BACKGROUND SERVICE: Found {pendingMigrations.Count()} pending migrations: {string.Join(", ", pendingMigrations)}");
+                    _logger.LogInformation(">>> STARTUP BACKGROUND SERVICE: Running MigrateAsync...");
+                    await context.Database.MigrateAsync(stoppingToken);
+                    _logger.LogInformation(">>> STARTUP BACKGROUND SERVICE: Migrations Applied.");
+                }
+                else
+                {
+                    _logger.LogInformation(">>> STARTUP BACKGROUND SERVICE: No pending migrations found. Database is up to date.");
+                }
             }
-            else
+            catch (Exception ex)
             {
-                _logger.LogInformation(">>> STARTUP BACKGROUND SERVICE: No pending migrations found. Database is up to date.");
+                _logger.LogError(ex, ">>> STARTUP BACKGROUND SERVICE: Data Initialization Failed.");
             }
 
             _logger.LogInformation(">>> STARTUP BACKGROUND SERVICE: Running Seeder...");
