@@ -208,32 +208,18 @@ Your images/videos are stored in Cloudflare R2. By default, it might block your 
 
 ---
 
-## 🔄 Step 4: Automate It (GitHub Actions)
+## 🔄 Step 4: Automate It (GitHub Actions) ✅ Completed
 
-We want the site to update automatically when you push code.
+We have set up a fully automated pipeline so you don't need to manually deploy ever again.
 
-1.  In your project, create a file: `.github/workflows/deploy.yml`.
-2.  Paste this content:
+👉 **[Read the Full Automation Guide](AUTOMATION_GUIDE.md)**
 
-```yaml
-name: Deploy to Production
-on:
-  push:
-    branches: [ "main" ]
+**Summary:**
+*   **Trigger**: Just run `git push` to `main`.
+*   **Mechanism**: GitHub Actions builds your Docker image and updates AWS App Runner.
+*   **Status**: Check the **Actions** tab in your GitHub repo.
 
-jobs:
-  deploy:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Deploy to App Runner
-        uses: awslabs/amazon-app-runner-deploy@v1
-        with:
-          service: project65-web
-          region: us-east-1
-          # You need to set AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY 
-          # in your GitHub Repo Settings -> Secrets
-```
+
 
 ---
 
