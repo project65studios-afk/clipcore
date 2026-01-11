@@ -57,4 +57,19 @@ resource "aws_apprunner_service" "project65_v2" {
 
 output "service_url" {
   value = "https://${aws_apprunner_service.project65_v2.service_url}"
+
+}
+
+resource "aws_apprunner_custom_domain_association" "project65_domain" {
+  domain_name = "project65video.com"
+  service_arn = aws_apprunner_service.project65_v2.arn
+  enable_www  = true
+}
+
+output "dns_target" {
+  value = aws_apprunner_custom_domain_association.project65_domain.dns_target
+}
+
+output "certificate_validation_records" {
+  value = aws_apprunner_custom_domain_association.project65_domain.certificate_validation_records
 }

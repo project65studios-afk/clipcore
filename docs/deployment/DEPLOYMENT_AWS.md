@@ -124,7 +124,7 @@ Don't put passwords in your code! We'll put them in the vault.
 
 ---
 
-## ☁️ Step 3: Configure The Web Server (App Runner)
+## ☁️ Step 3: Configure The Web Server (App Runner) ✅ Completed
 
 1.  Search for **App Runner**.
 2.  Click **Create service**.
