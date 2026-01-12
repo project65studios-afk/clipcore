@@ -66,6 +66,41 @@ resource "aws_apprunner_custom_domain_association" "project65_domain" {
   enable_www_subdomain = true
 }
 
+# --- DNS Automation (Route 53) ---
+
+# 1. Get the Hosted Zone (Assumes you bought it in this account)
+data "aws_route53_zone" "primary" {
+  name = "project65video.com"
+}
+
+# 2. Create the Validation Records (Solving the 24h wait!)
+resource "aws_route53_record" "certificate_validation" {
+  for_each = {
+    for record in aws_apprunner_custom_domain_association.project65_domain.certificate_validation_records : record.name => record
+  }
+
+  zone_id = data.aws_route53_zone.primary.zone_id
+  name    = each.value.name
+  type    = each.value.type
+  ttl     = 60
+  records = [each.value.value]
+  allow_overwrite = true
+}
+
+# 3. Point 'www' to the App Runner service
+resource "aws_route53_record" "www" {
+  zone_id = data.aws_route53_zone.primary.zone_id
+  name    = "www.project65video.com"
+  type    = "CNAME"
+  ttl     = 300
+  records = [aws_apprunner_custom_domain_association.project65_domain.dns_target]
+}
+
+# Note: App Runner does not support root domain Alias (A-record) natively in Route 53 
+# without a CloudFront distribution or specific Zone ID. 
+# For now, we ensure 'www' works.
+
+
 output "dns_target" {
   value = aws_apprunner_custom_domain_association.project65_domain.dns_target
 }

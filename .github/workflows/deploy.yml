@@ -36,28 +36,12 @@ jobs:
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$LATEST_TAG
           echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
 
-      - name: Deploy to App Runner
+      - name: Deploy to App Runner (Auto)
         run: |
-          # Get Service ARN
-          SERVICE_ARN=$(aws apprunner list-services --query "ServiceSummaryList[?ServiceName=='project65-web-v2'].ServiceArn" --output text)
-          echo "Deploying to Service ARN: $SERVICE_ARN"
+          echo "Image pushed to ECR with tag 'latest'."
+          echo "App Runner is configured with 'auto_deployments_enabled = true'."
+          echo "Deployment should start automatically within a few minutes."
           
-          # Start Deployment (This pulls the newly pushed 'latest' image)
-          aws apprunner start-deployment --service-arn $SERVICE_ARN --region us-east-1
+          # Optional: We could Poll for status, but for now we just finish the job successfully.
 
-      # Note: We are deploying the image v10.8 which matches our current manual target.
-      # Ideally, a build step would build a NEW image tag per commit (e.g. SHA), 
-      # but for now we are just automating the "Deploy" trigger for the existing setup 
-      # or assuming the build happens elsewhere or matches this tag.
-      #
-      # ACTUALLY: The user's goal is full automation. 
-      # The previous manual steps did: Check out -> Build -> Push -> Deploy.
-      # This workflow currently only does DEPLOY.
-      # To fully automate, we should probably include the Build & Push steps here too.
-      # Let's start with just the Deploy step as requested in the guide, 
-      # but acknowledging that without a build step, it just redeploys the *same* static tag 
-      # unless the tag is updated elsewhere.
-      #
-      # Given the user wants to "Automate Deployment", and we have a Dockerfile, 
-      # let's add the Build & Push steps to make it a COMPLETE pipeline.
       
