@@ -53,6 +53,21 @@ resource "aws_apprunner_service" "project65_v2" {
   }
 
 
+  # LOCKING TO SINGLE INSTANCE (Stability over Scale)
+  # App Runner lacks Sticky Sessions. Blazor Server breaks if requests hit different instances.
+  # We use a custom auto-scaling config (defined below) to force max_concurrency = 1 instance.
+  auto_scaling_configuration_arn = aws_apprunner_auto_scaling_configuration_version.single_instance.arn
+}
+
+resource "aws_apprunner_auto_scaling_configuration_version" "single_instance" {
+  auto_scaling_configuration_name = "single-instance-lock"
+  
+  # High concurrency per instance is fine (Blazor is efficient)
+  max_concurrency = 100 
+  
+  # CRITICAL: Never scale beyond 1 instance
+  max_size = 1
+  min_size = 1
 }
 
 output "service_url" {

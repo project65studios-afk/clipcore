@@ -501,7 +501,23 @@ app.MapStaticAssets();
 if (configLoaded)
 {
     app.MapRazorComponents<App>()
-        .AddInteractiveServerRenderMode();
+        .AddInteractiveServerRenderMode(options => 
+        {
+            // STABILITY FIX: Force Long Polling. 
+            // App Runner WebSockets are unreliable without sticky sessions/ALB.
+            options.ConfigureWebSocketParameters = (ws) => 
+            {
+               // This callback might not be enough for pure transport forcing in .NET 8.
+               // We rely on the client-side fallbacks primarily, but we can hint here.
+            };
+        });
+    
+    // Explicitly configure the Hub to prefer/force LongPolling
+    app.MapBlazorHub(options => 
+    {
+        options.Transports = Microsoft.AspNetCore.Http.Connections.HttpTransportType.LongPolling;
+        options.LongPolling.PollTimeout = TimeSpan.FromSeconds(10); // Short poll to respect App Runner timeouts
+    });
 
     app.MapRazorPages().RequireRateLimiting("login"); // Required for Identity UI endpoints
     app.MapControllers(); // Required for API endpoints
