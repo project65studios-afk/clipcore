@@ -43,12 +43,15 @@
     <script src="@Assets["_framework/blazor.web.js"]" autostart="false"></script>
     <script>
         Blazor.start({
-            configureSignalR: function (builder) {
-                // Force WebSockets to bypass App Runner's lack of sticky sessions
-                builder.withUrl("/_blazor", {
-                    skipNegotiation: true,
-                    transport: 1 // HttpTransportType.WebSockets
-                });
+            circuit: {
+                configureSignalR: function (builder) {
+                    console.log(">>> Custom SignalR Config Applying (Force WebSockets + SkipNegotiation)...");
+                    // Force WebSockets to bypass App Runner's lack of sticky sessions
+                    builder.withUrl("/_blazor", {
+                        skipNegotiation: true,
+                        transport: 1 // HttpTransportType.WebSockets
+                    });
+                }
             }
         });
     </script>
