@@ -415,25 +415,11 @@ app.MapGet("/health", () => Results.Ok("ok"));
 // Enable Forwarded Headers Middleware (Must be early in the pipeline)
 app.UseForwardedHeaders();
 
-// Explicitly enable WebSockets to ensure Upgrade headers are handled before Blazor routing
-app.UseWebSockets();
+// Explicitly enable WebSockets REMOVED (Forcing LongPolling)
+// app.UseWebSockets();
 
-// DEBUG: Log Headers to debug App Runner Proxy
-app.Use(async (context, next) =>
-{
-    // Only log for the health check or initial load to avoid noise? 
-    // Actually, log everything for now since traffic is low.
-    Console.WriteLine($">>> DEBUG REQUEST: {context.Request.Method} {context.Request.Path}");
-    Console.WriteLine($"    Scheme: {context.Request.Scheme}");
-    Console.WriteLine($"    IsHttps: {context.Request.IsHttps}");
-    Console.WriteLine("    Headers:");
-    foreach (var header in context.Request.Headers)
-    {
-        // Log ALL headers to catch lowercase cases or unexpected naming
-        Console.WriteLine($"      {header.Key}: {header.Value}");
-    }
-    await next();
-});
+// DEBUG LOGGING REMOVED to reduce noise
+// app.Use(async (context, next) => ...);
 
 // DEBUG: View Config Load Status
 app.MapGet("/debug/config", () => 
@@ -503,12 +489,9 @@ if (configLoaded)
     app.MapRazorComponents<App>()
         .AddInteractiveServerRenderMode();
     
-    // Explicitly configure the Hub to prefer/force LongPolling
-    app.MapBlazorHub(options => 
-    {
-        options.Transports = Microsoft.AspNetCore.Http.Connections.HttpTransportType.LongPolling;
-        options.LongPolling.PollTimeout = TimeSpan.FromSeconds(10); // Short poll to respect App Runner timeouts
-    });
+    // REMOVED: Explicit MapBlazorHub config. 
+    // We rely on the CLIENT (App.razor) to request LongPolling.
+    // Forcing it here caused a 500 error on /_blazor/initializers.
 
     app.MapRazorPages().RequireRateLimiting("login"); // Required for Identity UI endpoints
     app.MapControllers(); // Required for API endpoints
