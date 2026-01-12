@@ -40,7 +40,18 @@
     <CascadingAuthenticationState>
         <Routes @rendermode="@(new InteractiveServerRenderMode(prerender: false))" />
     </CascadingAuthenticationState>
-    <script src="@Assets["_framework/blazor.web.js"]"></script>
+    <script src="@Assets["_framework/blazor.web.js"]" autostart="false"></script>
+    <script>
+        Blazor.start({
+            configureSignalR: function (builder) {
+                // Force WebSockets to bypass App Runner's lack of sticky sessions
+                builder.withUrl("/_blazor", {
+                    skipNegotiation: true,
+                    transport: 1 // HttpTransportType.WebSockets
+                });
+            }
+        });
+    </script>
     <script src="js/sales-chart.js"></script>
     <script src="js/upload.js?v=3"></script>
     <script src="js/theme.js"></script>
