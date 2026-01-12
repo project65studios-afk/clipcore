@@ -11,7 +11,7 @@ namespace Project65.Infrastructure.Services;
 
 public class AmazonSESEmailService : IEmailService, IEmailSender
 {
-    private readonly IAmazonSimpleEmailService _sesClient;
+    private readonly IAmazonSimpleEmailService? _sesClient;
     private readonly ILogger<AmazonSESEmailService> _logger;
     private readonly ISettingsRepository _settingsRepository;
     private readonly string _fromEmail;
@@ -22,7 +22,6 @@ public class AmazonSESEmailService : IEmailService, IEmailSender
         _settingsRepository = settingsRepository;
         
         // Amazon SES Configuration
-        // distinct from R2 configuration
         var accessKey = configuration["AWS:AccessKeyId"];
         var secretKey = configuration["AWS:SecretAccessKey"];
         var regionStr = configuration["AWS:Region"] ?? "us-east-1";
@@ -31,24 +30,36 @@ public class AmazonSESEmailService : IEmailService, IEmailSender
 
         if (string.IsNullOrEmpty(accessKey) || string.IsNullOrEmpty(secretKey))
         {
-            _logger.LogError("AWS SES Access Keys are missing. Email service will fail.");
-            // We initialize with a dummy or throw. Let's throw to be explicit during dev.
-            // But to avoid crashing everything if just email is misconfigured, we'll log.
-            // However, we can't create the client without keys.
-            throw new ArgumentNullException("AWS SES credentials missing in configuration (AWS:AccessKeyId, AWS:SecretAccessKey)");
+            _logger.LogWarning("AWS SES Access Keys are missing (AWS:AccessKeyId, AWS:SecretAccessKey). Email functionality will be DISABLED.");
+            _sesClient = null;
+            return;
         }
 
-        var region = RegionEndpoint.GetBySystemName(regionStr);
-        var credentials = new Amazon.Runtime.BasicAWSCredentials(accessKey, secretKey);
-        
-        // Explicitly create client to avoid conflict with global R2 options
-        _sesClient = new AmazonSimpleEmailServiceClient(credentials, region);
+        try 
+        {
+            var region = RegionEndpoint.GetBySystemName(regionStr);
+            var credentials = new Amazon.Runtime.BasicAWSCredentials(accessKey, secretKey);
+            
+            // Explicitly create client to avoid conflict with global R2 options
+            _sesClient = new AmazonSimpleEmailServiceClient(credentials, region);
+        }
+        catch (Exception ex)
+        {
+             _logger.LogError(ex, "Failed to initialize AWS SES Client.");
+             _sesClient = null;
+        }
     }
 
     public async Task SendEmailAsync(string to, string subject, string body)
     {
         try
         {
+            if (_sesClient == null)
+            {
+                _logger.LogWarning($"[SES] Email sending skipped (Client not configured). Subject: '{subject}', To: {to}");
+                return;
+            }
+
             var storeName = await _settingsRepository.GetValueAsync("StoreName") ?? "Project65 Studios";
             var sendRequest = new SendEmailRequest
             {
