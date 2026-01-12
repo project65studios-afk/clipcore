@@ -415,6 +415,9 @@ app.MapGet("/health", () => Results.Ok("ok"));
 // Enable Forwarded Headers Middleware (Must be early in the pipeline)
 app.UseForwardedHeaders();
 
+// Explicitly enable WebSockets to ensure Upgrade headers are handled before Blazor routing
+app.UseWebSockets();
+
 // DEBUG: Log Headers to debug App Runner Proxy
 app.Use(async (context, next) =>
 {
