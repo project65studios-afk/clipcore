@@ -20,6 +20,25 @@
         </div>
     </div>
 
+    <div class="row mb-4">
+        <div class="col-md-6 d-flex gap-4">
+            <div>
+                <label class="form-label text-secondary fw-bold">Default Personal Price</label>
+                <div class="input-group" style="max-width: 200px;">
+                    <span class="input-group-text bg-dark text-secondary border-secondary">$</span>
+                    <input class="form-control bg-dark text-light border-secondary" type="number" @bind="_priceDollars" step="0.01" />
+                </div>
+            </div>
+            <div>
+                <label class="form-label text-secondary fw-bold">Default Commercial Price</label>
+                <div class="input-group" style="max-width: 200px;">
+                    <span class="input-group-text bg-dark text-secondary border-secondary">$</span>
+                    <input class="form-control bg-dark text-light border-secondary" type="number" @bind="_priceCommercialDollars" step="0.01" />
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Upload Area -->
     <div class="row">
         <div class="col-12">
@@ -84,6 +103,28 @@
     private List<LogEntry> _logs = new();
     private IJSObjectReference? _module;
     private string _userId = "Admin";
+    private double _priceDollars = 15.00; // Match previous hardcoded default
+    private double _priceCommercialDollars = 49.00;
+
+    public class UploadInfo
+    {
+        public string EventId { get; set; } = "";
+        public int PriceCents { get; set; }
+        public int PriceCommercialCents { get; set; }
+        public string UserId { get; set; } = "";
+    }
+
+    [JSInvokable]
+    public Task<UploadInfo> GetUploadInfo()
+    {
+        return Task.FromResult(new UploadInfo
+        {
+            EventId = EventId ?? "",
+            PriceCents = (int)(_priceDollars * 100),
+            PriceCommercialCents = (int)(_priceCommercialDollars * 100),
+            UserId = _userId
+        });
+    }
 
     protected override async Task OnInitializedAsync()
     {

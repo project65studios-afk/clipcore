@@ -326,7 +326,7 @@ public class VideoCompressionController : ControllerBase
                 EventId = request.EventId,
                 Title = request.Title ?? "Untitled",
                 PriceCents = request.PriceCents,
-                PriceCommercialCents = 0, // Default
+                PriceCommercialCents = request.PriceCommercialCents,
                 MuxUploadId = request.MuxUploadId,
                 IsDirectUpload = true,
                 ThumbnailFileName = request.ThumbnailKeys.FirstOrDefault(), // Primary thumb
@@ -399,6 +399,7 @@ public class VideoCompressionController : ControllerBase
         public string EventId { get; set; } = string.Empty;
         public string Title { get; set; } = string.Empty;
         public int PriceCents { get; set; }
+        public int PriceCommercialCents { get; set; }
         public string UserId { get; set; } = string.Empty;
         public string? LastModified { get; set; }
         public List<string> ThumbnailKeys { get; set; } = new();

@@ -119,13 +119,17 @@ export function initDirectUpload(dotNetHelper, eventId, userId) {
         try {
             const thumbKeys = await thumbnailTasks[file.id];
 
+            // Fetch current price/event info from Blazor
+            const uploadInfo = await dotNetHelper.invokeMethodAsync('GetUploadInfo');
+
             const payload = {
                 muxUploadId: file.meta.muxUploadId,
                 clipId: file.meta.clipId,
-                eventId: eventId,
+                eventId: uploadInfo.eventId,
                 title: file.name,
-                priceCents: 1500,
-                userId: userId,
+                priceCents: uploadInfo.priceCents,
+                priceCommercialCents: uploadInfo.priceCommercialCents,
+                userId: uploadInfo.userId,
                 lastModified: new Date(file.data.lastModified).toISOString(),
                 thumbnailKeys: thumbKeys || []
             };
