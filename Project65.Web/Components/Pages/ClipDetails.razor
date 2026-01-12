@@ -3,6 +3,7 @@
 @using Project65.Core.Interfaces
 @using Project65.Infrastructure.Data.Repositories
 @using Microsoft.AspNetCore.WebUtilities
+@inject IStorageService StorageService
 @using System.IO
 @inject IClipRepository ClipRepository
 @inject IVideoService VideoService
@@ -652,7 +653,7 @@ else
         try 
         {
             _storeName = await StoreSettingsService.GetStoreNameAsync();
-            _watermarkUrl = await SettingsRepository.GetValueAsync("WatermarkUrl");
+            _watermarkUrl = GetImageUrl(await SettingsRepository.GetValueAsync("WatermarkUrl"));
             
             if (AuthenticationStateTask != null)
             {
@@ -982,5 +983,11 @@ else
     public void Dispose()
     {
         StoreSettingsService.OnChange -= HandleSettingsChange;
+    }
+    private string GetImageUrl(string urlOrKey)
+    {
+        if (string.IsNullOrEmpty(urlOrKey)) return "";
+        if (urlOrKey.StartsWith("http") || urlOrKey.StartsWith("/")) return urlOrKey;
+        return StorageService.GetPresignedDownloadUrl(urlOrKey);
     }
 }

@@ -281,7 +281,7 @@ else
         
         _storeName = await StoreSettingsService.GetStoreNameAsync();
         StoreSettingsService.OnChange += HandleSettingsChange;
-        _watermarkUrl = await watermarkTask;
+        _watermarkUrl = GetImageUrl(await watermarkTask);
         _event = await eventTask;
         
         if (_event?.Clips != null)

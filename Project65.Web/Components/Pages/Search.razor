@@ -117,7 +117,7 @@
     {
         _storeName = await StoreSettingsService.GetStoreNameAsync();
         StoreSettingsService.OnChange += HandleSettingsChange;
-        _watermarkUrl = await SettingsRepository.GetValueAsync("WatermarkUrl");
+        _watermarkUrl = GetImageUrl(await SettingsRepository.GetValueAsync("WatermarkUrl"));
         
         await LoadPurchasedClipsAsync();
         VideoHealingService.OnClipHealed += HandleClipHealed;
@@ -283,5 +283,11 @@
         }
         
         return null;
+    }
+    private string GetImageUrl(string urlOrKey)
+    {
+        if (string.IsNullOrEmpty(urlOrKey)) return "";
+        if (urlOrKey.StartsWith("http") || urlOrKey.StartsWith("/")) return urlOrKey;
+        return StorageService.GetPresignedDownloadUrl(urlOrKey);
     }
 }
