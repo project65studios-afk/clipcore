@@ -225,8 +225,8 @@ public class VideoCompressionController : ControllerBase
                 // Capture browser's Modified Date if provided
                 if (DateTime.TryParse(lastModified, out var modifiedDate))
                 {
-                    clip.RecordingStartedAt = modifiedDate;
-                    _logger.LogInformation($"[Compression] Saved LastModified date: {modifiedDate}");
+                    clip.RecordingStartedAt = modifiedDate.ToUniversalTime();
+                    _logger.LogInformation($"[Compression] Saved LastModified date: {clip.RecordingStartedAt}");
                 }
 
                 await _clipRepository.AddAsync(clip);
@@ -336,7 +336,7 @@ public class VideoCompressionController : ControllerBase
             // 2. Parse creation date
             if (DateTime.TryParse(request.LastModified, out var modifiedDate))
             {
-                clip.RecordingStartedAt = modifiedDate;
+                clip.RecordingStartedAt = modifiedDate.ToUniversalTime();
             }
 
             // 3. AI Analysis (Parallel)
