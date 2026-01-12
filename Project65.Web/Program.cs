@@ -501,16 +501,7 @@ app.MapStaticAssets();
 if (configLoaded)
 {
     app.MapRazorComponents<App>()
-        .AddInteractiveServerRenderMode(options => 
-        {
-            // STABILITY FIX: Force Long Polling. 
-            // App Runner WebSockets are unreliable without sticky sessions/ALB.
-            options.ConfigureWebSocketParameters = (ws) => 
-            {
-               // This callback might not be enough for pure transport forcing in .NET 8.
-               // We rely on the client-side fallbacks primarily, but we can hint here.
-            };
-        });
+        .AddInteractiveServerRenderMode();
     
     // Explicitly configure the Hub to prefer/force LongPolling
     app.MapBlazorHub(options => 
