@@ -103,6 +103,29 @@ Don't put passwords in your code! We'll put them in the vault.
 
 ---
 
+## 🔑 Step 2.1: Google Login Setup (Optional)
+
+To allow users to sign in with Google, you need to create credentials and add them to the Parameter Store.
+
+1.  **Get Credentials**:
+    *   Go to **[Google Cloud Console](https://console.cloud.google.com/apis/credentials)**.
+    *   Create a Project (e.g. `Project65`).
+    *   Click **Create Credentials** -> **OAuth Client ID**.
+    *   **Application Type**: Web Application.
+    *   **Authorized Redirect URIs**:
+        *   `https://localhost:7192/signin-google` (Local testing)
+        *   `https://project65video.com/signin-google` (Production - Replace with your real domain!)
+        *   `https://[YOUR_APP_RUNNER_URL].awsapprunner.com/signin-google` (Production fallback)
+    *   Copy the **Client ID** and **Client Secret**.
+
+2.  **Add to AWS Parameter Store**:
+    *   Create `/project65/Google/ClientId` -> Value: `[Your Client ID]` (Type: `SecureString`)
+    *   Create `/project65/Google/ClientSecret` -> Value: `[Your Client Secret]` (Type: `SecureString`)
+
+*The application will automatically enable Google Login once these keys are present.*
+
+---
+
 ## 🐳 Step 2.5: Containerize with Docker (Optional but Recommended) ✅ Completed
 
 "Containerizing" means wrapping your app in a box (Container) so it runs exactly the same on your laptop as it does in the cloud. We have included a `Dockerfile` in the project.

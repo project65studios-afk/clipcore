@@ -182,6 +182,22 @@ if (configLoaded)
     builder.Services.AddDefaultIdentity<ApplicationUser>(options => options.SignIn.RequireConfirmedAccount = false)
         .AddRoles<Microsoft.AspNetCore.Identity.IdentityRole>()
         .AddEntityFrameworkStores<PostgresDbContext>(); 
+
+    // Google Authentication
+    if (!string.IsNullOrEmpty(builder.Configuration["Google:ClientId"]) && 
+        !string.IsNullOrEmpty(builder.Configuration["Google:ClientSecret"]))
+    {
+        builder.Services.AddAuthentication()
+            .AddGoogle(googleOptions =>
+            {
+                googleOptions.ClientId = builder.Configuration["Google:ClientId"]!;
+                googleOptions.ClientSecret = builder.Configuration["Google:ClientSecret"]!;
+            });
+    }
+    else
+    {
+        Console.WriteLine(">>> SKIPPING GOOGLE AUTH: Missing ClientId/Secret in Configuration.");
+    }
 }
 else 
 {
