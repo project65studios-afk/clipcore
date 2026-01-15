@@ -18,6 +18,7 @@
 @inject IStorageService StorageService
 @inject Project65.Web.Services.VideoHealingService VideoHealingService
 @inject IAuditService AuditService
+@inject ILogger<ClipDetails> Logger
 @using Microsoft.AspNetCore.SignalR.Client
 @implements IAsyncDisposable
 @implements IDisposable
@@ -68,6 +69,26 @@ else
             <a href="/events/@_clip.EventId" style="color: var(--text-secondary);">← Back to Event</a>
         </div>
         
+        @if (_showSuccessMessage)
+        {
+            <div class="alert alert-success d-flex align-items-center mb-4 shadow-sm" style="background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.2); color: #10b981;">
+                <i class="bi bi-check-circle-fill fs-3 me-3"></i>
+                <div>
+                    <h5 class="alert-heading m-0 fw-bold">Order Received!</h5>
+                    <p class="m-0 small">
+                        @if (_isAuthenticated)
+                        {
+                             <span>Your order is being processed. check your dashboard for updates.</span>
+                        }
+                        else
+                        {
+                             <span>Your order is being processed. Check your email for updates.</span>
+                        }
+                    </p>
+                </div>
+            </div>
+        }
+
         <div class="clip-layout" style="display: grid; gap: 2rem;">
              <div>
                  <div id="player-container" class="video-player-container mobile-full-width" style="border: 1px solid var(--border-color); box-shadow: 0 0 40px rgba(0,0,0,0.5); position: relative;">
@@ -328,7 +349,16 @@ else
                     <div style="background: var(--status-success-dim); border: 1px solid var(--status-success); color: var(--status-success); padding: 1.25rem; border-radius: var(--radius-md); text-align: center; margin-bottom: 2rem;">
                         <i class="bi bi-check2-circle fs-3 mb-2 d-block"></i>
                         <div class="fw-bold">Owned License: @(_selectedLicense)</div>
-                        <div class="small mt-1 opacity-75">Available in your dashboard.</div>
+                        <div class="small mt-1 opacity-75">
+                            @if (_isAuthenticated)
+                            {
+                                <span>Available in your dashboard.</span>
+                            }
+                            else
+                            {
+                                <span>Check your email for access.</span>
+                            }
+                        </div>
                     </div>
                 }
                 else
@@ -454,6 +484,7 @@ else
     private bool _isAuthenticated = false;
     private bool _hasAgreedToLicense = false;
     private bool _showLicenseModal = false;
+    private bool _showSuccessMessage = false;
     private string? _pendingAction;
     private LicenseType _selectedLicense = LicenseType.Personal;
 
@@ -728,10 +759,11 @@ else
                                         await EmailService.SendEmailAsync(email, "Your Project65 Receipt", receiptBody);
                                     }
                                 }
-                                catch (Exception) 
+                                catch (Exception ex) 
                                 { 
-                                    // Failed to send receipt
+                                    Logger.LogError(ex, "Failed to send receipt email for Session {SessionId}", sessionId);
                                 }
+                                _showSuccessMessage = true; // Show banner
                             }
                             catch { 
                                 _hasPurchasedPersonal = true; // Fallback to true if we hit a DB error but verified manually
