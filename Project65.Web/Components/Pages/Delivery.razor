@@ -54,15 +54,17 @@
                         <h5 class="mb-0">@(_items?.Count ?? 0) Files Available</h5>
                     </div>
                     <div class="list-group list-group-flush">
-                        @foreach (var item in _items)
+                        @if (_items != null) 
                         {
-                            <div class="list-group-item p-4 border-bottom-0 border-top border-secondary">
-                                <div class="d-flex align-items-center justify-content-between">
+                            @foreach (var item in _items)
+                            {
+                                <div class="list-group-item p-4 border-bottom-0 border-top border-secondary">
+                                    <div class="d-flex align-items-center justify-content-between">
                                     <div class="me-3 overflow-hidden">
                                         <h5 class="mb-1 text-truncate" style="color: var(--text-main);">@(item.Clip?.Title ?? item.Purchase.ClipTitle ?? "Deleted Clip")</h5>
                                         @if (item.Clip?.Event != null)
                                         {
-                                            <span class="badge bg-dark text-info border border-info-subtle">@item.Clip.Event.Name</span>
+                                            <span class="badge bg-dark text-info border border-info-subtle">@item.Clip!.Event!.Name</span>
                                         }
                                         else if (!string.IsNullOrEmpty(item.Purchase.EventName))
                                         {
@@ -83,6 +85,7 @@
                                     }
                                 </div>
                             </div>
+                        }
                         }
                     </div>
                     <div class="card-footer bg-transparent p-4 text-center small border-top border-secondary" style="color: var(--text-secondary);">

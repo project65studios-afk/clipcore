@@ -684,7 +684,7 @@ else
         try 
         {
             _storeName = await StoreSettingsService.GetStoreNameAsync();
-            _watermarkUrl = GetImageUrl(await SettingsRepository.GetValueAsync("WatermarkUrl"));
+            _watermarkUrl = GetImageUrl(await SettingsRepository.GetValueAsync("WatermarkUrl") ?? "");
             
             if (AuthenticationStateTask != null)
             {
@@ -761,7 +761,7 @@ else
                                 }
                                 catch (Exception ex) 
                                 { 
-                                    Logger.LogError(ex, "Failed to send receipt email for Session {SessionId}", sessionId);
+                                    Logger.LogError(ex, "Failed to send receipt email for Session {SessionId}", sessionId.ToString());
                                 }
                                 _showSuccessMessage = true; // Show banner
                             }

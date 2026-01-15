@@ -117,7 +117,7 @@
     {
         _storeName = await StoreSettingsService.GetStoreNameAsync();
         StoreSettingsService.OnChange += HandleSettingsChange;
-        _watermarkUrl = GetImageUrl(await SettingsRepository.GetValueAsync("WatermarkUrl"));
+        _watermarkUrl = GetImageUrl(await SettingsRepository.GetValueAsync("WatermarkUrl") ?? "");
         
         await LoadPurchasedClipsAsync();
         VideoHealingService.OnClipHealed += HandleClipHealed;
