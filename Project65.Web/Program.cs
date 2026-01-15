@@ -36,60 +36,63 @@ Console.Error.WriteLine(">>> DEPLOYMENT START: Process ID " + Environment.Proces
 bool configLoaded = true;
 string configError = "";
 
-if (!builder.Environment.IsDevelopment())
+// ALWAYS try to load SSM, but handle failures gracefully in Development
+Console.Error.WriteLine(">>> DEPLOYMENT DEBUG: Starting SSM Pre-Check...");
+try 
 {
-    Console.Error.WriteLine(">>> DEPLOYMENT DEBUG: Starting SSM Pre-Check...");
-    try 
+    // MANUAL PRE-CHECK: Creates a temporary client with strict timeout.
+    // This ensures meaningful connectivity before we let the standard config source 
+    // silently hang line 385 (builder.Build).
+    
+    var checkTask = Task.Run(async () => 
     {
-        // MANUAL PRE-CHECK: Creates a temporary client with strict timeout.
-        // This ensures meaningful connectivity before we let the standard config source 
-        // silently hang line 385 (builder.Build).
+        var ssmConfig = new AmazonSimpleSystemsManagementConfig 
+        { 
+            Timeout = TimeSpan.FromSeconds(5), 
+            MaxErrorRetry = 0,
+            RegionEndpoint = Amazon.RegionEndpoint.USEast1 // Explicit region is safer
+        };
         
-        var checkTask = Task.Run(async () => 
-        {
-            var ssmConfig = new AmazonSimpleSystemsManagementConfig 
-            { 
-                Timeout = TimeSpan.FromSeconds(5), 
-                MaxErrorRetry = 0,
-                RegionEndpoint = Amazon.RegionEndpoint.USEast1 // Explicit region is safer
-            };
-            
-            using var ssmClient = new AmazonSimpleSystemsManagementClient(ssmConfig);
-            
-            // Just try to list parameters. Light op.
-            var req = new GetParametersByPathRequest 
-            { 
-                Path = "/project65", 
-                MaxResults = 1 
-            };
-            
-            await ssmClient.GetParametersByPathAsync(req);
-        });
+        using var ssmClient = new AmazonSimpleSystemsManagementClient(ssmConfig);
+        
+        // Just try to list parameters. Light op.
+        var req = new GetParametersByPathRequest 
+        { 
+            Path = "/project65", 
+            MaxResults = 1 
+        };
+        
+        await ssmClient.GetParametersByPathAsync(req);
+    });
 
-        if (checkTask.Wait(TimeSpan.FromSeconds(6))) // 1s buffer over 5s timeout
-        {
-            if (checkTask.IsFaulted) throw checkTask.Exception!.InnerException!;
-            
-            Console.Error.WriteLine(">>> DEPLOYMENT DEBUG: Pre-Check PASSED. Registering Source.");
-            
-            // Only now do we register the standard source.
-            // It will re-fetch during builder.Build(), but we know the path is open.
-            builder.Configuration.AddSystemsManager("/project65");
-            
-            // We can try to load/validate here, but let's do it after Build() if possible?
-            // Actually, we can't validate fully until Build().
-            // But if we add it, we assume it works.
-        }
-        else
-        {
-            throw new TimeoutException("SSM Pre-Check timed out (Network Black Hole).");
-        }
+    if (checkTask.Wait(TimeSpan.FromSeconds(6))) // 1s buffer over 5s timeout
+    {
+        if (checkTask.IsFaulted) throw checkTask.Exception!.InnerException!;
+        
+        Console.Error.WriteLine(">>> DEPLOYMENT DEBUG: Pre-Check PASSED. Registering Source.");
+        
+        // Only now do we register the standard source.
+        // It will re-fetch during builder.Build(), but we know the path is open.
+        builder.Configuration.AddSystemsManager("/project65");
     }
-    catch (Exception ssmEx)
+    else
+    {
+        throw new TimeoutException("SSM Pre-Check timed out (Network Black Hole).");
+    }
+}
+catch (Exception ssmEx)
+{
+    // In Production, config failure is fatal/degraded. In Dev, we fall back to local settings.
+    if (!builder.Environment.IsDevelopment())
     {
         configLoaded = false;
         configError = $"SSM Pre-Check Failed: {ssmEx.Message}";
         Console.Error.WriteLine($">>> SSM FAILURE (DEGRADED MODE STARTING): {ssmEx.Message}");
+    }
+    else
+    {
+        Console.Error.WriteLine($">>> DEV SSM FAILURE (Ignoring): {ssmEx.Message}");
+        // configLoaded stays true for Dev
     }
 }
 
@@ -153,8 +156,29 @@ if (configLoaded)
 {
     if (builder.Environment.IsDevelopment())
     {
-        builder.Services.AddDbContextFactory<AppDbContext>(options =>
-            options.UseSqlite(connectionString));
+        // DEVELOPMENT: Use SQLite but maintain the SAME factory structure as Production
+        // so that SettingsRepository (which asks for IDbContextFactory<PostgresDbContext>) works.
+        builder.Services.AddDbContextFactory<PostgresDbContext>(options =>
+        {
+            options.UseSqlite(connectionString);
+            options.ConfigureWarnings(w => w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning));
+        });
+
+        // Note: We use PostgresDbContext class, but configured with SQLite options.
+        // This is safe because PostgresDbContext is just AppDbContext + strict constructor.
+        
+        // Provide Scoped PostgresDbContext
+        builder.Services.AddScoped<PostgresDbContext>(p => p.GetRequiredService<IDbContextFactory<PostgresDbContext>>().CreateDbContext());
+
+        // Alias Scoped AppDbContext -> PostgresDbContext
+        builder.Services.AddScoped<AppDbContext>(p => p.GetRequiredService<PostgresDbContext>());
+
+        // IMPORTANT: Forward IDbContextFactory<AppDbContext> to the PostgresDbContext factory.
+        builder.Services.AddSingleton<IDbContextFactory<AppDbContext>>(sp => 
+        {
+            var factory = sp.GetRequiredService<IDbContextFactory<PostgresDbContext>>();
+            return new Project65.Infrastructure.Data.DbContextFactoryWrapper(factory);
+        });
     }
     else
     {
@@ -182,22 +206,6 @@ if (configLoaded)
     builder.Services.AddDefaultIdentity<ApplicationUser>(options => options.SignIn.RequireConfirmedAccount = false)
         .AddRoles<Microsoft.AspNetCore.Identity.IdentityRole>()
         .AddEntityFrameworkStores<PostgresDbContext>(); 
-
-    // Google Authentication
-    if (!string.IsNullOrEmpty(builder.Configuration["Google:ClientId"]) && 
-        !string.IsNullOrEmpty(builder.Configuration["Google:ClientSecret"]))
-    {
-        builder.Services.AddAuthentication()
-            .AddGoogle(googleOptions =>
-            {
-                googleOptions.ClientId = builder.Configuration["Google:ClientId"]!;
-                googleOptions.ClientSecret = builder.Configuration["Google:ClientSecret"]!;
-            });
-    }
-    else
-    {
-        Console.WriteLine(">>> SKIPPING GOOGLE AUTH: Missing ClientId/Secret in Configuration.");
-    }
 }
 else 
 {
@@ -217,8 +225,20 @@ builder.Services.ConfigureApplicationCookie(options =>
 
 var authBuilder = builder.Services.AddAuthentication();
 
-    var googleClientId = builder.Configuration["Authentication:Google:ClientId"];
-    var googleClientSecret = builder.Configuration["Authentication:Google:ClientSecret"];
+    // Support both standard and flattened config keys for Google Auth
+    var googleClientId = builder.Configuration["Authentication:Google:ClientId"] ?? builder.Configuration["Google:ClientId"];
+    var googleClientSecret = builder.Configuration["Authentication:Google:ClientSecret"] ?? builder.Configuration["Google:ClientSecret"];
+    
+    if (!string.IsNullOrEmpty(googleClientId))
+    {
+        var maskedId = googleClientId.Length > 10 ? googleClientId.Substring(0, 10) + "..." : "SHORT_ID";
+        Console.WriteLine($">>> GOOGLE AUTH SETUP: Found ClientID starting with '{maskedId}'");
+    }
+    else
+    {
+        Console.WriteLine(">>> GOOGLE AUTH SETUP: No ClientID found.");
+    }
+
     if (!string.IsNullOrEmpty(googleClientId) && !string.IsNullOrEmpty(googleClientSecret))
     {
         authBuilder.AddGoogle(options =>

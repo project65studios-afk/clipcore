@@ -114,7 +114,8 @@ To allow users to sign in with Google, you need to create credentials and add th
     *   **Application Type**: Web Application.
     *   **Authorized Redirect URIs**:
         *   `https://localhost:7192/signin-google` (Local testing)
-        *   `https://project65video.com/signin-google` (Production - Replace with your real domain!)
+        *   `https://project65video.com/signin-google` (Production - Root Domain)
+        *   `https://www.project65video.com/signin-google` (Production - WWW Domain - **CRITICAL**)
         *   `https://[YOUR_APP_RUNNER_URL].awsapprunner.com/signin-google` (Production fallback)
     *   Copy the **Client ID** and **Client Secret**.
 
