@@ -255,7 +255,17 @@ public class StripePaymentService : IPaymentService
                     if (DateOnly.TryParse(eventDateStr, out var ed)) eventDate = ed;
                     
                     DateTime? clipStartedAt = null;
-                    if (DateTime.TryParse(clipStartedStr, out var cs)) clipStartedAt = cs;
+                    if (DateTime.TryParse(clipStartedStr, out var cs)) 
+                    {
+                        if (cs.Kind == DateTimeKind.Unspecified) 
+                        {
+                            clipStartedAt = DateTime.SpecifyKind(cs, DateTimeKind.Utc);
+                        }
+                        else 
+                        {
+                            clipStartedAt = cs.ToUniversalTime();
+                        }
+                    }
 
                     double? durationSec = null;
                     if (double.TryParse(durationStr, out var ds)) durationSec = ds;
