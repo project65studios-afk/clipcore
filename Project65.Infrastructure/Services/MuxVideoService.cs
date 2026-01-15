@@ -23,6 +23,8 @@ public class MuxVideoService : IVideoService
     private readonly string _signingKeyPrivate;
     private readonly IHttpContextAccessor _httpContextAccessor;
     private readonly IUsageRepository _usageRepository;
+    private readonly ISettingsRepository _settingsRepository;
+    private readonly IStorageService _storageService;
     private readonly IMemoryCache _cache;
     private readonly ILogger<MuxVideoService> _logger;
     private const int MaxDailyTokens = 200; // Lowered to 200 (human-safe, bot-hostile)
@@ -30,7 +32,14 @@ public class MuxVideoService : IVideoService
     private readonly Polly.ResiliencePipeline _resiliencePipeline;
     
 
-    public MuxVideoService(IConfiguration configuration, IHttpContextAccessor httpContextAccessor, IUsageRepository usageRepository, IMemoryCache cache, ILogger<MuxVideoService> logger)
+    public MuxVideoService(
+        IConfiguration configuration, 
+        IHttpContextAccessor httpContextAccessor, 
+        IUsageRepository usageRepository, 
+        ISettingsRepository settingsRepository,
+        IStorageService storageService,
+        IMemoryCache cache, 
+        ILogger<MuxVideoService> logger)
     {
         _configuration = configuration;
         _tokenId = configuration["Mux:TokenId"] ?? throw new ArgumentNullException("Mux:TokenId");
@@ -39,6 +48,8 @@ public class MuxVideoService : IVideoService
         _signingKeyPrivate = configuration["Mux:SigningKeyPrivate"] ?? "";
         _httpContextAccessor = httpContextAccessor;
         _usageRepository = usageRepository;
+        _settingsRepository = settingsRepository;
+        _storageService = storageService;
         _cache = cache;
         _logger = logger;
 
@@ -83,10 +94,39 @@ public class MuxVideoService : IVideoService
             ExternalId = clipId
         };
         
+        var inputSettings = new List<InputSettings>();
+        
+        // 1. Check for Watermark
+        var watermarkUrl = await _settingsRepository.GetValueAsync("WatermarkUrl");
+        if (!string.IsNullOrEmpty(watermarkUrl))
+        {
+            // Resolve R2 keys to signed URLs
+            if (!watermarkUrl.StartsWith("http")) 
+            {
+                watermarkUrl = _storageService.GetPresignedDownloadUrl(watermarkUrl);
+            }
+
+            if (!string.IsNullOrEmpty(watermarkUrl))
+            {
+                inputSettings.Add(new InputSettings
+                {
+                    Url = watermarkUrl,
+                    OverlaySettings = new InputSettingsOverlaySettings
+                    {
+                        Opacity = "0.7",
+                        VerticalAlign = InputSettingsOverlaySettings.VerticalAlignEnum.Middle,
+                        HorizontalAlign = InputSettingsOverlaySettings.HorizontalAlignEnum.Center,
+                        Width = "20%"
+                    }
+                });
+            }
+        }
+        
         var assetSettings = new CreateAssetRequest(
             playbackPolicy: new List<PlaybackPolicy> { PlaybackPolicy.Signed },
             passthrough: clipId, // Link to our local database ID
-            meta: metadata
+            meta: metadata,
+            input: inputSettings.Any() ? inputSettings : null
         );
         
         var request = new CreateUploadRequest(newAssetSettings: assetSettings);
@@ -105,10 +145,39 @@ public class MuxVideoService : IVideoService
             ExternalId = passthrough
         };
 
+        var inputSettings = new List<InputSettings>();
+        
+        // 1. Check for Watermark
+        var watermarkUrl = await _settingsRepository.GetValueAsync("WatermarkUrl");
+        if (!string.IsNullOrEmpty(watermarkUrl))
+        {
+            // Resolve R2 keys to signed URLs
+            if (!watermarkUrl.StartsWith("http")) 
+            {
+                watermarkUrl = _storageService.GetPresignedDownloadUrl(watermarkUrl);
+            }
+
+            if (!string.IsNullOrEmpty(watermarkUrl))
+            {
+                inputSettings.Add(new InputSettings
+                {
+                    Url = watermarkUrl,
+                    OverlaySettings = new InputSettingsOverlaySettings
+                    {
+                        Opacity = "0.7",
+                        VerticalAlign = InputSettingsOverlaySettings.VerticalAlignEnum.Middle,
+                        HorizontalAlign = InputSettingsOverlaySettings.HorizontalAlignEnum.Center,
+                        Width = "20%"
+                    }
+                });
+            }
+        }
+
         var assetSettings = new CreateAssetRequest(
             playbackPolicy: new List<PlaybackPolicy> { PlaybackPolicy.Signed },
             passthrough: passthrough,
-            meta: metadata
+            meta: metadata,
+            input: inputSettings.Any() ? inputSettings : null
         );
         
         var request = new CreateUploadRequest(newAssetSettings: assetSettings);
