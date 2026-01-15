@@ -113,7 +113,7 @@ public class MuxVideoService : IVideoService
                     Url = watermarkUrl,
                     OverlaySettings = new InputSettingsOverlaySettings
                     {
-                        Opacity = "0.7",
+                        Opacity = "1.0",
                         VerticalAlign = InputSettingsOverlaySettings.VerticalAlignEnum.Middle,
                         HorizontalAlign = InputSettingsOverlaySettings.HorizontalAlignEnum.Center,
                         Width = "20%"
@@ -183,7 +183,7 @@ public class MuxVideoService : IVideoService
                     Url = watermarkUrl,
                     OverlaySettings = new InputSettingsOverlaySettings
                     {
-                        Opacity = "0.7",
+                        Opacity = "1.0",
                         VerticalAlign = InputSettingsOverlaySettings.VerticalAlignEnum.Middle,
                         HorizontalAlign = InputSettingsOverlaySettings.HorizontalAlignEnum.Center,
                         Width = "20%"

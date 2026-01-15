@@ -247,7 +247,30 @@ We have set up a fully automated pipeline so you don't need to manually deploy e
 
 ---
 
-## 📈 Step 5: Monitoring (Where are my logs?)
+## 📧 Step 6: Email Deliverability (SES Sandbox)
+
+**CRITICAL:** By default, AWS places all new SES accounts in a **Sandbox**.
+
+**Restrictions:**
+1.  You can **only send TO verified email addresses** (e.g., your own). Customer emails will fail.
+2.  You have a limit of 200 emails per day.
+
+**How to Fix (Request Production Access):**
+1.  Log in to the **AWS Console** and search for **Amazon SES**.
+2.  Go to **Account Dashboard** (left menu).
+3.  Look for the yellow banner saying "Your account is in the sandbox."
+4.  Click **Request production access** (or "Edit account details").
+5.  **Fill out the form**:
+    *   **Mail Type**: Transactional.
+    *   **Website URL**: Your App Runner URL (e.g., `https://xyz.awsapprunner.com`).
+    *   **Use Case Description**: 
+        > "I am building a video storefront where users buy digital clips. The system sends them a receipt and a secure download link immediately after checkout. We only send requested transactional emails to customers who have made a purchase."
+6.  Click **Submit**.
+    *   *Note: Approval usually takes 24 hours. Until then, you can only test with your own verified email.*
+
+---
+
+## 📈 Step 7: Monitoring (Where are my logs?)
 
 Once your app is in the cloud, you can't see the console window anymore. Here is how you debug issues:
 

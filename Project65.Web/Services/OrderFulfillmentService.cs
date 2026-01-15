@@ -124,7 +124,17 @@ public class OrderFulfillmentService
                      p.ClipThumbnailFileName = null;
                 }
 
+                // DETACH CLIP BEFORE SAVE:
+                // p.Clip comes from _clipRepository (Context A). _purchaseRepository uses a new Context B.
+                // If we leave p.Clip attached, Context B will try to insert it as a new row, causing "Duplicate Key" on PK_Events.
+                var tempClip = p.Clip;
+                p.Clip = null; 
+
                 await _purchaseRepository.AddAsync(p);
+
+                // RESTORE CLIP:
+                // We need p.Clip back so the Email Service (later in this method) can read Title/Thumbnail.
+                p.Clip = tempClip;
             }
         }
 
