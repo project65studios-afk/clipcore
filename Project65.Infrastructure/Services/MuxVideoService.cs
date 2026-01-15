@@ -127,8 +127,9 @@ public class MuxVideoService : IVideoService
             passthrough: clipId, // Link to our local database ID
             meta: metadata,
             #pragma warning disable CS0612
-            input: inputSettings.Any() ? inputSettings : null
+            input: inputSettings.Any() ? inputSettings : null,
             #pragma warning restore CS0612
+            maxResolutionTier: CreateAssetRequest.MaxResolutionTierEnum._1080p // Enforce 1080p Limit
         );
         
         var request = new CreateUploadRequest(newAssetSettings: assetSettings);
@@ -197,8 +198,9 @@ public class MuxVideoService : IVideoService
             passthrough: passthrough,
             meta: metadata,
             #pragma warning disable CS0612
-            input: inputSettings.Any() ? inputSettings : null
+            input: inputSettings.Any() ? inputSettings : null,
             #pragma warning restore CS0612
+            maxResolutionTier: CreateAssetRequest.MaxResolutionTierEnum._1080p // Enforce 1080p Limit
         );
         
         var request = new CreateUploadRequest(newAssetSettings: assetSettings);
@@ -259,7 +261,8 @@ public class MuxVideoService : IVideoService
     {
          var assetSettings = new CreateAssetRequest(
             playbackPolicy: new List<PlaybackPolicy> { PlaybackPolicy.Signed },
-            masterAccess: CreateAssetRequest.MasterAccessEnum.Temporary
+            masterAccess: CreateAssetRequest.MasterAccessEnum.Temporary,
+            maxResolutionTier: CreateAssetRequest.MaxResolutionTierEnum._1080p // Enforce 1080p Limit
         );
         assetSettings.Passthrough = $"fulfillment:{purchaseId}";
         
@@ -445,6 +448,21 @@ public class MuxVideoService : IVideoService
             _logger.LogError(ex, "[MUX-ERROR] Token Generation Failed");
             return "";
         }
+    }
+
+    public string GetGifUrlAsync(string playbackId, int? start = null, int? duration = null)
+    {
+        // GIF Limits: Max 10s duration.
+        // We will sign a token for audience 'g'
+        var token = GenerateSignedToken(playbackId, "g");
+        
+        var query = $"?token={token}";
+        if (start.HasValue) query += $"&start={start}";
+        if (duration.HasValue) query += $"&end={start + duration}"; // Mux uses start/end or time/duration? 
+        // Mux Image URL API: https://image.mux.com/{PLAYBACK_ID}/animated.gif?token={TOKEN}&start={START}&end={END}
+        // Actually Mux uses 'start' and 'end' parameters for GIF time window.
+        
+        return $"https://image.mux.com/{playbackId}/animated.gif{query}";
     }
 
     public async Task DeleteAssetAsync(string assetId)
