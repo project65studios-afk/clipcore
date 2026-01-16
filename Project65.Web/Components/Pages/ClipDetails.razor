@@ -110,18 +110,7 @@ else
                                  disable-cast
                                  style="width: 100%; height: 100%;"
                               >
-                                 @if (!string.IsNullOrEmpty(_watermarkUrl))
-                                 {
-                                     <div class="watermark-grid" style="--wm-url: url('@_watermarkUrl');">
-                                         @for (int i = 0; i < 36; i++)
-                                         {
-                                             int row = i / 6;
-                                             int col = i % 6;
-                                             bool isActive = (row + col) % 2 == 0;
-                                             <div class="watermark-cell @(isActive ? "active" : "")"></div>
-                                         }
-                                     </div>
-                                 }
+                                 @* Watermark removed for purchased content *@
                               </mux-player>
                          }
                          else if (_limitReached)

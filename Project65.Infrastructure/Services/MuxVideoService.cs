@@ -126,9 +126,6 @@ public class MuxVideoService : IVideoService
             playbackPolicy: new List<PlaybackPolicy> { PlaybackPolicy.Signed },
             passthrough: clipId, // Link to our local database ID
             meta: metadata,
-            #pragma warning disable CS0612
-            input: inputSettings.Any() ? inputSettings : null,
-            #pragma warning restore CS0612
             maxResolutionTier: CreateAssetRequest.MaxResolutionTierEnum._1080p // Enforce 1080p Limit
         );
         
@@ -140,19 +137,10 @@ public class MuxVideoService : IVideoService
             var result = await _resiliencePipeline.ExecuteAsync(async ct => await _directUploadsApi.CreateDirectUploadAsync(request, cancellationToken: ct));
             return (result.Data.Url, result.Data.Id);
         }
-        catch (ApiException ex) when (inputSettings.Any())
+        catch (ApiException ex)
         {
-             _logger.LogWarning(ex, "[MuxVideoService] Standard Upload with Watermark failed (Error: {ErrorCode}). Retrying without watermark...", ex.ErrorCode);
-             
-             // Fallback: Remove input settings (watermark) and retry
-             #pragma warning disable CS0612
-             assetSettings.Input = null; 
-             #pragma warning restore CS0612
-             request = new CreateUploadRequest(newAssetSettings: assetSettings);
-             request.CorsOrigin = GetAppOrigin();
-
-             var result = await _resiliencePipeline.ExecuteAsync(async ct => await _directUploadsApi.CreateDirectUploadAsync(request, cancellationToken: ct));
-             return (result.Data.Url, result.Data.Id);
+             _logger.LogError(ex, "[MuxVideoService] Upload creation failed (Error: {ErrorCode}).", ex.ErrorCode);
+             throw;
         }
     }
 
@@ -165,41 +153,13 @@ public class MuxVideoService : IVideoService
             ExternalId = passthrough
         };
 
-        var inputSettings = new List<InputSettings>();
-        
-        // 1. Check for Watermark
-        var watermarkUrl = await _settingsRepository.GetValueAsync("WatermarkUrl");
-        if (!string.IsNullOrEmpty(watermarkUrl))
-        {
-            // Resolve R2 keys to signed URLs
-            if (!watermarkUrl.StartsWith("http")) 
-            {
-                watermarkUrl = _storageService.GetPresignedDownloadUrl(watermarkUrl);
-            }
-
-            if (!string.IsNullOrEmpty(watermarkUrl))
-            {
-                inputSettings.Add(new InputSettings
-                {
-                    Url = watermarkUrl,
-                    OverlaySettings = new InputSettingsOverlaySettings
-                    {
-                        Opacity = "1.0",
-                        VerticalAlign = InputSettingsOverlaySettings.VerticalAlignEnum.Middle,
-                        HorizontalAlign = InputSettingsOverlaySettings.HorizontalAlignEnum.Center,
-                        Width = "20%"
-                    }
-                });
-            }
-        }
+        // Note: Watermarking is now handled via Player Overlay (CSS) in the frontend.
+        // We do not burn it into the video anymore so the Master file remains clean.
 
         var assetSettings = new CreateAssetRequest(
             playbackPolicy: new List<PlaybackPolicy> { PlaybackPolicy.Signed },
             passthrough: passthrough,
             meta: metadata,
-            #pragma warning disable CS0612
-            input: inputSettings.Any() ? inputSettings : null,
-            #pragma warning restore CS0612
             maxResolutionTier: CreateAssetRequest.MaxResolutionTierEnum._1080p // Enforce 1080p Limit
         );
         
@@ -211,19 +171,10 @@ public class MuxVideoService : IVideoService
             var result = await _resiliencePipeline.ExecuteAsync(async ct => await _directUploadsApi.CreateDirectUploadAsync(request, cancellationToken: ct));
             return (result.Data.Url, result.Data.Id);
         }
-        catch (ApiException ex) when (inputSettings.Any())
+        catch (ApiException ex)
         {
-             _logger.LogWarning(ex, "[MuxVideoService] Direct Upload with Watermark failed (Error: {ErrorCode}). Retrying without watermark...", ex.ErrorCode);
-             
-             // Fallback: Remove input settings (watermark) and retry
-             #pragma warning disable CS0612
-             assetSettings.Input = null; 
-             #pragma warning restore CS0612
-             request = new CreateUploadRequest(newAssetSettings: assetSettings);
-             request.CorsOrigin = GetAppOrigin();
-
-             var result = await _resiliencePipeline.ExecuteAsync(async ct => await _directUploadsApi.CreateDirectUploadAsync(request, cancellationToken: ct));
-             return (result.Data.Url, result.Data.Id);
+             _logger.LogError(ex, "[MuxVideoService] Direct Upload creation failed (Error: {ErrorCode}).", ex.ErrorCode);
+             throw;
         }
     }
 
