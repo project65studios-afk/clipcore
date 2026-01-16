@@ -52,7 +52,7 @@
                         <div>
                             <div style="font-weight: 700; color: var(--text-main);">@orderId</div>
                             <div style="font-size: 0.85rem; color: var(--text-muted);">
-                                						Purchased on @firstItem.CreatedAt.ToLocalTime().ToString("MMMM dd, yyyy") at @firstItem.CreatedAt.ToLocalTime().ToString("t")
+                                						Purchased on @ToClientTime(firstItem.CreatedAt).ToString("MMMM dd, yyyy") at @ToClientTime(firstItem.CreatedAt).ToString("t")
 					</div>
 					@if (!string.IsNullOrEmpty(firstItem.CustomerAddress) || !string.IsNullOrEmpty(firstItem.CustomerPhone))
 					{
@@ -138,7 +138,7 @@
                                             @if (startTime.HasValue)
                                             {
                                                 <span style="color: var(--text-muted); margin-left: 0.5rem;">
-                                                    • @startTime.Value.ToLocalTime().ToString("t")
+                                                    • @ToClientTime(startTime.Value).ToString("t")
                                                 </span>
                                             }
                                         </div>
@@ -156,7 +156,7 @@
                                             }
                                             @if (startTimeDisplay.HasValue)
                                             {
-                                                <span>• @startTimeDisplay.Value.ToLocalTime().ToString("t")</span>
+                                                <span>• @ToClientTime(startTimeDisplay.Value).ToString("t")</span>
                                             }
                                             <span class="badge" style="background: @(purchase.LicenseType == LicenseType.Commercial ? "var(--accent-purple-dim)" : "var(--accent-primary-dim)"); color: @(purchase.LicenseType == LicenseType.Commercial ? "var(--accent-purple)" : "var(--accent-primary)"); border: 1px solid currentColor; font-size: 0.7rem; text-transform: uppercase; font-weight: 600; padding: 0.2rem 0.5rem;">
                                                 @purchase.LicenseType License
@@ -198,6 +198,33 @@
 @code {
     private List<Purchase> _purchases = new();
     private bool _isLoading = true;
+
+    // Timezone Handling
+    private TimeSpan _clientOffset = TimeSpan.Zero;
+    private bool _offsetLoaded = false;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender && !_offsetLoaded)
+        {
+            try
+            {
+                var offsetMinutes = await JSRuntime.InvokeAsync<int>("getUserTimezoneOffset");
+                _clientOffset = TimeSpan.FromMinutes(-offsetMinutes);
+                _offsetLoaded = true;
+                StateHasChanged();
+            }
+            catch (Exception ex)
+            {
+                 Console.WriteLine($"Error fetching timezone: {ex.Message}");
+            }
+        }
+    }
+    
+    private DateTime ToClientTime(DateTime utcTime)
+    {
+        return utcTime.Add(_clientOffset);
+    }
 
     private Dictionary<string, string> _thumbnailUrls = new();
     private string? _storeName;

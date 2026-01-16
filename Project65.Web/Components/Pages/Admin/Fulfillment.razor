@@ -105,7 +105,7 @@
                                             <span class="badge bg-dark text-secondary border border-secondary-subtle">@order.Count() Items</span>
                                         </div>
                                         <div class="text-muted small">
-                                            @firstItem.CreatedAt.ToLocalTime().ToString("MMMM dd, yyyy") at @firstItem.CreatedAt.ToLocalTime().ToString("t")
+                                            @ToClientTime(firstItem.CreatedAt).ToString("MMMM dd, yyyy") at @ToClientTime(firstItem.CreatedAt).ToString("t")
                                         </div>
                                     </div>
                                     <div class="col-md-8 text-md-end mt-2 mt-md-0">
@@ -233,7 +233,7 @@
                                                     @if (startTime.HasValue)
                                                     {
                                                         <div class="small text-secondary mt-1">
-                                                            <i class="bi bi-clock me-1"></i> @startTime.Value.ToLocalTime().ToString("h:mm tt")
+                                                            <i class="bi bi-clock me-1"></i> @ToClientTime(startTime.Value).ToString("h:mm tt")
                                                         </div>
                                                     }
                                                 </td>
@@ -288,7 +288,7 @@
                                                         @if (p.FulfilledAt.HasValue)
                                                         {
                                                             <div style="font-size: 0.7rem; color: var(--text-muted);" class="mt-1 ms-1">
-                                                                @p.FulfilledAt.Value.ToLocalTime().ToString("MM/dd h:mm tt")
+                                                                @ToClientTime(p.FulfilledAt.Value).ToString("MM/dd h:mm tt")
                                                             </div>
                                                         }
                                                     }
@@ -451,6 +451,36 @@
     // Upload State
     private string _uploadError = "";
     private DotNetObjectReference<Fulfillment>? _objRef;
+    
+    // Timezone Handling
+    private TimeSpan _clientOffset = TimeSpan.Zero;
+    private bool _offsetLoaded = false;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender && !_offsetLoaded)
+        {
+            try
+            {
+                var offsetMinutes = await JSRuntime.InvokeAsync<int>("getUserTimezoneOffset");
+                // offsetMinutes is (UTC - Local), so we negate to get (Local - UTC) 
+                // e.g. PST is UTC-8 (480 min). UTC + (-480) = Local.
+                _clientOffset = TimeSpan.FromMinutes(-offsetMinutes);
+                _offsetLoaded = true;
+                StateHasChanged();
+            }
+            catch (Exception ex)
+            {
+                // Fallback or ignore if JS fails
+                 Console.WriteLine($"Error fetching timezone: {ex.Message}");
+            }
+        }
+    }
+    
+    private DateTime ToClientTime(DateTime utcTime)
+    {
+        return utcTime.Add(_clientOffset);
+    }
 
     protected override async Task OnInitializedAsync()
     {
