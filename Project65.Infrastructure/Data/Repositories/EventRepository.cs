@@ -113,33 +113,37 @@ public class EventRepository : IEventRepository
             // CLEANUP: Delete External Assets (Mux & R2)
             if (evt.Clips.Any())
             {
+                var cleanupTasks = new List<Task>();
+
+                // Local helper to swallow errors individually so one failure doesn't stop others
+                async Task SafeDelete(Func<Task> action)
+                {
+                    try { await action(); } catch { /* Ignore cleanup errors */ }
+                }
+
                 foreach (var clip in evt.Clips.ToList()) 
                 {
-                    try 
+                    // 1. Delete Mux Asset
+                    if (!string.IsNullOrEmpty(clip.MuxAssetId))
                     {
-                        // 1. Delete Mux Asset
-                        if (!string.IsNullOrEmpty(clip.MuxAssetId))
-                        {
-                            await _videoService.DeleteAssetAsync(clip.MuxAssetId);
-                        }
-
-                        // 2. Delete R2 Thumbnail
-                        if (!string.IsNullOrEmpty(clip.ThumbnailFileName))
-                        {
-                            await _storageService.DeleteAsync(clip.ThumbnailFileName);
-                        }
-                        
-                        // 3. Delete R2 Master (if any)
-                        if (!string.IsNullOrEmpty(clip.MasterFileName))
-                        {
-                            await _storageService.DeleteAsync(clip.MasterFileName);
-                        }
+                        cleanupTasks.Add(SafeDelete(() => _videoService.DeleteAssetAsync(clip.MuxAssetId)));
                     }
-                    catch 
+
+                    // 2. Delete R2 Thumbnail
+                    if (!string.IsNullOrEmpty(clip.ThumbnailFileName))
                     {
-                         // Swallow errors to ensure DB cleanup continues. Or log them if ILogger injected.
+                        cleanupTasks.Add(SafeDelete(() => _storageService.DeleteAsync(clip.ThumbnailFileName)));
+                    }
+                    
+                    // 3. Delete R2 Master (if any)
+                    if (!string.IsNullOrEmpty(clip.MasterFileName))
+                    {
+                        cleanupTasks.Add(SafeDelete(() => _storageService.DeleteAsync(clip.MasterFileName)));
                     }
                 }
+
+                // Run all cleanup tasks in parallel
+                await Task.WhenAll(cleanupTasks);
 
                 context.Clips.RemoveRange(evt.Clips);
             }
