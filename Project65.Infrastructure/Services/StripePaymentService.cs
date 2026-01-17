@@ -115,26 +115,10 @@ public class StripePaymentService : IPaymentService
             options.CustomerEmail = userEmail;
         }
 
-        // Collect Phone Number via Custom Field (appears at bottom)
-        options.CustomFields = new List<SessionCustomFieldOptions>
-        {
-            new SessionCustomFieldOptions
-            {
-                Key = "contact_number", // Changed key to avoid auto-mapping
-                Label = new SessionCustomFieldLabelOptions 
-                { 
-                    Type = "custom", 
-                    Custom = "Mobile / Contact Number" 
-                },
-                Type = "text",
-                Optional = false
-            }
-        };
-
-        // Disable standard top-level phone collection
+        // Enable standard top-level phone collection (Autofill supported)
         options.PhoneNumberCollection = new SessionPhoneNumberCollectionOptions
         {
-            Enabled = false,
+            Enabled = true,
         };
         
         // Collect Billing Address (auto-enabled by default usually, but we can enforce it)
