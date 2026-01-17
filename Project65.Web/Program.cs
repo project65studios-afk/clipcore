@@ -330,16 +330,7 @@ if (!string.IsNullOrEmpty(resendApiKey))
     
     Console.WriteLine(">>> EMAIL SETUP: Using Resend.");
 }
-else if (!string.IsNullOrEmpty(builder.Configuration["AWS:AccessKeyId"]))
-{
-    // Register as concrete type first to share instance if needed
-    builder.Services.AddScoped<AmazonSESEmailService>();
-    // Forward interfaces
-    builder.Services.AddScoped<IEmailService>(sp => sp.GetRequiredService<AmazonSESEmailService>());
-    builder.Services.AddScoped<Microsoft.AspNetCore.Identity.UI.Services.IEmailSender>(sp => sp.GetRequiredService<AmazonSESEmailService>());
-    
-    Console.WriteLine(">>> EMAIL SETUP: Using AWS SES.");
-}
+
 else
 {
     builder.Services.AddScoped<ConsoleEmailService>();

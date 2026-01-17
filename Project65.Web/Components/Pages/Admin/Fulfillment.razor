@@ -856,8 +856,9 @@
             {
                 var customerName = firstItem.CustomerName ?? "Customer";
                 var htmlBody = await EmailTemplateService.GenerateFulfillmentEmailHtmlAsync(orderIdDisplay, order, customerName);
+                var textBody = await EmailTemplateService.GenerateFulfillmentTextAsync(orderIdDisplay, order, customerName);
 
-                await EmailService.SendEmailAsync(customerEmail, $"Your Video Order is Ready! (#{orderIdDisplay})", htmlBody);
+                await EmailService.SendEmailAsync(customerEmail, $"Your Video Order is Ready! (#{orderIdDisplay})", htmlBody, textBody);
                 
                 if (isManualResend)
                 {

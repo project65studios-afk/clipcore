@@ -177,7 +177,8 @@ public class OrderFulfillmentService
             var customerName = purchases.FirstOrDefault()?.CustomerName ?? "Customer";
             
             var htmlBody = await _emailTemplateService.GenerateOrderReceiptHtmlAsync(shortOrderId, purchases, customerName);
-            await _emailService.SendEmailAsync(customerEmail, subject, htmlBody);
+            var textBody = await _emailTemplateService.GenerateOrderReceiptTextAsync(shortOrderId, purchases, customerName);
+            await _emailService.SendEmailAsync(customerEmail, subject, htmlBody, textBody);
 
             // Fulfillment Email removed. STRICT MODE: Only sent by Admin in Fulfillment Dashboard.
         }

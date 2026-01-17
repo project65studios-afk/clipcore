@@ -23,7 +23,7 @@ public class ResendEmailService : IEmailService, IEmailSender
         _fromEmail = configuration["Resend:FromEmail"] ?? "onboarding@resend.dev";
     }
 
-    public async Task SendEmailAsync(string to, string subject, string body)
+    public async Task SendEmailAsync(string to, string subject, string body, string? plainTextBody = null)
     {
         try
         {
@@ -34,6 +34,10 @@ public class ResendEmailService : IEmailService, IEmailSender
             message.To.Add(to);
             message.Subject = subject;
             message.HtmlBody = body;
+            if (!string.IsNullOrEmpty(plainTextBody))
+            {
+                message.TextBody = plainTextBody;
+            }
             
             _logger.LogInformation($"[Resend] Sending email to {to} with subject '{subject}' from {_fromEmail}");
             
@@ -56,5 +60,10 @@ public class ResendEmailService : IEmailService, IEmailSender
             _logger.LogError(ex, $"[Resend] Exception while sending email to {to}");
             throw;
         }
+    }
+
+    Task IEmailSender.SendEmailAsync(string email, string subject, string htmlMessage)
+    {
+        return SendEmailAsync(email, subject, htmlMessage, null);
     }
 }

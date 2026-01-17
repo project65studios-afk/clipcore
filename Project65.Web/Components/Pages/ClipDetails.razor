@@ -18,6 +18,7 @@
 @inject IStorageService StorageService
 @inject Project65.Web.Services.VideoHealingService VideoHealingService
 @inject IAuditService AuditService
+@inject Project65.Web.Services.EmailTemplateService EmailTemplateService
 @inject ILogger<ClipDetails> Logger
 @using Microsoft.AspNetCore.SignalR.Client
 @implements IAsyncDisposable
@@ -738,14 +739,10 @@ else
                                     var email = await PaymentService.GetCustomerEmailFromSessionAsync(sessionId!);
                                     if (!string.IsNullOrEmpty(email))
                                     {
-                                        string receiptBody = $@"
-                                            <h1>Thank You for Your Order!</h1>
-                                            <p>You have purchased access to: <strong>{_clip.Title}</strong></p>
-                                            <p>You can watch or download it anytime here: <a href='{Navigation.Uri}'>{Navigation.Uri}</a></p>
-                                            <br/>
-                                            <p>- Project65 Studios</p>
-                                        ";
-                                        await EmailService.SendEmailAsync(email, "Your Project65 Receipt", receiptBody);
+                                        var htmlBody = await EmailTemplateService.GenerateOrderReceiptHtmlAsync(sessionId!, purchases, purchases.FirstOrDefault()?.CustomerName ?? "Customer");
+                                        var textBody = await EmailTemplateService.GenerateOrderReceiptTextAsync(sessionId!, purchases, purchases.FirstOrDefault()?.CustomerName ?? "Customer");
+                                        
+                                        await EmailService.SendEmailAsync(email, "Your Project65 Receipt", htmlBody, textBody);
                                     }
                                 }
                                 catch (Exception ex) 
