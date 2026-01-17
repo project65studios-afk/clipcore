@@ -41,13 +41,13 @@ public class ResendEmailService : IEmailService, IEmailSender
 
             if (response.Success)
             {
-                 _logger.LogInformation($"[Resend] Email sent successfully. ID: {response.Data.Id}");
+                 _logger.LogInformation($"[Resend] Email sent successfully. ID: {response.Content}");
             }
             else
             {
                  // Log warning but don't crash, or throw? 
                  // It's a void-ish async task usually, but let's log error.
-                 _logger.LogError($"[Resend] Failed to send email. Error: {response.Error?.Message} ({response.Error?.Name})");
+                 _logger.LogError($"[Resend] Failed to send email. Error: {response.Exception?.Message}");
                  // We might want to throw if it's critical, but avoiding crash is often better for UI flow
             }
         }
