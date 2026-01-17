@@ -217,4 +217,15 @@ public class PurchaseRepository : IPurchaseRepository
 
         return dailySales.ToDictionary(k => DateOnly.FromDateTime(k.Date), v => v.Total);
     }
+
+    public async Task DeleteAsync(int id)
+    {
+        using var context = await _contextFactory.CreateDbContextAsync();
+        var purchase = await context.Purchases.FindAsync(id);
+        if (purchase != null)
+        {
+            context.Purchases.Remove(purchase);
+            await context.SaveChangesAsync();
+        }
+    }
 }

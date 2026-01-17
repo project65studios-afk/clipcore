@@ -20,4 +20,5 @@ public interface IPurchaseRepository
     Task<int> GetTotalSalesCountAsync();
     Task<List<Purchase>> GetRecentSalesAsync(int count);
     Task<Dictionary<DateOnly, long>> GetDailyRevenueAsync(int days);
+    Task DeleteAsync(int id);
 }

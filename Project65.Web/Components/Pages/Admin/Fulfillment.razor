@@ -149,6 +149,10 @@
                                                     <button class="btn btn-primary btn-sm shadow-sm" @onclick="() => OpenBulkUploadModal(order.ToList())">
                                                         <i class="bi bi-cloud-upload me-1"></i> Fulfill All
                                                     </button>
+                                                    <div class="vr mx-2 text-secondary"></div>
+                                                    <button class="btn btn-outline-danger btn-sm shadow-sm" @onclick="() => DeleteOrder(order.ToList())" title="Delete Order">
+                                                        <i class="bi bi-trash"></i>
+                                                    </button>
                                                 </div>
                                             }
 
@@ -910,6 +914,40 @@
             $"Item reverted to pending: {p.Clip?.Title}");
 
         await LoadDataAsync();
+    }
+
+    private async Task DeleteOrder(List<Purchase> order)
+    {
+        var count = order.Count;
+        var firstItem = order.First();
+        var orderIdDisplay = !string.IsNullOrEmpty(firstItem.StripeSessionId) && firstItem.StripeSessionId.Length >= 8
+            ? firstItem.StripeSessionId.Substring(firstItem.StripeSessionId.Length - 8).ToUpper() 
+            : "ID-" + firstItem.Id;
+
+        var confirmed = await JSRuntime.InvokeAsync<bool>("confirm", $"Are you sure you want to PERMANENTLY DELETE Order #{orderIdDisplay} ({count} items)?\n\nThis cannot be undone.");
+        if (!confirmed) return;
+
+        foreach (var p in order)
+        {
+            await PurchaseRepository.DeleteAsync(p.Id);
+            
+             // Log
+            var authState = await AuthenticationStateTask;
+            var user = authState.User;
+            var userId = user.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            var userEmail = user.Identity?.Name;
+
+            await AuditService.LogActionAsync(
+                userId, 
+                userEmail, 
+                "Delete Order", 
+                "Purchase", 
+                p.StripeSessionId ?? "Legacy", 
+                $"Deleted purchase item: {p.Clip?.Title ?? "Unknown"}");
+        }
+
+        await LoadDataAsync();
+        await JSRuntime.InvokeVoidAsync("alert", "Order deleted successfully.");
     }
 
     private string SuperNormalize(string? input)
