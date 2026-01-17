@@ -172,7 +172,7 @@ public class OrderFulfillmentService
         try
         {
             var storeName = await _storeSettingsService.GetStoreNameAsync();
-            var subject = $"{storeName ?? "Project65"} Order Receipt";
+            var subject = $"{storeName ?? "Project65"} Order Receipt (#{shortOrderId})";
             var customerEmail = await _paymentService.GetCustomerEmailFromSessionAsync(sessionId) ?? "customer@example.com";
             var customerName = purchases.FirstOrDefault()?.CustomerName ?? "Customer";
             

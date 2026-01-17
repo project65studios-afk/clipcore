@@ -736,13 +736,16 @@ else
                                 // Send Receipt
                                 try 
                                 {
-                                    var email = await PaymentService.GetCustomerEmailFromSessionAsync(sessionId!);
+                                    var email = await PaymentService.GetCustomerEmailFromSessionAsync(sessionId.ToString());
                                     if (!string.IsNullOrEmpty(email))
                                     {
-                                        var htmlBody = await EmailTemplateService.GenerateOrderReceiptHtmlAsync(sessionId!, purchases, purchases.FirstOrDefault()?.CustomerName ?? "Customer");
-                                        var textBody = await EmailTemplateService.GenerateOrderReceiptTextAsync(sessionId!, purchases, purchases.FirstOrDefault()?.CustomerName ?? "Customer");
+                                        string sid = sessionId.ToString();
+                                        var shortOrderId = sid.Length >= 8 ? sid.Substring(sid.Length - 8).ToUpper() : sid;
                                         
-                                        await EmailService.SendEmailAsync(email, "Your Project65 Receipt", htmlBody, textBody);
+                                        var htmlBody = await EmailTemplateService.GenerateOrderReceiptHtmlAsync(shortOrderId, purchases, purchases.FirstOrDefault()?.CustomerName ?? "Customer");
+                                        var textBody = await EmailTemplateService.GenerateOrderReceiptTextAsync(shortOrderId, purchases, purchases.FirstOrDefault()?.CustomerName ?? "Customer");
+                                        
+                                        await EmailService.SendEmailAsync(email, $"Your Project65 Receipt (#{shortOrderId})", htmlBody, textBody);
                                     }
                                 }
                                 catch (Exception ex) 
