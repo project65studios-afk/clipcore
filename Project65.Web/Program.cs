@@ -310,19 +310,43 @@ else
     builder.Services.AddScoped<IPaymentService, StripePaymentService>();
 }
 
-if (!string.IsNullOrEmpty(builder.Configuration["AWS:AccessKeyId"]))
+// Email Service Configuration
+var resendApiKey = builder.Configuration["Resend:ApiKey"] ?? builder.Configuration["Resend:ApiToken"];
+
+if (!string.IsNullOrEmpty(resendApiKey))
+{
+    // Register Resend
+    builder.Services.AddOptions();
+    builder.Services.AddHttpClient<Resend.ResendClient>();
+    builder.Services.Configure<Resend.ResendClientOptions>(o =>
+    {
+        o.ApiToken = resendApiKey;
+    });
+    builder.Services.AddTransient<Resend.IResend, Resend.ResendClient>();
+
+    builder.Services.AddScoped<ResendEmailService>();
+    builder.Services.AddScoped<IEmailService>(sp => sp.GetRequiredService<ResendEmailService>());
+    builder.Services.AddScoped<Microsoft.AspNetCore.Identity.UI.Services.IEmailSender>(sp => sp.GetRequiredService<ResendEmailService>());
+    
+    Console.WriteLine(">>> EMAIL SETUP: Using Resend.");
+}
+else if (!string.IsNullOrEmpty(builder.Configuration["AWS:AccessKeyId"]))
 {
     // Register as concrete type first to share instance if needed
     builder.Services.AddScoped<AmazonSESEmailService>();
     // Forward interfaces
     builder.Services.AddScoped<IEmailService>(sp => sp.GetRequiredService<AmazonSESEmailService>());
     builder.Services.AddScoped<Microsoft.AspNetCore.Identity.UI.Services.IEmailSender>(sp => sp.GetRequiredService<AmazonSESEmailService>());
+    
+    Console.WriteLine(">>> EMAIL SETUP: Using AWS SES.");
 }
 else
 {
     builder.Services.AddScoped<ConsoleEmailService>();
     builder.Services.AddScoped<IEmailService>(sp => sp.GetRequiredService<ConsoleEmailService>());
     builder.Services.AddScoped<Microsoft.AspNetCore.Identity.UI.Services.IEmailSender>(sp => sp.GetRequiredService<ConsoleEmailService>());
+    
+    Console.WriteLine(">>> EMAIL SETUP: Using Console (Dev Mode).");
 }
 
 builder.Services.AddScoped<Project65.Web.Services.CartService>();
