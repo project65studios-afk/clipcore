@@ -448,9 +448,12 @@ builder.Services.Configure<Microsoft.AspNetCore.Http.Features.FormOptions>(optio
     options.MultipartBodyLengthLimit = 2_147_483_648; // 2GB
 });
 
-// Configure Kestrel to listen on 0.0.0.0:[PORT]
-var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
-builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
+// Configure Kestrel to listen on 0.0.0.0:[PORT] (only in Production/Container)
+if (!builder.Environment.IsDevelopment())
+{
+    var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
+    builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
+}
 
 // Register Startup Background Service
 if (configLoaded)

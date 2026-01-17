@@ -103,7 +103,7 @@ Don't put passwords in your code! We'll put them in the vault.
 
 ---
 
-## 🔑 Step 2.1: Google Login Setup (Optional)
+## 🔑 Step 2.1: Google Login Setup (Optional) ✅ Completed
 
 To allow users to sign in with Google, you need to create credentials and add them to the Parameter Store.
 
@@ -175,19 +175,23 @@ To allow users to sign in with Google, you need to create credentials and add th
 
 ---
 
-## 💳 Step 3.5: Finish Stripe Setup (The "Chicken and Egg" Problem)
+## 💳 Step 3.5: Finish Stripe Setup (The "Chicken and Egg" Problem) ✅ Completed
 
 You couldn't set up the Webhook **before** proper deployment because Stripe needs your **URL**. Now that you have it:
 
 1.  **Copy your App Runner URL** (e.g., `https://xyz.awsapprunner.com`).
 2.  Go to **[Stripe Dashboard > Developers > Webhooks](https://dashboard.stripe.com/test/webhooks)**.
-3.  Click **Add Endpoint**.
-4.  **Endpoint URL**: Paste your URL and add `/api/webhooks/stripe` to the end.
-    *   Example: `https://xyz.awsapprunner.com/api/webhooks/stripe`
-5.  **Select events**:
-    *   `checkout.session.completed` (Crucial for fulfilling orders!)
-6.  Click **Add endpoint**.
-7.  **Reveal Signing Secret**: Look for `Current secret` (starts with `whsec_...`). Copy it.
+3.  Click **+ Add destination**.
+4.  **Select events**:
+    *   Ensure "Your account" is selected.
+    *   In "Find event by name...", search for and select `checkout.session.completed`.
+    *   Click "Continue".
+5.  **Choose destination type**: Select **Webhook endpoint** and click "Continue".
+6.  **Configure destination**:
+    *   **Endpoint URL**: Paste your URL (`https://...`) and append `/api/webhooks/stripe`.
+        *   Example: `https://xyz.awsapprunner.com/api/webhooks/stripe`
+    *   Click "Add endpoint".
+7.  **Reveal Signing Secret**: Look for `Signing secret` (starts with `whsec_...`) in the top right. Copy it.
 8.  **Update AWS**:
     *   Go back to **AWS Parameter Store**.
     *   Create a new parameter: `/project65/Stripe/WebhookSecret`.
@@ -247,7 +251,7 @@ We have set up a fully automated pipeline so you don't need to manually deploy e
 
 ---
 
-## 📧 Step 6: Email Deliverability (SES Sandbox)
+## 📧 Step 6: Email Deliverability (Via Resend) ✅ Completed 
 
 **CRITICAL:** By default, AWS places all new SES accounts in a **Sandbox**.
 
