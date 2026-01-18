@@ -40,6 +40,16 @@ public class PurchaseRepository : IPurchaseRepository
             .AnyAsync(p => p.UserId == userId && p.ClipId == clipId && p.IsGif);
     }
 
+    public async Task<Purchase?> GetGifPurchaseAsync(string? userId, string clipId)
+    {
+        if (string.IsNullOrEmpty(userId)) return null;
+
+        using var context = await _contextFactory.CreateDbContextAsync();
+        return await context.Purchases
+            .AsNoTracking()
+            .FirstOrDefaultAsync(p => p.UserId == userId && p.ClipId == clipId && p.IsGif);
+    }
+
     public async Task<List<Purchase>> GetByUserIdAsync(string? userId)
     {
         using var context = await _contextFactory.CreateDbContextAsync();

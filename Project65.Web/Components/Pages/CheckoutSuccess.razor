@@ -367,7 +367,11 @@
 
     private async Task DownloadGifAsync(Purchase purchase)
     {
-        var pid = purchase.Clip?.PlaybackIdSigned;
+        // 1. Prioritize Branded (Watermarked) Playback ID
+        var pid = purchase.BrandedPlaybackId;
+        
+        // 2. Fallback to Original if branding not yet complete/available
+        if (string.IsNullOrEmpty(pid)) pid = purchase.Clip?.PlaybackIdSigned;
         if (string.IsNullOrEmpty(pid) && purchase.Clip != null) pid = purchase.Clip.PlaybackIdSigned;
 
         if (!string.IsNullOrEmpty(pid))

@@ -45,4 +45,5 @@ public class Purchase
     public bool IsGif { get; set; } = false;
     public double? GifStartTime { get; set; }
     public double? GifEndTime { get; set; }
+    public string? BrandedPlaybackId { get; set; }
 }

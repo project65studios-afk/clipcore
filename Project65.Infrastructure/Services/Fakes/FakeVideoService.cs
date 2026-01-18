@@ -66,6 +66,11 @@ public class FakeVideoService : IVideoService
     {
         return Task.FromResult<string?>("https://fake-mux.com/download/fake-asset-999");
     }
+    public Task<string?> CreateBrandedAssetAsync(string assetId, string watermarkUrl, string? passthrough = null)
+    {
+        return Task.FromResult<string?>("fake-branded-playback-123");
+    }
+
     public Task<int> DeleteErroredAssetsAsync()
     {
         return Task.FromResult(0);

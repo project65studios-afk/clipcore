@@ -551,6 +551,56 @@ public class MuxVideoService : IVideoService
         }
     }
 
+    public async Task<string?> CreateBrandedAssetAsync(string assetId, string watermarkUrl, string? passthrough = null)
+    {
+        if (string.IsNullOrEmpty(assetId) || string.IsNullOrEmpty(watermarkUrl)) return null;
+
+        try
+        {
+            var inputs = new List<InputSettings>
+            {
+                // 1. Source Video (Asset-to-Asset)
+                new InputSettings { Url = $"mux://assets/{assetId}" },
+                
+                // 2. Watermark Overlay
+                new InputSettings
+                {
+                    Url = watermarkUrl,
+                    OverlaySettings = new InputSettingsOverlaySettings
+                    {
+                        VerticalAlign = InputSettingsOverlaySettings.VerticalAlignEnum.Bottom,
+                        VerticalMargin = "0px",
+                        HorizontalAlign = InputSettingsOverlaySettings.HorizontalAlignEnum.Right,
+                        HorizontalMargin = "0px",
+                        Width = "25%",
+                        Opacity = "100%"
+                    }
+                }
+            };
+
+            var request = new CreateAssetRequest(
+                input: inputs,
+                playbackPolicy: new List<PlaybackPolicy> { PlaybackPolicy.Signed },
+                passthrough: passthrough,
+                maxResolutionTier: CreateAssetRequest.MaxResolutionTierEnum._1080p
+            );
+
+            var result = await _resiliencePipeline.ExecuteAsync(async ct => await _assetsApi.CreateAssetAsync(request, cancellationToken: ct));
+            
+            // Get the Playback ID for this new asset
+            var playbackId = result.Data.PlaybackIds?.FirstOrDefault()?.Id;
+            
+            _logger.LogInformation($"[MuxVideoService] Branded asset created for {assetId}. New PlaybackId: {playbackId}");
+            
+            return playbackId;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, $"[MuxVideoService] Failed to create branded asset for {assetId}");
+            return null;
+        }
+    }
+
     public async Task<int> DeleteErroredAssetsAsync()
     {
         var idsToDelete = new List<string>();

@@ -18,6 +18,8 @@ public class OrderFulfillmentService
     private readonly EmailTemplateService _emailTemplateService;
     private readonly AuthenticationStateProvider _authenticationStateProvider;
     private readonly Project65.Web.Services.StoreSettingsService _storeSettingsService;
+    private readonly IVideoService _videoService;
+    private readonly IStorageService _storageService;
 
     public OrderFulfillmentService(
         IPaymentService paymentService,
@@ -29,7 +31,9 @@ public class OrderFulfillmentService
         IEmailService emailService,
         EmailTemplateService emailTemplateService,
         AuthenticationStateProvider authenticationStateProvider,
-        Project65.Web.Services.StoreSettingsService storeSettingsService)
+        Project65.Web.Services.StoreSettingsService storeSettingsService,
+        IVideoService videoService,
+        IStorageService storageService)
     {
         _paymentService = paymentService;
         _purchaseRepository = purchaseRepository;
@@ -41,6 +45,8 @@ public class OrderFulfillmentService
         _emailTemplateService = emailTemplateService;
         _authenticationStateProvider = authenticationStateProvider;
         _storeSettingsService = storeSettingsService;
+        _videoService = videoService;
+        _storageService = storageService;
     }
 
     public async Task<List<Purchase>> FulfillOrderAsync(string sessionId)
@@ -124,6 +130,37 @@ public class OrderFulfillmentService
                     // We WANT this to be null so the system knows no order-specific file exists yet.
                     p.ClipMasterFileName = null;
                     p.ClipThumbnailFileName = null;
+
+                    // --- BRANDING LOGIC START ---
+                    if (p.IsGif && string.IsNullOrEmpty(p.BrandedPlaybackId))
+                    {
+                        try 
+                        {
+                            // 1. Prioritize GIF-specific watermark setting
+                            var logo = await _storeSettingsService.GetGifWatermarkUrlAsync();
+                            
+                            // 2. Fallback to general brand logo if GIF-specific setting is empty
+                            if (string.IsNullOrEmpty(logo))
+                            {
+                                logo = await _storeSettingsService.GetBrandLogoUrlAsync();
+                            }
+
+                            if (!string.IsNullOrEmpty(logo) && !string.IsNullOrEmpty(dbClip.MuxAssetId))
+                            {
+                                // Resolve internal R2 path to public signed URL for Mux
+                                if (!logo.StartsWith("http")) logo = _storageService.GetPresignedDownloadUrl(logo);
+
+                                // Create the watermarked asset
+                                p.BrandedPlaybackId = await _videoService.CreateBrandedAssetAsync(dbClip.MuxAssetId, logo, $"purchase:{p.Id}");
+                                Console.WriteLine($"[GIF-BRANDING] Triggered for Purchase {p.Id}, Clip {dbClip.Id}. Branded PID: {p.BrandedPlaybackId}");
+                            }
+                        }
+                        catch (Exception gifEx)
+                        {
+                            Console.Error.WriteLine($"[GIF-BRANDING-ERROR] {gifEx.Message}");
+                        }
+                    }
+                    // --- BRANDING LOGIC END ---
                 }
                 else
                 {

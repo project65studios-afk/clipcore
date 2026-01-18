@@ -18,3 +18,10 @@ window.setFullscreenElement = async (playerId, containerId) => {
         console.warn(`[Project65] Fullscreen setup failed. Player: ${!!player}, Container: ${!!container}`);
     }
 };
+
+window.scrollToElement = (elementId) => {
+    const element = document.getElementById(elementId);
+    if (element) {
+        element.scrollIntoView({ behavior: 'smooth' });
+    }
+};

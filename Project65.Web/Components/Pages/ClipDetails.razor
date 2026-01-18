@@ -90,8 +90,9 @@ else
             </div>
         }
 
-        <div class="clip-layout" style="display: grid; gap: 2rem;">
-             <div>
+        <div class="clip-layout">
+             <div class="clip-meta-column">
+
                  <div id="player-container" class="video-player-container mobile-full-width" style="border: 1px solid var(--border-color); box-shadow: 0 0 40px rgba(0,0,0,0.5); position: relative;">
                     @if (_hasPurchasedPersonal || _hasPurchasedCommercial)
                     {
@@ -190,8 +191,10 @@ else
 
                 </div>
             
-            <h1 style="margin-top: 1.5rem; font-size: 1.5rem; margin-bottom: 0.25rem;">@_clip.Title</h1>
-                <div class="clip-meta-row">
+            <h1 class="mobile-order-title" style="margin-top: 1.5rem; font-size: 1.5rem; margin-bottom: 0.25rem;">@_clip.Title</h1>
+                <div class="clip-meta-row mobile-order-meta">
+
+
                     <p style="color: var(--text-secondary); margin: 0;">Published on @_clip.PublishedAt.ToString("MMMM dd, yyyy")</p>
                     @if (_clip.RecordingStartedAt.HasValue)
                     {
@@ -204,41 +207,63 @@ else
                     </span>
                 </div>
                 
-                <AuthorizeView Roles="Admin" Context="authContext">
-                    <Authorized>
-                        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.5rem;">
-                            <h4 class="h6 mb-0 text-secondary">Tags</h4>
-                            @if (!_isEditingTags)
-                            {
-                                <button class="btn btn-sm btn-link text-decoration-none p-0" style="color: var(--accent-primary); font-size: 0.85rem;" @onclick="ToggleEditTags">
-                                    Edit Tags
-                                </button>
-                            }
-                        </div>
-
-                        @if (_isEditingTags)
-                        {
-                            <div class="mb-3">
-                                <textarea class="form-control mb-2" rows="3" style="background: var(--bg-main); border: 1px solid var(--border-color); color: var(--text-main); font-size: 0.9rem;" @bind="_editingTagsInput" placeholder="Enter tags separated by commas..."></textarea>
-                                <div class="d-flex gap-2 justify-content-end">
-                                    <button class="btn btn-sm btn-secondary" @onclick="CancelEditTags">Cancel</button>
-                                    <button class="btn btn-sm btn-primary" @onclick="SaveTagsAsync">Save Tags</button>
-                                </div>
+                <div class="mobile-order-4">
+                    <AuthorizeView Roles="Admin" Context="authContext">
+                        <Authorized>
+                            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.5rem;">
+                                <h4 class="h6 mb-0 text-secondary">Tags</h4>
+                                @if (!_isEditingTags)
+                                {
+                                    <button class="btn btn-sm btn-link text-decoration-none p-0" style="color: var(--accent-primary); font-size: 0.85rem;" @onclick="ToggleEditTags">
+                                        Edit Tags
+                                    </button>
+                                }
                             </div>
-                        }
-                        else
-                        {
+
+                            @if (_isEditingTags)
+                            {
+                                <div class="mb-3">
+                                    <textarea class="form-control mb-2" rows="3" style="background: var(--bg-main); border: 1px solid var(--border-color); color: var(--text-main); font-size: 0.9rem;" @bind="_editingTagsInput" placeholder="Enter tags separated by commas..."></textarea>
+                                    <div class="d-flex gap-2 justify-content-end">
+                                        <button class="btn btn-sm btn-secondary" @onclick="CancelEditTags">Cancel</button>
+                                        <button class="btn btn-sm btn-primary" @onclick="SaveTagsAsync">Save Tags</button>
+                                    </div>
+                                </div>
+                            }
+                            else
+                            {
+                                @RenderTags()
+                            }
+                        </Authorized>
+                        <NotAuthorized>
                             @RenderTags()
-                        }
-                    </Authorized>
-                    <NotAuthorized>
-                        @RenderTags()
-                    </NotAuthorized>
-                </AuthorizeView>
+                        </NotAuthorized>
+                    </AuthorizeView>
+                </div>
+
+                
+                @if (_clip != null && _clip.AllowGifSale)
+                {
+                    <div class="gif-promo-box mobile-order-gif-promo" style="margin-top: 1.5rem; max-width: 400px; padding: 1.25rem; background: linear-gradient(135deg, rgba(6, 182, 212, 0.1), rgba(59, 130, 246, 0.1)); border: 1px dashed rgba(6, 182, 212, 0.3); border-radius: var(--radius-lg); text-align: center; position: relative; overflow: hidden;">
+                        <div style="position: absolute; top: -10px; right: -10px; width: 40px; height: 40px; background: rgba(6, 182, 212, 0.1); border-radius: 50%; filter: blur(15px);"></div>
+                        
+                        <div class="d-flex align-items-center justify-content-center gap-2 mb-1">
+                             <i class="bi bi-filetype-gif text-info fs-5"></i>
+                             <span class="fw-bold text-white small" style="letter-spacing: 0.5px; text-transform: uppercase;">Create Your Own GIF</span>
+                        </div>
+                        <p class="small text-secondary mb-3">Custom loop for social media - just $@(_clip.GifPriceCents / 100.0)</p>
+                        
+                        <button class="btn btn-sm btn-info" style="background: var(--accent-primary); border: none; font-weight: 600; padding: 0.5rem 1.5rem;" @onclick="ScrollToGifMaker">
+                            <i class="bi bi-scissors me-1"></i> Open GIF Maker
+                        </button>
+                    </div>
+                }
             </div>
             
             <!-- Purchase / Details Column -->
-            <div class="premium-card" style="height: fit-content;">
+            <div class="premium-card mobile-order-purchase" style="height: fit-content;">
+
+
                 <div style="font-size: 0.85rem; color: var(--accent-primary); margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem;">
                     <i class="bi bi-stars"></i> Includes 4K Master File
                 </div>
@@ -263,6 +288,8 @@ else
                         </div>
                     </div>
                 </div>
+
+
                 
                 <AuthorizeView Roles="Admin">
                     <div style="margin: 2rem 0; padding: 1.25rem; background: var(--accent-primary-dim); border: 1px solid var(--accent-primary-dim); border-radius: var(--radius-lg); position: relative; overflow: hidden;">
@@ -343,14 +370,6 @@ else
                     var status = _selectedLicense == LicenseType.Personal ? _hasPurchasedPersonal : _hasPurchasedCommercial;
                 }
 
-                @if (_hasPurchasedGif && !status)
-                {
-                    <div style="background: var(--accent-secondary-dim); border: 1px solid var(--accent-secondary); color: var(--accent-secondary); padding: 1rem; border-radius: var(--radius-md); text-align: center; margin-bottom: 2rem;">
-                         <div class="fw-bold"><i class="bi bi-filetype-gif me-1"></i> You own a GIF of this clip</div>
-                         <div class="small opacity-75">Full video license still available below.</div>
-                    </div>
-                }
-
                 @if (status)
                 {
                     <div style="background: var(--status-success-dim); border: 1px solid var(--status-success); color: var(--status-success); padding: 1.25rem; border-radius: var(--radius-md); text-align: center; margin-bottom: 2rem;">
@@ -394,6 +413,27 @@ else
                             }
                         </button>
                     }
+                }
+
+                @if (_gifPurchase != null && !status)
+                {
+                    <div style="background: var(--accent-secondary-dim); border: 1px solid var(--accent-secondary); color: var(--accent-secondary); padding: 1.25rem; border-radius: var(--radius-md); text-align: center; margin-top: 1rem; margin-bottom: 2rem;">
+                         <div class="fw-bold mb-2"><i class="bi bi-filetype-gif me-1"></i> Owned GIF License</div>
+                         
+                         @if (!string.IsNullOrEmpty(_gifPurchase.BrandedPlaybackId))
+                         {
+                             <a href="https://image.mux.com/@(_gifPurchase.BrandedPlaybackId)/animated.gif" target="_blank" download="@(_clip?.Title).gif" class="btn btn-sm btn-outline-info w-100">
+                                 <i class="bi bi-download me-1"></i> Download Branded GIF
+                             </a>
+                         }
+                         else
+                         {
+                             <div class="d-flex align-items-center justify-content-center gap-2 small opacity-75">
+                                 <div class="spinner-border spinner-border-sm" role="status"></div>
+                                 <span>Branding your GIF...</span>
+                             </div>
+                         }
+                    </div>
                 }
 
                     @if (_showLicenseModal)
@@ -457,15 +497,16 @@ else
                     <p style="font-size: 0.8rem; color: var(--text-muted); text-align: center; opacity: 0.7;">
                         Secure payment via Stripe. 4K Master file delivered shortly.
                     </p>
+                </div>
             </div>
-        </div>
-        
-
-
+            
+            
                  <!-- GIF Maker Section -->
                 @if (_clip != null && _clip.AllowGifSale)
                 {
-                    <div style="margin-top: 3rem; padding: 2rem; background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: var(--radius-lg);">
+                    <div id="gif-maker-section" style="margin-top: 1.5rem; padding: 2rem; background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: var(--radius-lg);">
+
+
                         <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 2rem;">
                             <div>
                                 <h3 class="h5 mb-1 text-white">Create Custom GIF</h3>
@@ -518,7 +559,7 @@ else
                  <!-- Related Clips Section -->
                 @if (_relatedClips.Any())
         {
-            <div style="margin-top: 4rem;">
+            <div style="margin-top: 2rem;">
                 <h3 class="section-title">Related Clips</h3>
                  <div class="video-grid">
                     @foreach (var clip in _relatedClips)
@@ -543,7 +584,33 @@ else
             from { transform: translateY(100%); opacity: 0; }
             to { transform: translateY(0); opacity: 1; }
         }
+        .gif-promo-box {
+            grid-column: 1;
+        }
+        @@media (min-width: 769px) {
+            .gif-promo-box {
+                margin-top: -1rem;
+            }
+        }
+        @@media (max-width: 768px) {
+            .clip-layout {
+                gap: 1.5rem;
+                display: flex; /* Simpler for vertical order than grid-order defaults */
+                flex-direction: column;
+            }
+            .clip-meta-column {
+                display: contents;
+            }
+            .video-player-container { order: 1; }
+            .mobile-order-title { order: 2; margin-top: 1rem !important; }
+            .mobile-order-meta { order: 3; }
+            .mobile-order-tags { order: 4; }
+            .mobile-order-purchase { order: 5; }
+            .mobile-order-gif-promo { order: 6; }
+        }
     </style>
+
+
 }
 
 @code {
@@ -555,7 +622,7 @@ else
     private bool _loading = true;
     private bool _hasPurchasedPersonal = false;
     private bool _hasPurchasedCommercial = false;
-    private bool _hasPurchasedGif = false;
+    private Purchase? _gifPurchase = null;
     private bool _processingPurchase = false;
     private string? _storeName;
     private string? _userId;
@@ -588,6 +655,11 @@ else
         }
         
         _pendingAction = null;
+    }
+
+    private async Task ScrollToGifMaker()
+    {
+        await JSRuntime.InvokeVoidAsync("scrollToElement", "gif-maker-section");
     }
 
     private bool _isEditingPrice = false;
@@ -796,7 +868,7 @@ else
                 {
                     _hasPurchasedPersonal = await PurchaseRepository.HasPurchasedAsync(_userId, Id, LicenseType.Personal);
                     _hasPurchasedCommercial = await PurchaseRepository.HasPurchasedAsync(_userId, Id, LicenseType.Commercial);
-                    _hasPurchasedGif = await PurchaseRepository.HasPurchasedGifAsync(_userId, Id);
+                    _gifPurchase = await PurchaseRepository.GetGifPurchaseAsync(_userId, Id);
                 }
             }
             

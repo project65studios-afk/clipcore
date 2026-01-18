@@ -299,8 +299,11 @@
 
     private async Task DownloadGifAsync(Purchase purchase)
     {
-        // Get Playback ID
-        var pid = purchase.Clip?.PlaybackIdSigned;
+        // 1. Prioritize Branded (Watermarked) Playback ID
+        var pid = purchase.BrandedPlaybackId;
+        
+        // 2. Fallback to Original if branding not yet complete/available
+        if (string.IsNullOrEmpty(pid)) pid = purchase.Clip?.PlaybackIdSigned;
         if (string.IsNullOrEmpty(pid) && purchase.Clip != null) pid = purchase.Clip.PlaybackIdSigned;
         
         if (!string.IsNullOrEmpty(pid))
@@ -309,7 +312,7 @@
             var duration = (purchase.GifEndTime ?? 5) - start;
             if (duration <= 0) duration = 5;
             
-            // Generate URL
+            // Generate URL (Overlay is now BURNED IN, no need for overlayUrl param)
             var url = VideoService.GetGifUrlAsync(pid, start, duration);
             
             // Open in new tab

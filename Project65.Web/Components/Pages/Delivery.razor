@@ -86,21 +86,37 @@
                                     
                                     @if (item.Purchase.IsGif)
                                     {
-                                        <button class="btn btn-info d-flex align-items-center gap-2 shadow-sm" style="color: #000;" @onclick="() => DownloadGifAsync(item.Purchase)">
-                                            <span>Download GIF</span>
-                                            <i class="bi bi-filetype-gif"></i>
-                                        </button>
+                                        if (!string.IsNullOrEmpty(item.Purchase.BrandedPlaybackId))
+                                        {
+                                            <button class="btn btn-info d-flex align-items-center gap-2 shadow-sm pulse-hover" style="color: #000; background: linear-gradient(135deg, #0dcaf0, #0aa2c0); border: none;" @onclick="() => DownloadGifAsync(item.Purchase)">
+                                                <span>Download GIF</span>
+                                                <i class="bi bi-filetype-gif"></i>
+                                            </button>
+                                        }
+                                        else
+                                        {
+                                            <div class="d-flex flex-column align-items-end gap-1">
+                                                <button class="btn btn-outline-info d-flex align-items-center gap-2 opacity-75" disabled>
+                                                    <span class="spinner-border spinner-border-sm" role="status"></span>
+                                                    <span>Branding GIF...</span>
+                                                </button>
+                                                <span class="x-small text-info opacity-75">Creating your watermarked copy</span>
+                                            </div>
+                                        }
                                     }
                                     else if (!string.IsNullOrEmpty(item.DownloadUrl))
                                     {
-                                        <a href="@item.DownloadUrl" target="_blank" class="btn btn-primary d-flex align-items-center gap-2 shadow-sm" download>
+                                        <a href="@item.DownloadUrl" target="_blank" class="btn btn-primary d-flex align-items-center gap-2 shadow-sm pulse-hover" style="background: linear-gradient(135deg, var(--accent-primary), var(--accent-primary-dim)); border: none;" download>
                                             <span>Download</span>
                                             <i class="bi bi-download"></i>
                                         </a>
                                     }
                                     else
                                     {
-                                        <button class="btn btn-secondary" disabled>Processing...</button>
+                                        <button class="btn btn-outline-secondary d-flex align-items-center gap-2" disabled>
+                                            <span class="spinner-border spinner-border-sm" role="status"></span>
+                                            <span>Processing...</span>
+                                        </button>
                                     }
                                 </div>
                             </div>
@@ -242,7 +258,11 @@
     
     private async Task DownloadGifAsync(Purchase purchase)
     {
-        var pid = purchase.Clip?.PlaybackIdSigned;
+        // 1. Prioritize Branded (Watermarked) Playback ID
+        var pid = purchase.BrandedPlaybackId;
+        
+        // 2. Fallback to Original if branding not yet complete/available
+        if (string.IsNullOrEmpty(pid)) pid = purchase.Clip?.PlaybackIdSigned;
         if (string.IsNullOrEmpty(pid) && purchase.Clip != null) pid = purchase.Clip.PlaybackIdSigned;
 
         if (!string.IsNullOrEmpty(pid))

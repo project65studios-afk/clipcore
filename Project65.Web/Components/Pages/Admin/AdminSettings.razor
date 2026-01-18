@@ -80,7 +80,7 @@
                     </div>
                 </div>
 
-                <!-- Watermark Card -->
+                <!-- Video Watermark Card -->
                 <div class="card shadow-sm" style="background: var(--bg-surface); border: 1px solid var(--border-color);">
                     <div class="card-header bg-transparent py-3" style="border-bottom: 1px solid var(--border-color);">
                         <h5 class="mb-0" style="color: var(--text-main);"><i class="bi bi-badge-ad me-2 text-info"></i>Video Watermark</h5>
@@ -90,7 +90,7 @@
                             <label class="form-label small text-uppercase fw-bold" style="color: var(--text-secondary);">Overlay Preview</label>
                             <div class="p-4 rounded d-flex justify-content-center align-items-center position-relative overflow-hidden" style="background: var(--bg-main); min-height: 120px; border: 1px solid var(--border-color);">
                                 <!-- Simulated video background -->
-                                <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: linear-gradient(45deg, var(--bg-surface) 25%, var(--bg-main) 25%, var(--bg-main) 50%, var(--bg-surface) 50%, var(--bg-surface) 75%, var(--bg-main) 75%, var(--bg-main) 100%); background-size: 20px 20px; opacity: 0.5;"></div>
+                                <div style="position: absolute; top: 0; left: 0; right: 0; bottom: bottom; background: linear-gradient(45deg, var(--bg-surface) 25%, var(--bg-main) 25%, var(--bg-main) 50%, var(--bg-surface) 50%, var(--bg-surface) 75%, var(--bg-main) 75%, var(--bg-main) 100%); background-size: 20px 20px; opacity: 0.5;"></div>
                                 
                                 @if (!string.IsNullOrEmpty(_watermarkUrl))
                                 {
@@ -126,6 +126,62 @@
                                 <div class="input-group">
                                     <span class="input-group-text" style="background: var(--bg-subtle); border-color: var(--border-color); color: var(--text-secondary);"><i class="bi bi-link-45deg"></i></span>
                                     <input type="text" class="form-control" @bind="_watermarkUrl" placeholder="https://example.com/watermark.png" style="background: var(--bg-subtle); border-color: var(--border-color); color: var(--text-main);" />
+                                </div>
+                            }
+                        </div>
+                    </div>
+                </div>
+
+                <!-- GIF Branding Watermark Card -->
+                <div class="card shadow-sm" style="background: var(--bg-surface); border: 1px solid var(--border-color);">
+                    <div class="card-header bg-transparent py-3" style="border-bottom: 1px solid var(--border-color);">
+                        <h5 class="mb-0" style="color: var(--text-main);"><i class="bi bi-magic me-2 text-warning"></i>GIF Branding Watermark</h5>
+                    </div>
+                    <div class="card-body">
+                         <div class="mb-4">
+                            <label class="form-label small text-uppercase fw-bold" style="color: var(--text-secondary);">GIF Overlay Preview</label>
+                            <div class="p-4 rounded d-flex justify-content-center align-items-center position-relative overflow-hidden" style="background: var(--bg-main); min-height: 120px; border: 1px solid var(--border-color);">
+                                @if (!string.IsNullOrEmpty(_gifWatermarkUrl))
+                                {
+                                    <img src="@ResolveStorageUrl(_gifWatermarkUrl)" style="max-height: 60px; max-width: 100%; object-fit: contain; z-index: 2;" />
+                                }
+                                else if (!string.IsNullOrEmpty(_brandLogoUrl))
+                                {
+                                    <div class="d-flex flex-column align-items-center">
+                                        <img src="@ResolveStorageUrl(_brandLogoUrl)" style="max-height: 40px; max-width: 100%; object-fit: contain; z-index: 2; opacity: 0.5;" />
+                                        <span class="x-small text-muted mt-2">Falling back to Brand Logo</span>
+                                    </div>
+                                }
+                                else
+                                {
+                                    <span class="text-muted fst-italic z-2">No GIF watermark set</span>
+                                }
+                            </div>
+                        </div>
+
+                         <div class="mb-3">
+                            <label class="form-label" style="color: var(--text-main);">Watermark Source</label>
+                            <div class="btn-group w-100 mb-3" role="group">
+                                <button type="button" class="btn @(_useGifWatermarkUpload ? "btn-primary" : "btn-outline-secondary")" @onclick="() => _useGifWatermarkUpload = true">
+                                    <i class="bi bi-upload me-2"></i>Upload
+                                </button>
+                                <button type="button" class="btn @(!_useGifWatermarkUpload ? "btn-primary" : "btn-outline-secondary")" @onclick="() => _useGifWatermarkUpload = false">
+                                    <i class="bi bi-link me-2"></i>URL
+                                </button>
+                            </div>
+
+                            @if (_useGifWatermarkUpload)
+                            {
+                                <div class="input-group">
+                                    <InputFile OnChange="HandleGifWatermarkSelected" class="form-control" style="background: var(--bg-subtle); border-color: var(--border-color); color: var(--text-main);" />
+                                </div>
+                                <div class="form-text text-muted">A dedicated logo used *only* for purchased GIFs.</div>
+                            }
+                            else
+                            {
+                                <div class="input-group">
+                                    <span class="input-group-text" style="background: var(--bg-subtle); border-color: var(--border-color); color: var(--text-secondary);"><i class="bi bi-link-45deg"></i></span>
+                                    <input type="text" class="form-control" @bind="_gifWatermarkUrl" placeholder="https://example.com/gif-logo.png" style="background: var(--bg-subtle); border-color: var(--border-color); color: var(--text-main);" />
                                 </div>
                             }
                         </div>
@@ -301,6 +357,7 @@
 @code {
     private string? _brandLogoUrl;
     private string? _watermarkUrl;
+    private string? _gifWatermarkUrl;
     private string? _storeName;
     private string? _storeAddress;
     private string? _supportEmail;
@@ -312,6 +369,7 @@
     private bool _showSuccess;
     private bool _useLogoUpload = true;
     private bool _useUpload = true;
+    private bool _useGifWatermarkUpload = true;
     
     private bool _isCleaningMux;
     private string? _muxCleanupResult;
@@ -339,6 +397,16 @@
         else if (!string.IsNullOrEmpty(_watermarkUrl))
         {
             _useUpload = false;
+        }
+
+        _gifWatermarkUrl = await SettingsRepository.GetValueAsync("GifWatermarkUrl");
+        if (!string.IsNullOrEmpty(_gifWatermarkUrl) && _gifWatermarkUrl.StartsWith("brand/"))
+        {
+            _useGifWatermarkUpload = true;
+        }
+        else if (!string.IsNullOrEmpty(_gifWatermarkUrl))
+        {
+            _useGifWatermarkUpload = false;
         }
 
         _storeName = await SettingsRepository.GetValueAsync("StoreName") ?? "Project65 Studios";
@@ -407,6 +475,33 @@
         }
     }
 
+    private async Task HandleGifWatermarkSelected(InputFileChangeEventArgs e)
+    {
+        var file = e.File;
+        if (file != null)
+        {
+            _isSaving = true;
+            try
+            {
+                var fileName = $"gif_watermark_{DateTime.UtcNow.Ticks}{Path.GetExtension(file.Name)}";
+                var r2Key = $"brand/{fileName}";
+
+                using var stream = file.OpenReadStream(maxAllowedSize: 1024 * 1024 * 5); // 5MB limit
+                await StorageService.UploadAsync(stream, r2Key, file.ContentType);
+
+                _gifWatermarkUrl = r2Key;
+            }
+            catch (Exception)
+            {
+                // GIF watermark upload failed
+            }
+            finally
+            {
+                _isSaving = false;
+            }
+        }
+    }
+
     private string ResolveStorageUrl(string? url)
     {
         if (string.IsNullOrEmpty(url)) return "";
@@ -424,6 +519,7 @@
         try 
         {
             await SettingsRepository.SetValueAsync("BrandLogoUrl", _brandLogoUrl ?? "");
+            await SettingsRepository.SetValueAsync("GifWatermarkUrl", _gifWatermarkUrl ?? "");
             await SettingsRepository.SetValueAsync("WatermarkUrl", _watermarkUrl ?? "");
             await SettingsRepository.SetValueAsync("StoreName", _storeName ?? "Project65 Studios");
             await SettingsRepository.SetValueAsync("StoreAddress", _storeAddress ?? "");
@@ -435,6 +531,7 @@
             // Notify local service for immediate UI updates
             StoreSettingsService.NotifySettingChanged("StoreName", _storeName ?? "Project65 Studios");
             StoreSettingsService.NotifySettingChanged("BrandLogoUrl", _brandLogoUrl ?? "");
+            StoreSettingsService.NotifySettingChanged("GifWatermarkUrl", _gifWatermarkUrl ?? "");
 
             // Log the action
             var authState = await AuthenticationStateTask;

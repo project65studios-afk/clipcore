@@ -8,6 +8,7 @@ public class StoreSettingsService : IDisposable
     private readonly GlobalSettingsNotifier _globalNotifier;
     private string? _storeName;
     private string? _brandLogoUrl;
+    private string? _gifWatermarkUrl;
 
     public event Action? OnChange;
 
@@ -36,6 +37,15 @@ public class StoreSettingsService : IDisposable
         return _brandLogoUrl;
     }
 
+    public async Task<string?> GetGifWatermarkUrlAsync()
+    {
+        if (_gifWatermarkUrl == null)
+        {
+            _gifWatermarkUrl = await _settingsRepository.GetValueAsync("GifWatermarkUrl");
+        }
+        return _gifWatermarkUrl;
+    }
+
     private void HandleGlobalUpdate(string key, string value)
     {
         if (key == "StoreName")
@@ -45,6 +55,10 @@ public class StoreSettingsService : IDisposable
         else if (key == "BrandLogoUrl")
         {
             _brandLogoUrl = value;
+        }
+        else if (key == "GifWatermarkUrl")
+        {
+            _gifWatermarkUrl = value;
         }
         
         // We notify for ANY key so that DynamicTheme.razor (and others) can reload if needed
