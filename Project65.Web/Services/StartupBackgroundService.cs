@@ -32,13 +32,12 @@ public sealed class StartupBackgroundService : BackgroundService
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        // Wait a few seconds to ensure Kestrel is fully up (optional but safe)
-        await Task.Delay(2000, stoppingToken);
-
-        _logger.LogInformation(">>> STARTUP BACKGROUND SERVICE: Beginning database initialization...");
-
         try
         {
+            // Wait a few seconds to ensure Kestrel is fully up (optional but safe)
+            await Task.Delay(2000, stoppingToken);
+
+            _logger.LogInformation(">>> STARTUP BACKGROUND SERVICE: Beginning database initialization...");
             using var scope = _serviceProvider.CreateScope();
             var services = scope.ServiceProvider;
 

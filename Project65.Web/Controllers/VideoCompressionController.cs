@@ -330,8 +330,9 @@ public class VideoCompressionController : ControllerBase
                 MuxUploadId = request.MuxUploadId,
                 IsDirectUpload = true,
                 ThumbnailFileName = request.ThumbnailKeys.FirstOrDefault(), // Primary thumb
-                PublishedAt = DateTime.UtcNow
-            };
+                PublishedAt = DateTime.UtcNow,
+                AllowGifSale = request.AllowGifSale,
+                GifPriceCents = request.GifPriceCents            };
 
             // 2. Parse creation date
             if (DateTime.TryParse(request.LastModified, out var modifiedDate))
@@ -403,6 +404,8 @@ public class VideoCompressionController : ControllerBase
         public string UserId { get; set; } = string.Empty;
         public string? LastModified { get; set; }
         public List<string> ThumbnailKeys { get; set; } = new();
+        public bool AllowGifSale { get; set; }
+        public int GifPriceCents { get; set; }
     }
 
     private async Task ResolveMuxDetailsAsync(Clip clip)

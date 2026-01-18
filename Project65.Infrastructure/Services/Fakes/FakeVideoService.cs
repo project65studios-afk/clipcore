@@ -57,6 +57,11 @@ public class FakeVideoService : IVideoService
         return Task.FromResult< (double?, DateTime?)>((120.5, DateTime.UtcNow.AddHours(-1)));
     }
 
+    public string GetGifUrlAsync(string playbackId, double? start = null, double? duration = null)
+    {
+        return "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjEx.../giphy.gif"; // Funny placeholder
+    }
+
     public Task<string?> GetDownloadUrlAsync(string assetId, string? fileName = null)
     {
         return Task.FromResult<string?>("https://fake-mux.com/download/fake-asset-999");

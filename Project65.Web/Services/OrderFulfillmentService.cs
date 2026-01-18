@@ -100,7 +100,15 @@ public class OrderFulfillmentService
 
             if (shouldAdd && !string.IsNullOrEmpty(p.ClipId))
             {
-                p.FulfillmentStatus = FulfillmentStatus.Pending; 
+                if (p.IsGif)
+                {
+                    p.FulfillmentStatus = FulfillmentStatus.Fulfilled;
+                    p.FulfilledAt = DateTime.UtcNow;
+                }
+                else
+                {
+                    p.FulfillmentStatus = FulfillmentStatus.Pending;
+                }
                 p.StripeSessionId = sessionId;
                 p.OrderId = shortOrderId; 
                 p.CreatedAt = DateTime.UtcNow;

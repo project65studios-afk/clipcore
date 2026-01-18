@@ -2,7 +2,9 @@
 @using Microsoft.AspNetCore.Authorization
 @using Project65.Core.Interfaces
 @using Project65.Web.Services
+@using Project65.Core.Entities
 @inject IJSRuntime JSRuntime
+@inject IEventRepository EventRepository
 @attribute [Authorize(Roles = "Admin")]
 
 <PageTitle>Direct Upload (1080p) - Project65 Admin</PageTitle>
@@ -10,10 +12,16 @@
 <div class="container-fluid mt-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
-            <h1 class="h3 mb-1">Direct Upload (High Quality)</h1>
-            <p class="text-secondary mb-0">Upload pure 4K/1080p masters directly to Mux. No server compression.</p>
+            <h1 class="h3 mb-1" style="color: var(--text-main);">Direct Upload (High Quality)</h1>
+            <p class="mb-0" style="color: var(--text-main); opacity: 0.7;">Upload pure 4K/1080p masters directly to Mux. No server compression.</p>
         </div>
         <div class="d-flex gap-2">
+            @if (!string.IsNullOrEmpty(EventId))
+            {
+                <a href="/events/@EventId" target="_blank" class="btn btn-outline-primary btn-sm">
+                    View Event Page <i class="bi bi-box-arrow-up-right ms-1"></i>
+                </a>
+            }
             <a href="/admin/upload" class="btn btn-outline-secondary btn-sm">
                 <i class="bi bi-arrow-left"></i> Back to Legacy Upload
             </a>
@@ -21,19 +29,39 @@
     </div>
 
     <div class="row mb-4">
-        <div class="col-md-6 d-flex gap-4">
-            <div>
-                <label class="form-label text-secondary fw-bold">Default Personal Price</label>
-                <div class="input-group" style="max-width: 200px;">
-                    <span class="input-group-text bg-dark text-secondary border-secondary">$</span>
-                    <input class="form-control bg-dark text-light border-secondary" type="number" @bind="_priceDollars" step="0.01" />
+        <div class="col-md-8">
+            <div class="card" style="background: var(--bg-surface); border: 1px solid var(--border-color);">
+                <div class="card-header border-bottom border-secondary bg-transparent">
+                    <h5 class="mb-0" style="color: var(--accent-primary);"><i class="bi bi-sliders me-2"></i>Using Event Settings</h5>
                 </div>
-            </div>
-            <div>
-                <label class="form-label text-secondary fw-bold">Default Commercial Price</label>
-                <div class="input-group" style="max-width: 200px;">
-                    <span class="input-group-text bg-dark text-secondary border-secondary">$</span>
-                    <input class="form-control bg-dark text-light border-secondary" type="number" @bind="_priceCommercialDollars" step="0.01" />
+                <div class="card-body">
+                    <p class="small mb-3" style="color: var(--text-main); opacity: 0.8;">
+                        Uploads will automatically inherit the following settings from the event. 
+                        <strong>To change these, go back to <a href="/admin/upload?EventId=@EventId" style="color: var(--accent-primary);">Standard Upload</a> and update Event Settings.</strong>
+                    </p>
+                    <div class="row g-3">
+                        <div class="col-6 col-md-3">
+                            <label class="form-label small" style="color: var(--text-main); opacity: 0.7;">Personal Price</label>
+                            <div class="fw-bold" style="color: var(--text-main);">$@(_priceDollars.ToString("N2"))</div>
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <label class="form-label small" style="color: var(--text-main); opacity: 0.7;">Commercial Price</label>
+                            <div class="fw-bold" style="color: var(--text-main);">$@(_priceCommercialDollars.ToString("N2"))</div>
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <label class="form-label small" style="color: var(--text-main); opacity: 0.7;">GIF Sales</label>
+                            <div class="fw-bold" style="@(_allowGifSale ? "color: var(--status-success);" : "color: var(--text-main); opacity: 0.5;")">
+                                @(_allowGifSale ? "Enabled" : "Disabled")
+                            </div>
+                        </div>
+                         @if (_allowGifSale)
+                         {
+                            <div class="col-6 col-md-3">
+                                <label class="form-label small" style="color: var(--text-main); opacity: 0.7;">GIF Price</label>
+                                <div class="fw-bold" style="color: var(--text-main);">$@(_gifPriceDollars.ToString("N2"))</div>
+                            </div>
+                         }
+                    </div>
                 </div>
             </div>
         </div>
@@ -42,7 +70,7 @@
     <!-- Upload Area -->
     <div class="row">
         <div class="col-12">
-            <div class="card bg-dark border-secondary">
+            <div class="card" style="background: var(--bg-surface); border: 1px solid var(--border-color);">
                 <div class="card-body p-0">
                     <div id="uppy-direct-dashboard"></div>
                 </div>
@@ -51,22 +79,22 @@
         
         <!-- Status / Logs Area -->
         <div class="col-12 mt-4">
-            <div class="card bg-dark border-secondary">
-                <div class="card-header border-secondary bg-transparent d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0">Session Log</h5>
+            <div class="card" style="background: var(--bg-surface); border: 1px solid var(--border-color);">
+                <div class="card-header border-bottom border-secondary bg-transparent d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0" style="color: var(--text-main);">Session Log</h5>
                     <button class="btn btn-sm btn-outline-secondary" @onclick="ClearLogs">Clear</button>
                 </div>
-                <div class="card-body font-monospace" style="max-height: 300px; overflow-y: auto; font-size: 0.85rem;">
+                <div class="card-body font-monospace" style="max-height: 300px; overflow-y: auto; font-size: 0.85rem; color: var(--text-main);">
                      @if (_logs.Count == 0)
                      {
-                         <div class="text-muted text-center py-4">Waiting for uploads...</div>
+                         <div class="text-center py-4" style="color: var(--text-main); opacity: 0.5;">Waiting for uploads...</div>
                      }
                      else
                      {
                          @foreach (var log in _logs)
                          {
                              <div class="mb-1 @log.ColorClass">
-                                 <span class="text-secondary">@log.Time</span> @log.Message
+                                 <span class="small" style="color: var(--text-main); opacity: 0.7;">@log.Time</span> @log.Message
                              </div>
                          }
                      }
@@ -77,19 +105,21 @@
 </div>
 
 <style>
-    /* Dark Mode Uppy Overrides */
+    /* Theme-aware Uppy Overrides */
     .uppy-Dashboard-inner {
-        background-color: #1e293b !important;
-        border: 1px solid #334155;
+        background-color: var(--bg-surface) !important;
+        border: 1px solid var(--border-color) !important;
     }
     .uppy-Dashboard-AddFiles-title {
-        color: #f8fafc !important;
+        color: var(--text-main) !important;
     }
     .uppy-DashboardTab-btn {
-        color: #94a3b8 !important;
+        color: var(--text-main) !important;
+        opacity: 0.7;
     }
     .uppy-DashboardTab-btn:hover {
-        background-color: #334155 !important;
+        background-color: var(--bg-subtle) !important;
+        opacity: 1;
     }
 </style>
 
@@ -103,14 +133,18 @@
     private List<LogEntry> _logs = new();
     private IJSObjectReference? _module;
     private string _userId = "Admin";
-    private double _priceDollars = 15.00; // Match previous hardcoded default
-    private double _priceCommercialDollars = 49.00;
+    private double _priceDollars;
+    private double _priceCommercialDollars;
+    private bool _allowGifSale;
+    private double _gifPriceDollars;
 
     public class UploadInfo
     {
         public string EventId { get; set; } = "";
         public int PriceCents { get; set; }
         public int PriceCommercialCents { get; set; }
+        public bool AllowGifSale { get; set; }
+        public int GifPriceCents { get; set; }
         public string UserId { get; set; } = "";
     }
 
@@ -122,6 +156,8 @@
             EventId = EventId ?? "",
             PriceCents = (int)(_priceDollars * 100),
             PriceCommercialCents = (int)(_priceCommercialDollars * 100),
+            AllowGifSale = _allowGifSale,
+            GifPriceCents = (int)(_gifPriceDollars * 100),
             UserId = _userId
         });
     }
@@ -138,7 +174,21 @@
         }
         else
         {
-            AddLog($"Linked to Event ID: {EventId}", "text-info");
+            var evt = await EventRepository.GetByIdAsync(EventId);
+            if (evt != null)
+            {
+                _priceDollars = evt.DefaultPriceCents / 100.00;
+                _priceCommercialDollars = evt.DefaultPriceCommercialCents / 100.00;
+                _allowGifSale = evt.DefaultAllowGifSale;
+                _gifPriceDollars = evt.DefaultGifPriceCents / 100.00;
+                
+                AddLog($"Linked to Event: {evt.Name}", "text-info");
+                AddLog($"Using Defaults: Personal=${_priceDollars}, Comm=${_priceCommercialDollars}, GIFs={(_allowGifSale ? "Yes" : "No")}", "text-secondary");
+            }
+            else
+            {
+                AddLog($"ERROR: Event {EventId} not found!", "text-danger");
+            }
         }
     }
 

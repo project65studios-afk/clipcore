@@ -17,7 +17,7 @@
             
             /* Derived variables consuming the 1:1 mappings */
             --brand-accent-color: var(--accent-primary);
-            @if (!string.IsNullOrEmpty(_darkSurface)) { <text>--bg-subtle: color-mix(in srgb, var(--bg-surface), var(--text-main) 5%);</text> }
+            --bg-subtle: color-mix(in srgb, var(--bg-surface), var(--text-main) 5%);
             --accent-primary-dim: color-mix(in srgb, var(--accent-primary), transparent 90%);
             --accent-secondary-dim: color-mix(in srgb, var(--accent-secondary), transparent 90%);
             --accent-primary-gradient: linear-gradient(90deg, var(--btn-gradient-start) 0%, var(--btn-gradient-end) 100%);
@@ -47,7 +47,7 @@
 
             /* Derived variables consuming the 1:1 mappings */
             --brand-accent-color: var(--accent-primary) !important;
-            @if (!string.IsNullOrEmpty(_lightSurface)) { <text>--bg-subtle: color-mix(in srgb, var(--bg-surface), var(--text-main) 5%) !important;</text> }
+            --bg-subtle: color-mix(in srgb, var(--bg-surface), var(--text-main) 5%) !important;
             --accent-primary-dim: color-mix(in srgb, var(--accent-primary), transparent 90%) !important;
             --accent-secondary-dim: color-mix(in srgb, var(--accent-secondary), transparent 90%) !important;
             --accent-primary-gradient: linear-gradient(90deg, var(--btn-gradient-start) 0%, var(--btn-gradient-end) 100%) !important;

@@ -66,7 +66,10 @@ public class StripePaymentService : IPaymentService
                             { "DurationSec", item.DurationSec?.ToString("F2") ?? "" },
                             { "MasterFileName", item.MasterFileName ?? "" },
                             { "ThumbnailFileName", item.ThumbnailFileName ?? "" },
-                            { "LicenseType", item.LicenseType.ToString() }
+                            { "LicenseType", item.LicenseType.ToString() },
+                            { "IsGif", item.IsGif.ToString() },
+                            { "GifStartTime", item.GifStartTime?.ToString("F2") ?? "" },
+                            { "GifEndTime", item.GifEndTime?.ToString("F2") ?? "" }
                         }
                     },
                 },
@@ -85,7 +88,7 @@ public class StripePaymentService : IPaymentService
         }
 
         // Add backup snapshots to session metadata (up to limit of 50 keys)
-        for (int i = 0; i < Math.Min(itemsList.Count, 20); i++) // Increased limit
+        for (int i = 0; i < Math.Min(itemsList.Count, 15); i++) // Reduced limit to fit new keys
         {
             var item = itemsList[i];
             sessionMetadata[$"c{i}_id"] = item.Id;
@@ -96,6 +99,12 @@ public class StripePaymentService : IPaymentService
             sessionMetadata[$"c{i}_mf"] = item.MasterFileName ?? "";
             sessionMetadata[$"c{i}_tn"] = item.ThumbnailFileName ?? "";
             sessionMetadata[$"c{i}_li"] = item.LicenseType.ToString();
+            if (item.IsGif)
+            {
+               sessionMetadata[$"c{i}_ig"] = "true";
+               sessionMetadata[$"c{i}_gs"] = item.GifStartTime?.ToString("F2") ?? "";
+               sessionMetadata[$"c{i}_ge"] = item.GifEndTime?.ToString("F2") ?? "";
+            }
         }
 
         var options = new SessionCreateOptions
@@ -185,6 +194,9 @@ public class StripePaymentService : IPaymentService
                     var masterFile = product?.Metadata?.GetValueOrDefault("MasterFileName");
                     var thumbFile = product?.Metadata?.GetValueOrDefault("ThumbnailFileName");
                     var licenseTypeStr = product?.Metadata?.GetValueOrDefault("LicenseType");
+                    var isGifStr = product?.Metadata?.GetValueOrDefault("IsGif");
+                    var gifStartStr = product?.Metadata?.GetValueOrDefault("GifStartTime");
+                    var gifEndStr = product?.Metadata?.GetValueOrDefault("GifEndTime");
 
                     // Backup lookup from session metadata (by index or by clipId)
                     // Stripe preserves order of line items, so we can use a counter
@@ -207,6 +219,9 @@ public class StripePaymentService : IPaymentService
                                     if (string.IsNullOrEmpty(masterFile)) masterFile = session.Metadata.GetValueOrDefault($"c{i}_mf");
                                     if (string.IsNullOrEmpty(thumbFile)) thumbFile = session.Metadata.GetValueOrDefault($"c{i}_tn");
                                     if (string.IsNullOrEmpty(licenseTypeStr)) licenseTypeStr = session.Metadata.GetValueOrDefault($"c{i}_li");
+                                    if (string.IsNullOrEmpty(isGifStr)) isGifStr = session.Metadata.GetValueOrDefault($"c{i}_ig");
+                                    if (string.IsNullOrEmpty(gifStartStr)) gifStartStr = session.Metadata.GetValueOrDefault($"c{i}_gs");
+                                    if (string.IsNullOrEmpty(gifEndStr)) gifEndStr = session.Metadata.GetValueOrDefault($"c{i}_ge");
                                     foundByClipId = true;
                                     break;
                                 }
@@ -224,6 +239,9 @@ public class StripePaymentService : IPaymentService
                             if (string.IsNullOrEmpty(thumbFile)) thumbFile = session.Metadata.GetValueOrDefault($"c{index}_tn");
                             if (string.IsNullOrEmpty(licenseTypeStr)) licenseTypeStr = session.Metadata.GetValueOrDefault($"c{index}_li");
                             if (string.IsNullOrEmpty(clipId)) clipId = session.Metadata.GetValueOrDefault($"c{index}_id");
+                            if (string.IsNullOrEmpty(isGifStr)) isGifStr = session.Metadata.GetValueOrDefault($"c{index}_ig");
+                            if (string.IsNullOrEmpty(gifStartStr)) gifStartStr = session.Metadata.GetValueOrDefault($"c{index}_gs");
+                            if (string.IsNullOrEmpty(gifEndStr)) gifEndStr = session.Metadata.GetValueOrDefault($"c{index}_ge");
                         }
                     }
 
@@ -257,6 +275,15 @@ public class StripePaymentService : IPaymentService
                     var licenseType = LicenseType.Personal;
                     if (Enum.TryParse<LicenseType>(licenseTypeStr, out var lt)) licenseType = lt;
                     
+                    bool isGif = false;
+                    if (bool.TryParse(isGifStr, out var ig)) isGif = ig;
+
+                    double? gifStart = null;
+                    if (double.TryParse(gifStartStr, out var gs)) gifStart = gs;
+
+                    double? gifEnd = null;
+                    if (double.TryParse(gifEndStr, out var ge)) gifEnd = ge;
+                    
                     if (!string.IsNullOrEmpty(clipId))
                     {
                         var purchase = new Purchase
@@ -277,7 +304,10 @@ public class StripePaymentService : IPaymentService
                             ClipDurationSec = durationSec,
                             ClipMasterFileName = masterFile,
                             ClipThumbnailFileName = thumbFile,
-                            LicenseType = licenseType
+                            LicenseType = licenseType,
+                            IsGif = isGif,
+                            GifStartTime = gifStart,
+                            GifEndTime = gifEnd
                         };
                         
                         if (!foundClipIds.Contains(clipId))

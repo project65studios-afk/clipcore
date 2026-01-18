@@ -60,7 +60,7 @@ public class CartService
     {
         await InitializeAsync();
 
-        if (!_cart.Any(c => c.Id == item.Id && c.LicenseType == item.LicenseType))
+        if (!_cart.Any(c => c.Id == item.Id && c.LicenseType == item.LicenseType && c.IsGif == item.IsGif))
         {
             _cart.Add(item);
             await SaveCartAsync();
@@ -68,11 +68,11 @@ public class CartService
         }
     }
 
-    public async Task RemoveAsync(string id, LicenseType license)
+    public async Task RemoveAsync(string id, LicenseType license, bool isGif = false)
     {
         await InitializeAsync();
 
-        var item = _cart.FirstOrDefault(c => c.Id == id && c.LicenseType == license);
+        var item = _cart.FirstOrDefault(c => c.Id == id && c.LicenseType == license && c.IsGif == isGif);
         if (item != null)
         {
             _cart.Remove(item);

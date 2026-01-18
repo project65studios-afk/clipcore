@@ -158,9 +158,18 @@
                                             {
                                                 <span>• @ToClientTime(startTimeDisplay.Value).ToString("t")</span>
                                             }
-                                            <span class="badge" style="background: @(purchase.LicenseType == LicenseType.Commercial ? "var(--accent-purple-dim)" : "var(--accent-primary-dim)"); color: @(purchase.LicenseType == LicenseType.Commercial ? "var(--accent-purple)" : "var(--accent-primary)"); border: 1px solid currentColor; font-size: 0.7rem; text-transform: uppercase; font-weight: 600; padding: 0.2rem 0.5rem;">
-                                                @purchase.LicenseType License
-                                            </span>
+                                            @if (purchase.IsGif)
+                                            {
+                                                <span class="badge" style="background: var(--accent-secondary-dim); color: var(--accent-secondary); border: 1px solid currentColor; font-size: 0.7rem; text-transform: uppercase; font-weight: 600; padding: 0.2rem 0.5rem;">
+                                                    <i class="bi bi-filetype-gif me-1"></i>GIF License
+                                                </span>
+                                            }
+                                            else
+                                            {
+                                                <span class="badge" style="background: @(purchase.LicenseType == LicenseType.Commercial ? "var(--accent-purple-dim)" : "var(--accent-primary-dim)"); color: @(purchase.LicenseType == LicenseType.Commercial ? "var(--accent-purple)" : "var(--accent-primary)"); border: 1px solid currentColor; font-size: 0.7rem; text-transform: uppercase; font-weight: 600; padding: 0.2rem 0.5rem;">
+                                                    @purchase.LicenseType License
+                                                </span>
+                                            }
                                         </div>
                                     }
                                 </div>
@@ -173,11 +182,17 @@
                                         </a>
                                     }
                                     
-                                    @if (purchase.FulfillmentStatus == FulfillmentStatus.Fulfilled)
+                                    @if (purchase.FulfillmentStatus == FulfillmentStatus.Fulfilled && !purchase.IsGif)
                                     {
-                                        <div class="text-success small fw-bold">
-                                            <i class="bi bi-check-circle-fill me-1"></i> Ready
-                                        </div>
+                                        <button class="btn btn-success btn-sm w-100 fw-bold shadow-sm" @onclick="() => DownloadHighResAsync(purchase)">
+                                            <i class="bi bi-download me-1"></i> Download Master
+                                        </button>
+                                    }
+                                    else if (purchase.IsGif)
+                                    {
+                                        <button class="btn btn-info btn-sm w-100 fw-bold shadow-sm" style="color: #000;" @onclick="() => DownloadGifAsync(purchase)">
+                                            <i class="bi bi-filetype-gif me-1"></i> Download GIF
+                                        </button>
                                     }
                                     else
                                     {
@@ -279,6 +294,30 @@
                 var token = await VideoService.GetPlaybackToken(id, "t", "480p");
                 _thumbnailUrls[clipId] = $"https://image.mux.com/{id}/thumbnail.jpg?token={token}&width=400";
             }
+        }
+    }
+
+    private async Task DownloadGifAsync(Purchase purchase)
+    {
+        // Get Playback ID
+        var pid = purchase.Clip?.PlaybackIdSigned;
+        if (string.IsNullOrEmpty(pid) && purchase.Clip != null) pid = purchase.Clip.PlaybackIdSigned;
+        
+        if (!string.IsNullOrEmpty(pid))
+        {
+            var start = purchase.GifStartTime ?? 0;
+            var duration = (purchase.GifEndTime ?? 5) - start;
+            if (duration <= 0) duration = 5;
+            
+            // Generate URL
+            var url = VideoService.GetGifUrlAsync(pid, start, duration);
+            
+            // Open in new tab
+            await JSRuntime.InvokeVoidAsync("open", url, "_blank");
+        }
+        else
+        {
+             await JSRuntime.InvokeVoidAsync("alert", "GIF generation unavailable.");
         }
     }
 

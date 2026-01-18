@@ -332,7 +332,7 @@ public class MuxVideoService : IVideoService
         }
     }
 
-    private string GenerateSignedToken(string playbackId, string audience, string? maxResolution = null)
+    private string GenerateSignedToken(string playbackId, string audience, string? maxResolution = null, double? start = null, double? end = null)
     {
         try 
         {
@@ -386,12 +386,16 @@ public class MuxVideoService : IVideoService
             {
                 payload["max_resolution"] = maxResolution;
             }
+            
+            // For GIFs, start/end must be in claims if present in URL
+            if (start.HasValue) payload["start"] = start.Value;
+            if (end.HasValue) payload["end"] = end.Value;
 
             var token = new System.IdentityModel.Tokens.Jwt.JwtSecurityToken(header, payload);
             var handler = new System.IdentityModel.Tokens.Jwt.JwtSecurityTokenHandler();
             var tokenString = handler.WriteToken(token);
 
-            Console.WriteLine($"[MUX-DEBUG] {audience} token for {playbackId}. KID:{header["kid"]} RES:{maxResolution ?? "Full"}");
+            // console debug removed to reduce noise
             return tokenString;
         }
         catch (Exception ex)
@@ -401,17 +405,20 @@ public class MuxVideoService : IVideoService
         }
     }
 
-    public string GetGifUrlAsync(string playbackId, int? start = null, int? duration = null)
+    public string GetGifUrlAsync(string playbackId, double? start = null, double? duration = null)
     {
-        // GIF Limits: Max 10s duration.
+        // Calculate End from Start+Duration
+        double? end = (start.HasValue && duration.HasValue) ? (start.Value + duration.Value) : null;
+        
+        // Signed Token MUST match the URL params for start/end
         // We will sign a token for audience 'g'
-        var token = GenerateSignedToken(playbackId, "g");
+        var token = GenerateSignedToken(playbackId, "g", null, start, end);
         
         var query = $"?token={token}";
-        if (start.HasValue) query += $"&start={start}";
-        if (duration.HasValue) query += $"&end={start + duration}"; // Mux uses start/end or time/duration? 
-        // Mux Image URL API: https://image.mux.com/{PLAYBACK_ID}/animated.gif?token={TOKEN}&start={START}&end={END}
-        // Actually Mux uses 'start' and 'end' parameters for GIF time window.
+        
+        // Use InvariantCulture to ensure dot separator, not comma
+        if (start.HasValue) query += $"&start={start.Value.ToString(System.Globalization.CultureInfo.InvariantCulture)}";
+        if (end.HasValue) query += $"&end={end.Value.ToString(System.Globalization.CultureInfo.InvariantCulture)}"; 
         
         return $"https://image.mux.com/{playbackId}/animated.gif{query}";
     }

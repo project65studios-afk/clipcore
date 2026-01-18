@@ -227,9 +227,18 @@
                                                         @(p.Clip?.MasterFileName ?? p.ClipMasterFileName ?? "No Master File")
                                                     </div>
                                                     <div class="mt-1">
-                                                        <span class="badge" style="background: @(p.LicenseType == LicenseType.Commercial ? "var(--accent-purple-dim)" : "var(--accent-primary-dim)"); color: @(p.LicenseType == LicenseType.Commercial ? "var(--accent-purple)" : "var(--accent-primary)"); border: 1px solid currentColor; font-size: 0.65rem; text-transform: uppercase; font-weight: 600;">
-                                                            @p.LicenseType
-                                                        </span>
+                                                        @if (p.IsGif)
+                                                        {
+                                                            <span class="badge" style="background: var(--accent-secondary-dim); color: var(--accent-secondary); border: 1px solid currentColor; font-size: 0.65rem; text-transform: uppercase; font-weight: 600;">
+                                                                <i class="bi bi-filetype-gif me-1"></i>GIF License
+                                                            </span>
+                                                        }
+                                                        else
+                                                        {
+                                                            <span class="badge" style="background: @(p.LicenseType == LicenseType.Commercial ? "var(--accent-purple-dim)" : "var(--accent-primary-dim)"); color: @(p.LicenseType == LicenseType.Commercial ? "var(--accent-purple)" : "var(--accent-primary)"); border: 1px solid currentColor; font-size: 0.65rem; text-transform: uppercase; font-weight: 600;">
+                                                                @p.LicenseType
+                                                            </span>
+                                                        }
                                                     </div>
                                                     @{
                                                         var startTime = p.Clip?.RecordingStartedAt ?? p.ClipRecordingStartedAt;

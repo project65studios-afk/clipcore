@@ -9,6 +9,7 @@
 @implements IDisposable
 @inject Project65.Web.Services.StoreSettingsService StoreSettingsService
 @inject IVideoService VideoService
+@inject IJSRuntime JSRuntime
 
 <PageTitle>Order Delivery - @(_storeName ?? "Project65 Studios")</PageTitle>
 
@@ -62,17 +63,35 @@
                                     <div class="d-flex align-items-center justify-content-between">
                                     <div class="me-3 overflow-hidden">
                                         <h5 class="mb-1 text-truncate" style="color: var(--text-main);">@(item.Clip?.Title ?? item.Purchase.ClipTitle ?? "Deleted Clip")</h5>
-                                        @if (item.Clip?.Event != null)
-                                        {
-                                            <span class="badge bg-dark text-info border border-info-subtle">@item.Clip!.Event!.Name</span>
-                                        }
-                                        else if (!string.IsNullOrEmpty(item.Purchase.EventName))
-                                        {
-                                            <span class="badge bg-dark text-info border border-info-subtle">@item.Purchase.EventName</span>
-                                        }
+                                        <div class="d-flex gap-1 align-items-center flex-wrap">
+                                            @if (item.Clip?.Event != null)
+                                            {
+                                                <span class="badge bg-dark text-info border border-info-subtle">@item.Clip!.Event!.Name</span>
+                                            }
+                                            else if (!string.IsNullOrEmpty(item.Purchase.EventName))
+                                            {
+                                                <span class="badge bg-dark text-info border border-info-subtle">@item.Purchase.EventName</span>
+                                            }
+
+                                            @if (item.Purchase.IsGif)
+                                            {
+                                                <span class="badge" style="background: var(--accent-secondary-dim); color: var(--accent-secondary); border: 1px solid currentColor; font-size: 0.7rem; text-transform: uppercase;">GIF License</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="badge" style="background: var(--accent-primary-dim); color: var(--accent-primary); border: 1px solid currentColor; font-size: 0.7rem; text-transform: uppercase;">@item.Purchase.LicenseType License</span>
+                                            }
+                                        </div>
                                     </div>
                                     
-                                    @if (!string.IsNullOrEmpty(item.DownloadUrl))
+                                    @if (item.Purchase.IsGif)
+                                    {
+                                        <button class="btn btn-info d-flex align-items-center gap-2 shadow-sm" style="color: #000;" @onclick="() => DownloadGifAsync(item.Purchase)">
+                                            <span>Download GIF</span>
+                                            <i class="bi bi-filetype-gif"></i>
+                                        </button>
+                                    }
+                                    else if (!string.IsNullOrEmpty(item.DownloadUrl))
                                     {
                                         <a href="@item.DownloadUrl" target="_blank" class="btn btn-primary d-flex align-items-center gap-2 shadow-sm" download>
                                             <span>Download</span>
@@ -221,6 +240,26 @@
         }
     }
     
+    private async Task DownloadGifAsync(Purchase purchase)
+    {
+        var pid = purchase.Clip?.PlaybackIdSigned;
+        if (string.IsNullOrEmpty(pid) && purchase.Clip != null) pid = purchase.Clip.PlaybackIdSigned;
+
+        if (!string.IsNullOrEmpty(pid))
+        {
+            var start = purchase.GifStartTime ?? 0;
+            var duration = (purchase.GifEndTime ?? 5) - start;
+            if (duration <= 0) duration = 5;
+
+            var url = VideoService.GetGifUrlAsync(pid, start, duration);
+            await JSRuntime.InvokeVoidAsync("open", url, "_blank");
+        }
+        else
+        {
+            await JSRuntime.InvokeVoidAsync("alert", "GIF generation unavailable for this clip.");
+        }
+    }
+
     private void RefreshPage()
     {
         Navigation.Refresh(true);

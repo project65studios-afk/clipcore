@@ -55,8 +55,8 @@
                         <div style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 0.25rem;">
                              Duration: @(item.DurationSec.HasValue ? TimeSpan.FromSeconds(item.DurationSec.Value).ToString(@"mm\:ss") : "--:--")
                         </div>
-                        <div class="badge" style="background: @(item.LicenseType == LicenseType.Commercial ? "var(--accent-purple-dim)" : "var(--accent-primary-dim)"); color: @(item.LicenseType == LicenseType.Commercial ? "var(--accent-purple)" : "var(--accent-primary)"); border: 1px solid currentColor; font-size: 0.7rem; text-transform: uppercase; font-weight: 600; padding: 0.2rem 0.5rem;">
-                            @item.LicenseType License
+                        <div class="badge" style="background: @(item.IsGif ? "var(--accent-secondary-dim)" : (item.LicenseType == LicenseType.Commercial ? "var(--accent-purple-dim)" : "var(--accent-primary-dim)")); color: @(item.IsGif ? "var(--accent-secondary)" : (item.LicenseType == LicenseType.Commercial ? "var(--accent-purple)" : "var(--accent-primary)")); border: 1px solid currentColor; font-size: 0.7rem; text-transform: uppercase; font-weight: 600; padding: 0.2rem 0.5rem;">
+                            @(item.IsGif ? "GIF License" : item.LicenseType + " License")
                         </div>
                     </div>
 
@@ -199,7 +199,7 @@
 
     private async Task RemoveItem(Project65.Web.Models.CartItem item)
     {
-        await CartService.RemoveAsync(item.Id, item.LicenseType);
+        await CartService.RemoveAsync(item.Id, item.LicenseType, item.IsGif);
     }
 
     private string _promoInput = "";
@@ -291,7 +291,10 @@
             ClipRecordingStartedAt = i.ClipRecordingStartedAt,
             DurationSec = i.DurationSec,
             MasterFileName = i.MasterFileName,
-            ThumbnailFileName = i.ThumbnailFileName
+            ThumbnailFileName = i.ThumbnailFileName,
+            IsGif = i.IsGif,
+            GifStartTime = i.GifStartTime,
+            GifEndTime = i.GifEndTime
         });
 
         var url = await PaymentService.CreateCheckoutSessionAsync(checkoutItems, successUrl, cancelUrl, userEmail, null, CartService.AppliedPromoCode?.Id);

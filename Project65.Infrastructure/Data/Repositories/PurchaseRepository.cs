@@ -25,8 +25,19 @@ public class PurchaseRepository : IPurchaseRepository
         if (string.IsNullOrEmpty(userId)) return false;
 
         using var context = await _contextFactory.CreateDbContextAsync();
+        // Explicitly exclude GIF purchases from standard license checks
+        // "HasPurchasedAsync" implies "Has Purchased the Full Video License"
         return await context.Purchases
-            .AnyAsync(p => p.UserId == userId && p.ClipId == clipId && p.LicenseType == license);
+            .AnyAsync(p => p.UserId == userId && p.ClipId == clipId && p.LicenseType == license && !p.IsGif);
+    }
+
+    public async Task<bool> HasPurchasedGifAsync(string? userId, string clipId)
+    {
+        if (string.IsNullOrEmpty(userId)) return false;
+
+        using var context = await _contextFactory.CreateDbContextAsync();
+        return await context.Purchases
+            .AnyAsync(p => p.UserId == userId && p.ClipId == clipId && p.IsGif);
     }
 
     public async Task<List<Purchase>> GetByUserIdAsync(string? userId)

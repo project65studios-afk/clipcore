@@ -41,4 +41,8 @@ public class Purchase
     
     public int PricePaidCents { get; set; }
     public LicenseType LicenseType { get; set; } = LicenseType.Personal;
+    
+    public bool IsGif { get; set; } = false;
+    public double? GifStartTime { get; set; }
+    public double? GifEndTime { get; set; }
 }

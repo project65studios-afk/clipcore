@@ -65,7 +65,10 @@ public class EmailTemplateService
                 </td>
                 <td style=""padding: 20px 0 20px 20px; vertical-align: top;"">
                     <div style=""font-weight: 600; color: #111111; font-size: 16px; margin-bottom: 4px;"">{i.ClipTitle}</div>
-                    <div style=""font-size: 14px; color: #666666;"">{i.EventName}</div>
+                    <div style=""font-size: 14px; color: #666666;"">
+                        {i.EventName}
+                        {(i.IsGif ? @"<br/><span style=""display: inline-block; background-color: #fdf2f8; color: #db2777; border: 1px solid #db2777; font-size: 10px; padding: 2px 6px; border-radius: 4px; font-weight: 700; text-transform: uppercase; margin-top: 4px;"">GIF License</span>" : $@"<br/><span style=""display: inline-block; background-color: #f0fdfa; color: #0d9488; border: 1px solid #0d9488; font-size: 10px; padding: 2px 6px; border-radius: 4px; font-weight: 700; text-transform: uppercase; margin-top: 4px;"">{i.LicenseType} License</span>")}
+                    </div>
                 </td>
                 <td style=""padding: 20px 0; text-align: right; vertical-align: top; font-weight: 600; color: #111111;"">
                     ${(i.PricePaidCents / 100.0):N2} USD
@@ -163,9 +166,10 @@ public class EmailTemplateService
                             </div>
                         </td>
                         <td style=""vertical-align: top; padding-bottom: 30px; padding-left: 20px;"">
-                            <div style=""font-size: 14px; font-weight: 600; color: #111111; margin-bottom: 8px;"">Delivery:</div>
+                            <div style=""font-size: 14px; color: #111111; font-weight: 600; margin-bottom: 8px;"">Delivery:</div>
                             <div style=""font-size: 14px; color: #666666; line-height: 1.5;"">
-                                Your clips will be processed and available in your dashboard shortly.
+                                {(items.Any(i => i.IsGif) ? "<strong>GIFs:</strong> Available for download now!<br/>" : "")}
+                                {(items.Any(i => !i.IsGif) ? "<strong>Video Clips:</strong> Will be processed and available in your dashboard shortly." : "")}
                             </div>
                         </td>
                     </tr>

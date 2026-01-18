@@ -15,6 +15,8 @@
 @inject Project65.Web.Services.EmailTemplateService EmailTemplateService
 @inject Project65.Web.Services.OrderFulfillmentService OrderFulfillmentService
 @inject IStorageService StorageService
+@inject IVideoService VideoService
+@inject IJSRuntime JS
 
 <style>
     .success-card {
@@ -176,9 +178,31 @@
                         </div>
                         <div style="flex-grow: 1;">
                             <div class="fw-bold mb-1">@(p.ClipTitle ?? $"Clip #{p.ClipId}")</div>
-                            <div class="text-muted small">@p.EventName</div>
+                            <div class="d-flex gap-2 align-items-center">
+                                <div class="text-muted small">@p.EventName</div>
+                                @if (p.IsGif)
+                                {
+                                    <span class="badge" style="background: var(--accent-secondary-dim); color: var(--accent-secondary); border: 1px solid currentColor; font-size: 0.65rem; text-transform: uppercase;">GIF License</span>
+                                }
+                                else
+                                {
+                                    <span class="badge" style="background: var(--accent-primary-dim); color: var(--accent-primary); border: 1px solid currentColor; font-size: 0.65rem; text-transform: uppercase;">@p.LicenseType</span>
+                                }
+                            </div>
                         </div>
-                        <div class="text-info small fw-bold">Ready Soon</div>
+                        @if (p.IsGif)
+                        {
+                            <div class="text-end">
+                                <span class="badge bg-success-dim text-success mb-2 d-block small" style="font-size: 0.7rem; font-weight: 700;">READY NOW</span>
+                                <button class="btn btn-sm btn-info fw-bold" style="color: #000; font-size: 0.75rem;" @onclick="() => DownloadGifAsync(p)">
+                                    <i class="bi bi-filetype-gif me-1"></i> Download
+                                </button>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="text-info small fw-bold">Ready Soon</div>
+                        }
                     </div>
                 }
             </div>
@@ -195,7 +219,16 @@
                     <div class="p-4 h-100" style="background: rgba(255,255,255,0.03); border-radius: 16px; border: 1px solid rgba(255,255,255,0.05);">
                         <i class="bi bi-cloud-download text-primary mb-3 d-block" style="font-size: 1.5rem;"></i>
                         <h6 class="fw-bold">Step 2: Download</h6>
-                        <p class="text-muted small m-0">Access 4K master files directly from your dashboard or email link.</p>
+                        <p class="text-muted small m-0">
+                            @if (_purchases.Any(p => p.IsGif))
+                            {
+                                <span>Access your custom GIFs and 4K master files directly from your dashboard or email link.</span>
+                            }
+                            else
+                            {
+                                <span>Access 4K master files directly from your dashboard or email link.</span>
+                            }
+                        </p>
                     </div>
                 </div>
             </div>
@@ -329,6 +362,22 @@
         {
             _isValidating = false;
             // Force UI update since we are in AfterRender
+        }
+    }
+
+    private async Task DownloadGifAsync(Purchase purchase)
+    {
+        var pid = purchase.Clip?.PlaybackIdSigned;
+        if (string.IsNullOrEmpty(pid) && purchase.Clip != null) pid = purchase.Clip.PlaybackIdSigned;
+
+        if (!string.IsNullOrEmpty(pid))
+        {
+            var start = purchase.GifStartTime ?? 0;
+            var duration = (purchase.GifEndTime ?? 5) - start;
+            if (duration <= 0) duration = 5;
+
+            var url = VideoService.GetGifUrlAsync(pid, start, duration);
+            await JS.InvokeVoidAsync("open", url, "_blank");
         }
     }
 }

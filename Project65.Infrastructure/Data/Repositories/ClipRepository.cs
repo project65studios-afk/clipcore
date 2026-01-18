@@ -88,4 +88,16 @@ public class ClipRepository : IClipRepository
         context.Entry(clip).State = EntityState.Modified;
         await context.SaveChangesAsync();
     }
+
+    public async Task UpdateBatchSettingsAsync(string eventId, int priceCents, int priceCommercialCents, bool allowGif, int gifPriceCents)
+    {
+        using var context = await _contextFactory.CreateDbContextAsync();
+        await context.Clips
+            .Where(c => c.EventId == eventId)
+            .ExecuteUpdateAsync(s => s
+                .SetProperty(c => c.PriceCents, priceCents)
+                .SetProperty(c => c.PriceCommercialCents, priceCommercialCents)
+                .SetProperty(c => c.AllowGifSale, allowGif)
+                .SetProperty(c => c.GifPriceCents, gifPriceCents));
+    }
 }

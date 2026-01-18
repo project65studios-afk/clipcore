@@ -130,6 +130,8 @@ export function initDirectUpload(dotNetHelper, eventId, userId) {
                 priceCents: uploadInfo.priceCents,
                 priceCommercialCents: uploadInfo.priceCommercialCents,
                 userId: uploadInfo.userId,
+                allowGifSale: uploadInfo.allowGifSale,
+                gifPriceCents: uploadInfo.gifPriceCents,
                 lastModified: new Date(file.data.lastModified).toISOString(),
                 thumbnailKeys: thumbKeys || []
             };

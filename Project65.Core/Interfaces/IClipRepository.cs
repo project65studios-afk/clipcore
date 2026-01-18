@@ -10,4 +10,5 @@ public interface IClipRepository
     Task<List<Clip>> GetRelatedAsync(string eventId, string[] tags, string excludeClipId, int count = 4);
     Task AddAsync(Clip clip);
     Task UpdateAsync(Clip clip); // For updating processing status/metadata
+    Task UpdateBatchSettingsAsync(string eventId, int priceCents, int priceCommercialCents, bool allowGif, int gifPriceCents);
 }

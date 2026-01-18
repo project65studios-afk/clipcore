@@ -12,124 +12,211 @@
 @using Microsoft.AspNetCore.SignalR
 @inject IHubContext<Project65.Web.Hubs.ProcessingHub> HubContext
 
-
-
 <h1>Upload Clips</h1>
-<div class="mb-3">
-    @if (!string.IsNullOrEmpty(_selectedEventId))
-    {
-        <a href="/admin/upload-direct?EventId=@_selectedEventId" class="btn btn-sm btn-outline-success">
-            <i class="bi bi-rocket-takeoff"></i> Try Direct 1080p Upload for Selected Event
-        </a>
-    }
-    else
-    {
-        <button class="btn btn-sm btn-outline-secondary" disabled title="Select an event first">
-            <i class="bi bi-rocket-takeoff"></i> Select Event to use Direct Upload
-        </button>
-    }
-</div>
 
-<div style="max-width: 800px;">
+<div style="max-width: 900px;">
     @if (!string.IsNullOrEmpty(_errorMessage))
     {
         <div class="alert alert-danger">@_errorMessage</div>
     }
     
-    <div class="mb-3">
-        <label class="form-label" style="color: var(--text-secondary); font-weight: 600;">1. Choose or Create Event</label>
-        <div class="d-flex gap-2 upload-step-row">
-            <select class="form-control" @bind="_selectedEventId">
-                <option value="">-- Select Event --</option>
-                @if (_events != null)
-                {
-                    @foreach (var evt in _events)
-                    {
-                        <option value="@evt.Id">@evt.Name (@evt.Date)</option>
-                    }
-                }
-            </select>
-            <button class="btn btn-outline-info" type="button" @onclick="CreateNewEvent">New Event</button>
+    <!-- 1. Event Selection / Creation -->
+    <div class="card mb-4" style="background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: var(--radius-lg);">
+        <div class="card-header bg-transparent border-bottom border-secondary">
+             <h5 class="mb-0" style="color: var(--text-main);"><i class="bi bi-calendar-event me-2"></i>1. Event Selection</h5>
+        </div>
+        <div class="card-body">
+            @if (_isCreatingEvent)
+            {
+                <div class="p-3 rounded border border-secondary mb-3" style="background: var(--bg-subtle);">
+                     <h6 class="mb-3" style="color: var(--accent-primary);">Create New Event</h6>
+                     <div class="row g-3">
+                         <div class="col-md-6">
+                             <label class="form-label small" style="color: var(--text-main); opacity: 0.8;">Event Name</label>
+                             <input class="form-control" placeholder="e.g. Midnight Run 2025" @bind="_newEvent.Name" style="background: var(--bg-main); color: var(--text-main); border-color: var(--border-color);" />
+                         </div>
+                         <div class="col-md-6">
+                             <label class="form-label small" style="color: var(--text-main); opacity: 0.8;">Date</label>
+                             <input class="form-control" type="date" @bind="_newEvent.Date" style="background: var(--bg-main); color: var(--text-main); border-color: var(--border-color);" />
+                         </div>
+                         <div class="col-md-12">
+                             <label class="form-label small" style="color: var(--text-main); opacity: 0.8;">Location</label>
+                             <input class="form-control" placeholder="e.g. Los Angeles, CA" @bind="_newEvent.Location" style="background: var(--bg-main); color: var(--text-main); border-color: var(--border-color);" />
+                         </div>
+                         <div class="col-md-12">
+                             <label class="form-label small" style="color: var(--text-main); opacity: 0.8;">Summary</label>
+                             <textarea class="form-control" placeholder="Brief description..." @bind="_newEvent.Summary" rows="2" style="background: var(--bg-main); color: var(--text-main); border-color: var(--border-color);"></textarea>
+                         </div>
+                     </div>
+                     <div class="d-flex gap-2 mt-3 justify-content-end">
+                        <button class="btn btn-secondary btn-sm" @onclick="@(() => _isCreatingEvent = false)">Cancel</button>
+                        <button class="btn btn-info btn-sm" @onclick="SaveNewEventAsync" style="background: var(--accent-primary); border: none; color: #fff;">Create & Select</button>
+                     </div>
+                </div>
+            }
+            else
+            {
+                <div class="d-flex gap-2">
+                    <select class="form-control" value="@_selectedEventId" @onchange="OnEventSelected" style="background: var(--bg-main); color: var(--text-main); border-color: var(--border-color);">
+                        <option value="">-- Select Event --</option>
+                        @if (_events != null)
+                        {
+                            foreach (var evt in _events)
+                            {
+                                <option value="@evt.Id">@evt.Name (@evt.Date)</option>
+                            }
+                        }
+                    </select>
+                    <button class="btn btn-outline-info" @onclick="CreateNewEvent" style="color: var(--accent-primary); border-color: var(--accent-primary);">
+                        <i class="bi bi-plus-lg"></i> New Event
+                    </button>
+                </div>
+            }
         </div>
     </div>
 
-    @if (_isCreatingEvent)
-    {
-        <div class="card p-4 mb-4" style="background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: var(--radius-lg);">
-             <h5 class="mb-3">New Event</h5>
-             <div class="mb-3">
-                 <label class="form-label" style="color: var(--text-secondary); font-size: 0.85rem;">Event Name</label>
-                 <input class="form-control" placeholder="e.g. Midnight Run 2025" @bind="_newEvent.Name" />
-             </div>
-             <div class="mb-3">
-                 <label class="form-label" style="color: var(--text-secondary); font-size: 0.85rem;">Event Date</label>
-                 <input class="form-control" type="date" @bind="_newEvent.Date" />
-             </div>
-             <div class="mb-3">
-                 <label class="form-label" style="color: var(--text-secondary); font-size: 0.85rem;">Event Location</label>
-                 <input class="form-control" placeholder="e.g. Los Angeles, CA" @bind="_newEvent.Location" />
-             </div>
-             <div class="mb-3">
-                 <label class="form-label" style="color: var(--text-secondary); font-size: 0.85rem;">Summary</label>
-                 <textarea class="form-control" placeholder="Brief description of the event..." @bind="_newEvent.Summary" rows="3"></textarea>
-             </div>
-             <div class="d-flex gap-2 align-items:center upload-step-row">
-                <button class="btn-primary" type="button" @onclick="SaveEventAsync" style="padding: 0.5rem 1.5rem;">Save Event</button>
-                <button class="btn-secondary" type="button" @onclick="@(() => _isCreatingEvent = false)" style="padding: 0.5rem 1.5rem;">Cancel</button>
-             </div>
-        </div>
-    }
-
-    <div class="mb-3 d-flex gap-4">
-        <div>
-            <label class="form-label" style="color: var(--text-secondary); font-weight: 600;">2a. Default Personal Price</label>
-            <div style="position: relative; display: flex; align-items: center; max-width: 200px;">
-                <span style="position: absolute; left: 1rem; color: var(--text-muted);">$</span>
-                <input class="form-control" style="padding-left: 2rem;" type="number" @bind="_priceDollars" step="0.01" />
-            </div>
-        </div>
-        <div>
-            <label class="form-label" style="color: var(--text-secondary); font-weight: 600;">2b. Default Commercial Price</label>
-            <div style="position: relative; display: flex; align-items: center; max-width: 200px;">
-                <span style="position: absolute; left: 1rem; color: var(--text-muted);">$</span>
-                <input class="form-control" style="padding-left: 2rem;" type="number" @bind="_priceCommercialDollars" step="0.01" />
-            </div>
-        </div>
-    </div>
-
-    <div class="mb-4">
-        <label class="form-label" style="color: var(--text-secondary); font-weight: 600;">3. Add Videos (Processed sequentially)</label>
-        <div id="uppy-dashboard" style="border-radius: 8px; overflow: hidden; border: 1px solid var(--border-color); box-shadow: 0 4px 12px var(--glass-shadow);"></div>
-    </div>
-
+    <!-- 2. Event Defaults & Settings (Only visible when event selected) -->
     @if (!string.IsNullOrEmpty(_selectedEventId))
     {
-        <div class="mt-4 pt-4 border-top" style="border-color: var(--border-color) !important;">
-            <button class="btn-primary" @onclick="NavigateToEvent" style="padding: 0.75rem 2rem;">
-                Done (Go to Event)
-            </button>
-            <p class="text-muted mt-2" style="font-size: 0.85rem;">Click here once you have finished uploading all clips for this event.</p>
+        <div class="card mb-4" style="background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: var(--radius-lg);">
+            <div class="card-header bg-transparent border-bottom border-secondary d-flex justify-content-between align-items-center">
+                 <h5 class="mb-0" style="color: var(--text-main);"><i class="bi bi-sliders me-2"></i>2. Event Settings & Defaults</h5>
+                 <span class="badge bg-secondary">@(_existingClipCount) existing clips</span>
+            </div>
+            <div class="card-body">
+                <p class="small mb-3" style="color: var(--text-main); opacity: 0.7;">
+                    Configure pricing and options for this event. These settings will be applied to <strong>new uploads</strong> automatically. 
+                    You can also update existing clips.
+                </p>
+
+                <div class="row g-4">
+                     <!-- Pricing -->
+                     <div class="col-md-4">
+                        <label class="form-label small fw-bold" style="color: var(--accent-primary);">Personal License Price</label>
+                        <div class="input-group">
+                            <span class="input-group-text border-secondary" style="background: var(--bg-subtle); color: var(--text-main);">$</span>
+                            <input class="form-control" type="number" @bind="_priceDollars" step="0.01" style="background: var(--bg-main); color: var(--text-main); border-color: var(--border-color);" />
+                        </div>
+                     </div>
+                     <div class="col-md-4">
+                        <label class="form-label small fw-bold" style="color: var(--accent-primary);">Commercial License Price</label>
+                         <div class="input-group">
+                            <span class="input-group-text border-secondary" style="background: var(--bg-subtle); color: var(--text-main);">$</span>
+                            <input class="form-control" type="number" @bind="_priceCommercialDollars" step="0.01" style="background: var(--bg-main); color: var(--text-main); border-color: var(--border-color);" />
+                        </div>
+                     </div>
+                     
+                     <!-- GIF Settings -->
+                     <div class="col-md-4">
+                        <label class="form-label small fw-bold" style="color: var(--accent-primary);">GIF Sales</label>
+                        <div class="card border-secondary p-2" style="background: var(--bg-subtle);">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="allowGif" @bind="_allowGifSale">
+                                <label class="form-check-label" for="allowGif" style="color: var(--text-main);">Enable GIFs</label>
+                            </div>
+                            @if (_allowGifSale)
+                            {
+                                <div class="input-group input-group-sm mt-2">
+                                     <span class="input-group-text border-secondary" style="background: var(--bg-main); color: var(--text-main);">$</span>
+                                     <input class="form-control" type="number" @bind="_gifPriceDollars" step="0.01" style="background: var(--bg-main); color: var(--text-main); border-color: var(--border-color);" />
+                                </div>
+                            }
+                        </div>
+                     </div>
+                </div>
+
+                <!-- Action Bar -->
+                <div class="mt-4 pt-3 border-top border-secondary d-flex justify-content-end align-items-center gap-3">
+                    @if (_hasUnsavedChanges)
+                    {
+                        <span class="small" style="color: var(--status-warning);"><i class="bi bi-exclamation-circle me-1"></i> Unsaved changes</span>
+                    }
+                    <button class="btn btn-primary" @onclick="CheckForSave" style="background: var(--accent-primary); border-color: var(--accent-primary);">
+                        <i class="bi bi-floppy me-2"></i> Save Event Settings
+                    </button>
+                    
+                    @if (!string.IsNullOrEmpty(_selectedEventId))
+                    {
+                       <a href="/admin/upload-direct?EventId=@_selectedEventId" class="btn btn-outline-success">
+                           <i class="bi bi-rocket-takeoff me-2"></i> Direct Upload
+                       </a>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <!-- 3. Uppy Uploader -->
+        <div class="mb-4">
+            <h5 class="mb-3" style="color: var(--text-main);"><i class="bi bi-cloud-upload me-2"></i>3. Upload Videos</h5>
+            <div id="uppy-dashboard" style="border-radius: 8px; overflow: hidden; border: 1px solid var(--border-color); box-shadow: 0 4px 12px var(--glass-shadow);"></div>
+        </div>
+        
+        <div class="mt-4 text-end">
+             <button class="btn btn-outline-light" @onclick="NavigateToEvent">
+                 Done (Go to Event Page) <i class="bi bi-arrow-right ms-2"></i>
+             </button>
         </div>
     }
+</div>
 
-    <div class="alert alert-info d-flex align-items-center mt-3" role="alert">
-        <i class="bi bi-info-circle-fill me-2 fs-5"></i>
-        <div>
-            <strong>Tip:</strong> You can choose a specific "Hero" thumbnail for this event in the <a href="/admin" class="alert-link">Admin Portal</a> by clicking the star icon next to a clip.
+<!-- Overwrite Confirmation Modal -->
+@if (_showOverwriteModal)
+{
+    <div class="modal fade show" style="display: block; background: rgba(0,0,0,0.8);" tabindex="-1">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content bg-dark border-secondary text-white">
+          <div class="modal-header border-secondary">
+            <h5 class="modal-title text-warning"><i class="bi bi-exclamation-triangle-fill me-2"></i>Update Existing Clips?</h5>
+            <button type="button" class="btn-close btn-close-white" @onclick="@(() => _showOverwriteModal = false)"></button>
+          </div>
+          <div class="modal-body">
+            <p>This event has <strong>@_existingClipCount</strong> existing clips.</p>
+            <p>Do you want to update <strong>ALL</strong> existing clips with these new prices and settings?</p>
+            <ul class="small text-muted">
+                <li>Personal Price: $@_priceDollars</li>
+                <li>Commercial Price: $@_priceCommercialDollars</li>
+                <li>GIF Sale: @(_allowGifSale ? "Enabled" : "Disabled") @(_allowGifSale ? $"(${_gifPriceDollars})" : "")</li>
+            </ul>
+             <p class="text-danger small mt-2"><strong>This cannot be undone.</strong></p>
+          </div>
+          <div class="modal-footer border-secondary">
+            <button type="button" class="btn btn-outline-secondary" @onclick="@(() => ConfirmSave(false))">No, Save for Future Uploads Only</button>
+            <button type="button" class="btn btn-warning" @onclick="@(() => ConfirmSave(true))">Yes, Overwrite All Clips</button>
+          </div>
         </div>
+      </div>
+    </div>
+}
+
+
+<div class="alert alert-info d-flex align-items-center mt-5" role="alert">
+    <i class="bi bi-info-circle-fill me-2 fs-5"></i>
+    <div>
+        <strong>Tip:</strong> Use "Direct Upload" for 100+ files or very large 4K masters.
     </div>
 </div>
 
 @code {
     private List<Event>? _events;
     private string _selectedEventId = "";
+    private Event? _selectedEvent;
     private Event _newEvent = new() { Id = Guid.NewGuid().ToString(), Date = DateOnly.FromDateTime(DateTime.Now) };
+    
+    // UI state for prices (bound to inputs)
     private double _priceDollars = 10.00;
     private double _priceCommercialDollars = 49.00;
+    private bool _allowGifSale = false;
+    private double _gifPriceDollars = 1.99;
+    
+    // Internal state
+    private bool _isCreatingEvent = false;
+    private bool _hasUnsavedChanges => CheckIfDirty();
+    private bool _showOverwriteModal = false;
+    private int _existingClipCount = 0;
+    private string _errorMessage = "";
+    
     private DotNetObjectReference<Upload>? _dotNetHelper;
     private string? _userId;
-    private string _errorMessage = "";
-    private bool _isCreatingEvent = false;
 
     protected override async Task OnInitializedAsync()
     {
@@ -152,12 +239,168 @@
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (firstRender)
+        if (firstRender && !string.IsNullOrEmpty(_selectedEventId))
         {
-            await JS.InvokeVoidAsync("muxUpload.initUppy", _dotNetHelper, "uppy-dashboard", _userId);
+             await InitializeUppy();
+        }
+    }
+    
+    private async Task InitializeUppy()
+    {
+         await JS.InvokeVoidAsync("muxUpload.initUppy", _dotNetHelper, "uppy-dashboard", _userId);
+    }
+
+    private async Task OnEventSelected(ChangeEventArgs e)
+    {
+        var id = e.Value?.ToString() ?? "";
+        _selectedEventId = id;
+        
+        if (!string.IsNullOrEmpty(id))
+        {
+            await LoadEventData(id);
+            // Re-init Uppy since the container might have been hidden/shown (though standard Blazor diff should keep it, safer to check)
+            // Actually Uppy attaches to #uppy-dashboard. If that div is removed/re-added, Uppy breaks.
+            // Since we conditionally render the whole block based on _selectedEventId, we MUST re-init uppy.
+             // Slight delay to allow DOM to render
+            await Task.Delay(100);
+            await InitializeUppy();
         }
     }
 
+    private async Task LoadEventData(string eventId)
+    {
+        _selectedEvent = _events?.FirstOrDefault(e => e.Id == eventId);
+
+        if (_selectedEvent != null)
+        {
+             // 1. Load basic defaults
+            _allowGifSale = _selectedEvent.DefaultAllowGifSale;
+            _gifPriceDollars = _selectedEvent.DefaultGifPriceCents / 100.00;
+            _priceDollars = _selectedEvent.DefaultPriceCents / 100.00;
+            _priceCommercialDollars = _selectedEvent.DefaultPriceCommercialCents / 100.00;
+            
+            // 2. Count existing clips
+            _existingClipCount = _selectedEvent.Clips.Count;
+        }
+    }
+
+    private bool CheckIfDirty()
+    {
+        if (_selectedEvent == null) return false;
+        
+        // Check if current UI values match the Event's saved defaults
+        return _selectedEvent.DefaultAllowGifSale != _allowGifSale ||
+               _selectedEvent.DefaultGifPriceCents != (int)(_gifPriceDollars * 100) ||
+               _selectedEvent.DefaultPriceCents != (int)(_priceDollars * 100) ||
+               _selectedEvent.DefaultPriceCommercialCents != (int)(_priceCommercialDollars * 100);
+    }
+
+    private void CheckForSave()
+    {
+        if (_existingClipCount > 0)
+        {
+            _showOverwriteModal = true;
+        }
+        else
+        {
+            // Direct save if no clips to warn about
+            _ = ConfirmSave(true); // Argument doesn't matter much here since count is 0, but true forces consistency
+        }
+    }
+
+    private async Task ConfirmSave(bool updateExisting)
+    {
+        _showOverwriteModal = false;
+        if (_selectedEvent == null) return;
+        
+        try
+        {
+            // 1. Update Event Defaults object
+            _selectedEvent.DefaultAllowGifSale = _allowGifSale;
+            _selectedEvent.DefaultGifPriceCents = (int)(_gifPriceDollars * 100);
+            _selectedEvent.DefaultPriceCents = (int)(_priceDollars * 100);
+            _selectedEvent.DefaultPriceCommercialCents = (int)(_priceCommercialDollars * 100);
+            
+            // 2. Save Event to DB
+            await EventRepository.UpdateAsync(_selectedEvent);
+            
+            // 3. Batch Update existing clips if requested
+            if (updateExisting && _existingClipCount > 0)
+            {
+                 await ClipRepository.UpdateBatchSettingsAsync(
+                     _selectedEvent.Id,
+                     _selectedEvent.DefaultPriceCents,
+                     _selectedEvent.DefaultPriceCommercialCents,
+                     _selectedEvent.DefaultAllowGifSale,
+                     _selectedEvent.DefaultGifPriceCents
+                 );
+                 
+                await AuditService.LogActionAsync(_userId, "Admin", "Update Event & Clips", "Event", _selectedEvent.Id, "Updated defaults & batch updated clips");
+            }
+            else
+            {
+                await AuditService.LogActionAsync(_userId, "Admin", "Update Event Defaults", "Event", _selectedEvent.Id, "Updated defaults (future only)");
+            }
+            
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+             _errorMessage = "Error saving settings: " + ex.Message;
+        }
+    }
+
+    private async Task SaveNewEventAsync()
+    {
+        _errorMessage = "";
+        try
+        {
+            if (string.IsNullOrEmpty(_newEvent.Id)) _newEvent.Id = Guid.NewGuid().ToString();
+            
+            // For new event, use the standard defaults hardcoded in this class if not specified? 
+            // Or better yet, initialize new event with these class defaults.
+            // But _newEvent is created fresh. Let's just set the defaults to what the user currently sees 
+            // OR reset the UI to standard defaults.
+            // Let's reset UI to standard defaults for a fresh event.
+            // Actually, keep it simple: Save defaults as standard.
+            _newEvent.DefaultPriceCents = 1000;
+            _newEvent.DefaultPriceCommercialCents = 4900;
+            _newEvent.DefaultAllowGifSale = true;
+            _newEvent.DefaultGifPriceCents = 199;
+
+            await EventRepository.AddAsync(_newEvent);
+            
+            // Refresh list
+            _events = await EventRepository.ListAsync();
+            
+            // Select it
+            _selectedEventId = _newEvent.Id;
+            _isCreatingEvent = false;
+            await OnEventSelected(new ChangeEventArgs { Value = _newEvent.Id });
+
+            _newEvent = new() { Id = Guid.NewGuid().ToString(), Date = DateOnly.FromDateTime(DateTime.Now) };
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = $"Error saving event: {ex.Message}";
+        }
+    }
+    
+    private void CreateNewEvent()
+    {
+        _isCreatingEvent = true;
+        _selectedEventId = ""; // Deselect
+        StateHasChanged();
+    }
+
+    private async Task NavigateToEvent()
+    {
+        var targetId = _selectedEventId;
+        if (!string.IsNullOrEmpty(targetId)) Navigation.NavigateTo($"/events/{targetId}", forceLoad: true);
+        else Navigation.NavigateTo("/", forceLoad: true);
+    }
+    
+    // --- Uppy Helpers (Unchanged) ---
     public class MuxUploadRequest
     {
         public string FileName { get; set; } = "";
@@ -195,17 +438,10 @@
     [JSInvokable]
     public async Task<MuxUploadResult> GetMuxUploadUrl(MuxUploadRequest request)
     {
-        if (string.IsNullOrEmpty(_selectedEventId))
-        {
-            throw new Exception("Please select an event first.");
-        }
+        if (string.IsNullOrEmpty(_selectedEventId)) throw new Exception("Please select an event first.");
 
         var clipId = Guid.NewGuid().ToString();
-        var (url, uploadId) = await VideoService.CreateUploadUrlAsync(
-            clipId: clipId,
-            title: request.FileName,
-            creatorId: _userId
-        );
+        var (url, uploadId) = await VideoService.CreateUploadUrlAsync(clipId: clipId, title: request.FileName, creatorId: _userId);
 
         return new MuxUploadResult { Url = url, UploadId = uploadId, ClipId = clipId };
     }
@@ -222,6 +458,7 @@
     [JSInvokable]
     public async Task OnUppyUploadSuccess(UploadSuccessData data)
     {
+        // Use current UI values for the new clip
         var clip = new Clip
         {
             Id = data.ClipId,
@@ -229,6 +466,8 @@
             Title = data.FileName,
             PriceCents = (int)(_priceDollars * 100),
             PriceCommercialCents = (int)(_priceCommercialDollars * 100),
+            AllowGifSale = _allowGifSale,
+            GifPriceCents = (int)(_gifPriceDollars * 100),
             MuxUploadId = data.MuxUploadId,
             MasterFileName = data.MasterFileName,
             RecordingStartedAt = DateTime.TryParse(data.RecordingDate, out var dt) ? dt : null
@@ -236,21 +475,14 @@
 
         await ClipRepository.AddAsync(clip);
         
-        // Log the action
-        var authState = await AuthenticationStateTask;
-        var user = authState.User;
-        var userId = user.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
-        var userEmail = user.Identity?.Name;
-
         await AuditService.LogActionAsync(
-            userId, 
-            userEmail, 
+            _userId, 
+            _userId,
             "Upload Clip", 
             "Clip", 
             clip.Id, 
-            $"New clip uploaded: {clip.Title} for Event ID: {clip.EventId}");
+            $"New clip uploaded: {clip.Title}");
 
-        // Start background polling to resolve Asset ID and Playback ID for thumbnails
         _ = ResolveMuxDetailsAsync(clip);
     }
 
@@ -258,8 +490,6 @@
     {
         if (string.IsNullOrEmpty(clip.MuxUploadId)) return;
 
-        
-        // 1. Poll for AssetId (up to 30 seconds)
         string? assetId = null;
         for (int i = 0; i < 15; i++)
         {
@@ -268,15 +498,10 @@
             if (!string.IsNullOrEmpty(assetId)) break;
         }
 
-        if (string.IsNullOrEmpty(assetId))
-        {
-            return;
-        }
+        if (string.IsNullOrEmpty(assetId)) return;
 
         clip.MuxAssetId = assetId;
 
-        // 2. Poll for Duration and PlaybackId (up to 60 seconds)
-        // Mux takes extra time to analyze duration after the asset is "ready"
         for (int i = 0; i < 20; i++)
         {
             var (duration, startedAt) = await VideoService.GetAssetDetailsAsync(assetId);
@@ -284,95 +509,20 @@
             if (duration.HasValue && duration.Value > 0)
             {
                 clip.DurationSec = duration;
-                if (startedAt.HasValue && !clip.RecordingStartedAt.HasValue) 
-                    clip.RecordingStartedAt = startedAt;
+                if (startedAt.HasValue && !clip.RecordingStartedAt.HasValue) clip.RecordingStartedAt = startedAt;
                 
-                // Ensure we have a Playback ID for the thumbnail
                 var playbackId = await VideoService.EnsurePlaybackIdAsync(assetId);
-                if (!string.IsNullOrEmpty(playbackId))
-                {
-                    clip.PlaybackIdSigned = playbackId;
-                }
+                if (!string.IsNullOrEmpty(playbackId)) clip.PlaybackIdSigned = playbackId;
 
                 await ClipRepository.UpdateAsync(clip);
-
-                // Notify clients via SignalR that specific clip is updated
                 await HubContext.Clients.All.SendAsync("ClipStatusUpdated", clip.Id, "Ready");
-
                 return;
             }
-
             await Task.Delay(3000);
         }
-
-        // Final save even if duration is still missing (fallback)
         await ClipRepository.UpdateAsync(clip);
     }
-
-    private async Task NavigateToEvent()
-    {
-        var targetId = _selectedEventId;
-        
-        if (!string.IsNullOrEmpty(targetId))
-        {
-            try 
-            {
-                // Fallback: Try Blazor navigation first
-                Navigation.NavigateTo($"/events/{targetId}", forceLoad: true);
-            }
-            catch (Exception)
-            {
-                // Ultimate Fallback: Direct JS Redirect
-                await JS.InvokeVoidAsync("location.assign", $"/events/{targetId}");
-            }
-        }
-        else 
-        {
-            // If ID is missing, just go home as a safety net
-            Navigation.NavigateTo("/", forceLoad: true);
-        }
-    }
-
-    private void CreateNewEvent()
-    {
-        _isCreatingEvent = true;
-        _selectedEventId = "";
-        StateHasChanged();
-    }
-
-    private async Task SaveEventAsync()
-    {
-        _errorMessage = "";
-        try
-        {
-            if (string.IsNullOrEmpty(_newEvent.Id)) _newEvent.Id = Guid.NewGuid().ToString();
-            await EventRepository.AddAsync(_newEvent);
-            _events = await EventRepository.ListAsync();
-            _selectedEventId = _newEvent.Id;
-            
-            // Log the action
-            var authState = await AuthenticationStateTask;
-            var user = authState.User;
-            var userId = user.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
-            var userEmail = user.Identity?.Name;
-
-            await AuditService.LogActionAsync(
-                userId, 
-                userEmail, 
-                "Create Event", 
-                "Event", 
-                _selectedEventId, 
-                $"New event created: {_newEvent.Name} ({_newEvent.Date.ToShortDateString()})");
-
-            _isCreatingEvent = false;
-            _newEvent = new() { Id = Guid.NewGuid().ToString(), Date = DateOnly.FromDateTime(DateTime.Now) };
-        }
-        catch (Exception ex)
-        {
-            _errorMessage = $"Error saving event: {ex.Message}";
-        }
-    }
-
+    
     public void Dispose() => _dotNetHelper?.Dispose();
 }
 

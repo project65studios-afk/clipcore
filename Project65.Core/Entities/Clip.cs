@@ -13,6 +13,9 @@ public class Clip
     public int PriceCents { get; set; }
     public int PriceCommercialCents { get; set; }
     
+    public bool AllowGifSale { get; set; } = false;
+    public int GifPriceCents { get; set; } = 199; // Default $1.99
+    
     public string PlaybackIdSigned { get; set; } = string.Empty;
     public string? PlaybackIdTeaser { get; set; }
 

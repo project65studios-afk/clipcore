@@ -73,6 +73,10 @@ public class EventRepository : IEventRepository
             existing.Location = evt.Location;
             existing.Summary = evt.Summary;
             existing.HeroClipId = evt.HeroClipId;
+            existing.DefaultPriceCents = evt.DefaultPriceCents;
+            existing.DefaultPriceCommercialCents = evt.DefaultPriceCommercialCents;
+            existing.DefaultAllowGifSale = evt.DefaultAllowGifSale;
+            existing.DefaultGifPriceCents = evt.DefaultGifPriceCents;
             
             // Update Featured Products
             existing.FeaturedProducts.Clear();
