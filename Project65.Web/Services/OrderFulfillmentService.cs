@@ -225,7 +225,14 @@ public class OrderFulfillmentService
             var textBody = await _emailTemplateService.GenerateOrderReceiptTextAsync(shortOrderId, purchases, customerName);
             await _emailService.SendEmailAsync(customerEmail, subject, htmlBody, textBody);
 
-            // Fulfillment Email removed. STRICT MODE: Only sent by Admin in Fulfillment Dashboard.
+            // AUTO-SEND Fulfillment Email for GIF-only orders (they are auto-fulfilled)
+            if (purchases.All(p => p.FulfillmentStatus == FulfillmentStatus.Fulfilled))
+            {
+                var fulfillSubject = $"{storeName ?? "Project65"} - Your Order is Ready! (#{shortOrderId})";
+                var fulfillHtml = await _emailTemplateService.GenerateFulfillmentEmailHtmlAsync(shortOrderId, purchases, customerName);
+                var fulfillText = await _emailTemplateService.GenerateFulfillmentTextAsync(shortOrderId, purchases, customerName);
+                await _emailService.SendEmailAsync(customerEmail, fulfillSubject, fulfillHtml, fulfillText);
+            }
         }
         catch (Exception ex)
         {
