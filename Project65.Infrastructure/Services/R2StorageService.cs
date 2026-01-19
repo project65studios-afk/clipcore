@@ -182,7 +182,11 @@ namespace Project65.Infrastructure.Services
                     Configuration = new CORSConfiguration { Rules = corsRules }
                 };
 
+                Console.WriteLine($"[R2-CORS-DEBUG] Config for Bucket: '{_bucketName}'");
+                Console.WriteLine($"[R2-CORS-DEBUG] Rules: Origins=[{string.Join(", ", corsRules[0].AllowedOrigins)}]");
+
                 await _s3Client.PutCORSConfigurationAsync(request);
+                Console.WriteLine("[R2-CORS-DEBUG] Successfully sent PutCORSConfigurationAsync.");
                 _logger.LogInformation("[R2] CORS configuration updated successfully.");
             }
             catch (Exception ex)
