@@ -366,33 +366,16 @@ else
                     <span style="float: right;">@(_clip?.DurationSec.HasValue == true ? TimeSpan.FromSeconds(_clip.DurationSec.Value).ToString(@"mm\:ss") : "--:--")</span>
                 </div>
 
-                @* GIF Download Block - Moved to Top per User Request *@
-                @if (_gifPurchase != null)
-                {
-                    <div style="background: var(--accent-secondary-dim); border: 1px solid var(--accent-secondary); color: var(--accent-secondary); padding: 1.25rem; border-radius: var(--radius-md); text-align: center; margin-bottom: 1.5rem;">
-                         <div class="fw-bold mb-2"><i class="bi bi-filetype-gif me-1"></i> Owned GIF License</div>
-                         
-                         @if (!string.IsNullOrEmpty(_gifPurchase.BrandedPlaybackId))
-                         {
-                             <a href="https://image.mux.com/@(_gifPurchase.BrandedPlaybackId)/animated.gif" target="_blank" download="@(_clip?.Title).gif" class="btn btn-sm btn-outline-info w-100">
-                                 <i class="bi bi-download me-1"></i> Download Branded GIF
-                             </a>
-                         }
-                         else
-                         {
-                             <div class="d-flex align-items-center justify-content-center gap-2 small opacity-75">
-                                 <div class="spinner-border spinner-border-sm" role="status"></div>
-                                 <span>Branding your GIF...</span>
-                             </div>
-                         }
-                    </div>
-                }
-
-                @if (_hasPurchasedPersonal || _hasPurchasedCommercial)
+                @if (_hasPurchasedPersonal || _hasPurchasedCommercial || _gifPurchase != null)
                 {
                     <div class="p-3 mb-4 rounded" style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);">
-                        <h6 class="text-white mb-2" style="font-size: 0.85rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">Your Licenses</h6>
-                        <div class="d-flex flex-wrap gap-2">
+                        <h6 class="text-white mb-3" style="font-size: 0.85rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">Owned Licenses</h6>
+                        
+                        <div class="d-flex flex-wrap gap-2 mb-3">
+                            @if (_gifPurchase != null) 
+                            { 
+                                <span class="badge" style="background: var(--accent-secondary-dim); color: var(--accent-secondary); border: 1px solid var(--accent-secondary); font-weight: 600;">GIF License</span> 
+                            }
                             @if (_hasPurchasedPersonal) 
                             { 
                                 <span class="badge" style="background: var(--status-success-dim); color: var(--status-success); border: 1px solid var(--status-success); font-weight: 600;">Personal</span> 
@@ -401,6 +384,33 @@ else
                             { 
                                 <span class="badge" style="background: var(--accent-purple-dim); color: var(--accent-purple); border: 1px solid var(--accent-purple); font-weight: 600;">Commercial</span> 
                             }
+                        </div>
+
+                        <div class="d-flex flex-column gap-2">
+                             @if (_gifPurchase != null)
+                             {
+                                 @if (!string.IsNullOrEmpty(_gifPurchase.BrandedPlaybackId))
+                                 {
+                                     <a href="https://image.mux.com/@(_gifPurchase.BrandedPlaybackId)/animated.gif" target="_blank" download="@(_clip?.Title).gif" class="btn btn-sm btn-outline-info w-100" style="text-align: left;">
+                                         <i class="bi bi-download me-2"></i> Download Branded GIF
+                                     </a>
+                                 }
+                                 else
+                                 {
+                                     <div class="d-flex align-items-center gap-2 small opacity-75 text-info">
+                                         <div class="spinner-border spinner-border-sm" role="status"></div>
+                                         <span>Generating GIF...</span>
+                                     </div>
+                                 }
+                             }
+                             
+                             @if (_hasPurchasedPersonal || _hasPurchasedCommercial)
+                             {
+                                  <div class="small text-muted mt-1">
+                                      <i class="bi bi-check2-circle text-success me-1"></i> Video License active. 
+                                      <a href="/my-purchases" class="text-decoration-none" style="color: var(--accent-primary);">View in Dashboard</a>
+                                  </div>
+                             }
                         </div>
                     </div>
                 }
@@ -411,20 +421,7 @@ else
 
                 @if (status)
                 {
-                    <div style="background: var(--status-success-dim); border: 1px solid var(--status-success); color: var(--status-success); padding: 1.25rem; border-radius: var(--radius-md); text-align: center; margin-bottom: 2rem;">
-                        <i class="bi bi-check2-circle fs-3 mb-2 d-block"></i>
-                        <div class="fw-bold">Owned License: @(_selectedLicense)</div>
-                        <div class="small mt-1 opacity-75">
-                            @if (_isAuthenticated)
-                            {
-                                <span>Available in your dashboard.</span>
-                            }
-                            else
-                            {
-                                <span>Check your email for access.</span>
-                            }
-                        </div>
-                    </div>
+                    <!-- Only show buy button if NOT owned. Ownership is now displayed in the block above. -->
                 }
                 else
                 {
