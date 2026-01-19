@@ -279,7 +279,7 @@
                 ? clip.ThumbnailFileName 
                 : $"thumbnails/{clip.ThumbnailFileName}";
                 
-            return StorageService.GetPresignedDownloadUrl(storageKey);
+            return StorageService.GetPresignedDownloadUrl(storageKey, asAttachment: false);
         }
         
         return null;
@@ -288,6 +288,6 @@
     {
         if (string.IsNullOrEmpty(urlOrKey)) return "";
         if (urlOrKey.StartsWith("http") || urlOrKey.StartsWith("/")) return urlOrKey;
-        return StorageService.GetPresignedDownloadUrl(urlOrKey);
+        return StorageService.GetPresignedDownloadUrl(urlOrKey, asAttachment: false);
     }
 }

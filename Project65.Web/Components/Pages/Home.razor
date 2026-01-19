@@ -523,7 +523,7 @@ else
                 ? clip.ThumbnailFileName 
                 : $"thumbnails/{clip.ThumbnailFileName}";
                 
-            return StorageService.GetPresignedDownloadUrl(storageKey);
+            return StorageService.GetPresignedDownloadUrl(storageKey, asAttachment: false);
         }
         
         // Priority 2: Mux Thumbnail

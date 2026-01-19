@@ -221,7 +221,7 @@
                 ? Clip.ThumbnailFileName 
                 : $"thumbnails/{Clip.ThumbnailFileName}";
                 
-            return StorageService.GetPresignedDownloadUrl(storageKey);
+            return StorageService.GetPresignedDownloadUrl(storageKey, asAttachment: false);
         }
 
         // 2. Mux Fallback

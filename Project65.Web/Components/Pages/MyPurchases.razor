@@ -281,7 +281,7 @@
                     ? thumbFileName 
                     : $"thumbnails/{thumbFileName}";
                     
-                _thumbnailUrls[clipId] = StorageService.GetPresignedDownloadUrl(storageKey);
+                _thumbnailUrls[clipId] = StorageService.GetPresignedDownloadUrl(storageKey, asAttachment: false);
                 continue;
             }
 

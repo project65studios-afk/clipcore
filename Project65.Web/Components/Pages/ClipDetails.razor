@@ -1042,10 +1042,12 @@ else
     private bool HasTokens(string playbackId)
     {
         // Enforce ALL tokens (v, t, s) to prevent mux-player warnings.
-        // If any are missing, wait/don't render the player yet.
-        return _tokenCache.TryGetValue($"{playbackId}-v", out var v) && !string.IsNullOrEmpty(v) &&
-               _tokenCache.TryGetValue($"{playbackId}-t", out var t) && !string.IsNullOrEmpty(t) &&
-               _tokenCache.TryGetValue($"{playbackId}-s", out var s) && !string.IsNullOrEmpty(s);
+        // Also verify they resemble a valid JWT (3 parts) because mux-player will throw if it gets a garbage string.
+        bool IsJwt(string? t) => !string.IsNullOrEmpty(t) && t.Count(c => c == '.') == 2;
+
+        return _tokenCache.TryGetValue($"{playbackId}-v", out var v) && IsJwt(v) &&
+               _tokenCache.TryGetValue($"{playbackId}-t", out var t) && IsJwt(t) &&
+               _tokenCache.TryGetValue($"{playbackId}-s", out var s) && IsJwt(s);
     }
 
     private string? GetPreviewId()
@@ -1325,6 +1327,6 @@ else
     {
         if (string.IsNullOrEmpty(urlOrKey)) return "";
         if (urlOrKey.StartsWith("http") || urlOrKey.StartsWith("/")) return urlOrKey;
-        return StorageService.GetPresignedDownloadUrl(urlOrKey);
+        return StorageService.GetPresignedDownloadUrl(urlOrKey, asAttachment: false);
     }
 }

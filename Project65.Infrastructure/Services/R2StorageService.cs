@@ -52,7 +52,7 @@ namespace Project65.Infrastructure.Services
             }
         }
 
-        public string GetPresignedDownloadUrl(string fileName, double durationMinutes = 60)
+        public string GetPresignedDownloadUrl(string fileName, double durationMinutes = 60, bool asAttachment = true)
         {
             try
             {
@@ -61,12 +61,26 @@ namespace Project65.Infrastructure.Services
                     BucketName = _bucketName,
                     Key = fileName,
                     Expires = DateTime.UtcNow.AddMinutes(durationMinutes),
-                    Verb = HttpVerb.GET,
-                    ResponseHeaderOverrides = new ResponseHeaderOverrides
+                    Verb = HttpVerb.GET
+                };
+
+                if (asAttachment)
+                {
+                    request.ResponseHeaderOverrides = new ResponseHeaderOverrides
                     {
                         ContentDisposition = $"attachment; filename=\"{System.IO.Path.GetFileName(fileName)}\""
-                    }
-                };
+                    };
+                }
+                // else: standard inline behavior (no overrides)
+
+                var url = _s3Client.GetPreSignedURL(request);
+                
+                // Debug log to catch 403 issues
+                // logging is verbose, maybe only if it fails? No, we can't see the fail here.
+                // Just log key construction occasionally? No, too noisy.
+                
+                return url;
+            }
 
                 var url = _s3Client.GetPreSignedURL(request);
                 return url;

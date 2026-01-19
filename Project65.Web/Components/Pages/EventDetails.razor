@@ -403,7 +403,7 @@ else
     {
         if (string.IsNullOrEmpty(urlOrKey)) return "";
         if (urlOrKey.StartsWith("http") || urlOrKey.StartsWith("/")) return urlOrKey;
-        return StorageService.GetPresignedDownloadUrl(urlOrKey);
+        return StorageService.GetPresignedDownloadUrl(urlOrKey, asAttachment: false);
     }
 
     private void SortClips()
