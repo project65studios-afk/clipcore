@@ -932,6 +932,19 @@ else
                             }
                         }
                     }
+
+                    // Fix: Populate _gifPurchase for Guest/Session access by reloading from DB
+                    try 
+                    {
+                        var dbPurchases = await PurchaseRepository.GetBySessionIdAsync(sessionId!.ToString());
+                        var gifItem = dbPurchases.FirstOrDefault(p => p.ClipId == Id && p.IsGif);
+                        if (gifItem != null) _gifPurchase = gifItem;
+                    }
+                    catch (Exception ex)
+                    {
+                        Logger.LogError(ex, "Failed to load session purchases for GIF");
+                    }
+
                     _processingPurchase = false;
                 }
 
