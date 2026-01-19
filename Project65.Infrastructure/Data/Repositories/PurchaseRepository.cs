@@ -258,4 +258,13 @@ public class PurchaseRepository : IPurchaseRepository
             await context.SaveChangesAsync();
         }
     }
+
+    public async Task DeleteAllAsync()
+    {
+        using var context = await _contextFactory.CreateDbContextAsync();
+        // Use ExecuteSqlRaw to truncated/delete efficiently
+        // Note: TRUNCATE is faster but might need cascading. DELETE is safer for FKs if configured.
+        // Given we want a clean slate, and Purchases are the leaf nodes (usually), DELETE is fine.
+        await context.Database.ExecuteSqlRawAsync("DELETE FROM \"Purchases\"");
+    }
 }

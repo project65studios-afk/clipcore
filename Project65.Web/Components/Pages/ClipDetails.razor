@@ -365,6 +365,27 @@ else
                     <span style="color: var(--text-secondary);">Duration</span>
                     <span style="float: right;">@(_clip?.DurationSec.HasValue == true ? TimeSpan.FromSeconds(_clip.DurationSec.Value).ToString(@"mm\:ss") : "--:--")</span>
                 </div>
+
+                @if (_hasPurchasedPersonal || _hasPurchasedCommercial || _gifPurchase != null)
+                {
+                    <div class="p-3 mb-4 rounded" style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);">
+                        <h6 class="text-white mb-2" style="font-size: 0.85rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">Your Licenses</h6>
+                        <div class="d-flex flex-wrap gap-2">
+                            @if (_hasPurchasedPersonal) 
+                            { 
+                                <span class="badge" style="background: var(--status-success-dim); color: var(--status-success); border: 1px solid var(--status-success); font-weight: 600;">Personal</span> 
+                            }
+                            @if (_hasPurchasedCommercial) 
+                            { 
+                                <span class="badge" style="background: var(--accent-purple-dim); color: var(--accent-purple); border: 1px solid var(--accent-purple); font-weight: 600;">Commercial</span> 
+                            }
+                            @if (_gifPurchase != null) 
+                            { 
+                                <span class="badge" style="background: var(--accent-secondary-dim); color: var(--accent-secondary); border: 1px solid var(--accent-secondary); font-weight: 600;">GIF</span> 
+                            }
+                        </div>
+                    </div>
+                }
                 
                 @{
                     var status = _selectedLicense == LicenseType.Personal ? _hasPurchasedPersonal : _hasPurchasedCommercial;

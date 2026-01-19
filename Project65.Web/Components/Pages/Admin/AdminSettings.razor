@@ -11,6 +11,7 @@
 @inject IStorageService StorageService
 @inject Project65.Web.Services.StoreSettingsService StoreSettingsService
 @inject IVideoService VideoService
+@inject IPurchaseRepository PurchaseRepository
 
 <div class="admin-container" style="max-width: 1200px; margin: 2rem auto; padding: 0 1rem;">
     <!-- Header -->
@@ -257,6 +258,45 @@
                                     <span>Fix CORS Rules</span>
                                 }
                             </button>
+                        </div>
+
+                        <div class="border-top pt-3 mt-3" style="border-color: var(--border-color) !important;">
+                             <h6 class="mb-1" style="color: var(--text-main);">Dangerous Zone</h6>
+                             <p class="text-muted small mb-3">Permanently delete all order history. This action cannot be undone.</p>
+                             
+                             @if (_purgeResult != null)
+                             {
+                                 <div class="alert alert-success py-2 px-3 small border-0 shadow-sm mb-3 animate-fade-in" style="background: rgba(25, 135, 84, 0.1); color: #198754;">
+                                     <i class="bi bi-check-circle-fill me-2"></i>@_purgeResult
+                                 </div>
+                             }
+                             
+                             @if (_showPurgeConfirm)
+                             {
+                                 <div class="p-3 rounded mb-3" style="background: rgba(220, 53, 69, 0.1); border: 1px solid rgba(220, 53, 69, 0.3);">
+                                     <div class="text-danger fw-bold small mb-2">Are you absolutely sure?</div>
+                                     <div class="d-flex gap-2">
+                                         <button class="btn btn-sm btn-danger fw-bold" @onclick="PurgeAllOrders" disabled="@_isPurging">
+                                             @if (_isPurging)
+                                             {
+                                                 <span class="spinner-border spinner-border-sm me-1"></span><span>Erasing...</span>
+                                             }
+                                             else
+                                             {
+                                                 <span>Yes, Delete Everything</span>
+                                             }
+                                         </button>
+                                         <button class="btn btn-sm btn-secondary" @onclick="() => _showPurgeConfirm = false" disabled="@_isPurging">Cancel</button>
+                                     </div>
+                                 </div>
+                             }
+                             else
+                             {
+                                 <button class="btn btn-outline-danger w-100 py-2 d-flex align-items-center justify-content-center gap-2" @onclick="() => _showPurgeConfirm = true">
+                                     <i class="bi bi-radioactive"></i>
+                                     <span>Purge All Order History</span>
+                                 </button>
+                             }
                         </div>
                     </div>
                 </div>
@@ -611,6 +651,54 @@
             // Clear message after 5 seconds
             _ = Task.Delay(5000).ContinueWith(_ => { 
                 _corsResult = null; 
+                InvokeAsync(StateHasChanged); 
+            });
+        }
+    }
+
+    private bool _showPurgeConfirm;
+    private bool _isPurging;
+    private string? _purgeResult;
+
+    private async Task PurgeAllOrders()
+    {
+        _isPurging = true;
+        _purgeResult = null;
+        StateHasChanged();
+
+        try 
+        {
+            await PurchaseRepository.DeleteAllAsync();
+            
+            // Log the destructive action
+            var authState = await AuthenticationStateTask;
+            var user = authState.User;
+            var userId = user.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            var userEmail = user.Identity?.Name;
+
+            await AuditService.LogActionAsync(
+                userId, 
+                userEmail, 
+                "Purge Data", 
+                "Database", 
+                "Global", 
+                "PURGED ALL ORDER HISTORY");
+
+            _purgeResult = "Database purged successfully.";
+            _showPurgeConfirm = false;
+        }
+        catch (Exception ex)
+        {
+            _purgeResult = $"Purge failed: {ex.Message}";
+        }
+        finally 
+        {
+            _isPurging = false;
+            StateHasChanged();
+            
+            // Clear message after 5 seconds
+            _ = Task.Delay(5000).ContinueWith(_ => { 
+                _purgeResult = null; 
                 InvokeAsync(StateHasChanged); 
             });
         }
