@@ -562,4 +562,27 @@ else
 // This is now handled by StartupBackgroundService.cs to ensure port 8080 opens immediately.
 
 Console.Error.WriteLine(">>> DEPLOYMENT DEBUG: Kestrel app.Run()...");
+
+// BLOCKING STARTUP TASK: Configure CORS for R2 synchronously
+// This guarantees rules are applied BEFORE any user request can hit the server,
+// solving the "first load broken image" race condition.
+if (configLoaded)
+{
+    try 
+    {
+        Console.Error.WriteLine(">>> STARTUP: Applying R2 CORS Rules...");
+        using (var scope = app.Services.CreateScope())
+        {
+            var storageService = scope.ServiceProvider.GetRequiredService<IStorageService>();
+            // We wait for this to finish before allowing the app to start listening
+            storageService.ConfigureCorsAsync().GetAwaiter().GetResult();
+            Console.Error.WriteLine(">>> STARTUP: R2 CORS Rules Applied Successfully.");
+        }
+    }
+    catch (Exception ex)
+    {
+        Console.Error.WriteLine($">>> STARTUP ERROR: Failed to apply R2 CORS rules: {ex.Message}");
+    }
+}
+
 app.Run();

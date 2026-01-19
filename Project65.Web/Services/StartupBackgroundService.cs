@@ -45,8 +45,7 @@ public sealed class StartupBackgroundService : BackgroundService
             var roleManager = services.GetRequiredService<RoleManager<IdentityRole>>();
             var storageService = services.GetRequiredService<IStorageService>();
 
-            // Configure CORS for R2 - usually quick, but good to have here
-            await storageService.ConfigureCorsAsync();
+
 
             _logger.LogInformation(">>> STARTUP BACKGROUND SERVICE: Testing connection...");
             try
