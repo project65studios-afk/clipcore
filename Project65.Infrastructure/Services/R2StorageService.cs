@@ -179,7 +179,7 @@ namespace Project65.Infrastructure.Services
                 {
                     new CORSRule
                     {
-                        AllowedOrigins = new System.Collections.Generic.List<string>(allowedOrigins) { "*" }, // Explicit domains + Wildcard for maximum compatibility
+                        AllowedOrigins = new System.Collections.Generic.List<string> { "*" }, // Simplify to wildcard for public assets
                         AllowedMethods = new System.Collections.Generic.List<string> { "GET", "HEAD", "PUT", "POST", "DELETE" },
                         AllowedHeaders = new System.Collections.Generic.List<string> { "*" },
                         ExposeHeaders = new System.Collections.Generic.List<string> { "ETag", "Content-Length", "Content-Range", "Access-Control-Allow-Origin" },
