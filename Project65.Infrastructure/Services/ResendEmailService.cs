@@ -49,10 +49,9 @@ public class ResendEmailService : IEmailService, IEmailSender
             }
             else
             {
-                 // Log warning but don't crash, or throw? 
-                 // It's a void-ish async task usually, but let's log error.
-                 _logger.LogError($"[Resend] Failed to send email. Error: {response.Exception?.Message}");
-                 // We might want to throw if it's critical, but avoiding crash is often better for UI flow
+                 // Log warning and throw to ensure OrderFulfillmentService knows it failed
+                 _logger.LogError($"[Resend] Failed to send email. Error: {response.Exception?.Message ?? "Unknown Error"}");
+                 throw new Exception($"Resend API Error: {response.Exception?.Message ?? "Unknown Error"}");
             }
         }
         catch (Exception ex)

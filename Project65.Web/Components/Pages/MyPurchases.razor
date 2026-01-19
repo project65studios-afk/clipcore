@@ -132,6 +132,19 @@
                                             <span style="color: var(--text-muted); margin-left: 0.5rem;">
                                                 • @purchase.Clip.Event.Date.ToString("MMM dd, yyyy")
                                             </span>
+                                            
+                                            @if (purchase.LicenseType == LicenseType.Gif || purchase.IsGif)
+                                            {
+                                                <span class="badge ms-2" style="background-color: #db2777; color: white; font-weight: 600; font-size: 0.75rem;">GIF LICENSE</span>
+                                            }
+                                            else if (purchase.LicenseType == LicenseType.Commercial)
+                                            {
+                                                <span class="badge ms-2 bg-warning text-dark" style="font-weight: 600; font-size: 0.75rem;">COMMERCIAL LICENSE</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="badge ms-2 bg-info text-dark" style="font-weight: 600; font-size: 0.75rem;">PERSONAL LICENSE</span>
+                                            }
                                             @{
                                                 var startTime = purchase.Clip?.RecordingStartedAt ?? purchase.ClipRecordingStartedAt;
                                             }

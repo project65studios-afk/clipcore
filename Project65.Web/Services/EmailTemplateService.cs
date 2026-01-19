@@ -68,7 +68,8 @@ public class EmailTemplateService
                     <div style=""font-weight: 600; color: #111111; font-size: 16px; margin-bottom: 4px;"">{i.ClipTitle}</div>
                     <div style=""font-size: 14px; color: #666666;"">
                         {i.EventName}
-                        {(i.IsGif ? @"<br/><span style=""display: inline-block; background-color: #fdf2f8; color: #db2777; border: 1px solid #db2777; font-size: 10px; padding: 2px 6px; border-radius: 4px; font-weight: 700; text-transform: uppercase; margin-top: 4px;"">GIF License</span>" : $@"<br/><span style=""display: inline-block; background-color: #f0fdfa; color: #0d9488; border: 1px solid #0d9488; font-size: 10px; padding: 2px 6px; border-radius: 4px; font-weight: 700; text-transform: uppercase; margin-top: 4px;"">{i.LicenseType} License</span>")}
+                        {i.EventName}
+                        {(i.LicenseType == LicenseType.Gif ? @"<br/><span style=""display: inline-block; background-color: #fdf2f8; color: #db2777; border: 1px solid #db2777; font-size: 10px; padding: 2px 6px; border-radius: 4px; font-weight: 700; text-transform: uppercase; margin-top: 4px;"">GIF License</span>" : $@"<br/><span style=""display: inline-block; background-color: #f0fdfa; color: #0d9488; border: 1px solid #0d9488; font-size: 10px; padding: 2px 6px; border-radius: 4px; font-weight: 700; text-transform: uppercase; margin-top: 4px;"">{i.LicenseType} License</span>")}
                     </div>
                 </td>
                 <td style=""padding: 20px 0; text-align: right; vertical-align: top; font-weight: 600; color: #111111;"">

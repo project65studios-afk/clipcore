@@ -273,6 +273,7 @@ public class OrderFulfillmentService
         }
         catch (Exception ex)
         {
+            _logger.LogError(ex, $"[OrderFulfillment] Failed to send receipt email for Order {shortOrderId}");
             // Log the error
             await _auditService.LogActionAsync(
                 userId,

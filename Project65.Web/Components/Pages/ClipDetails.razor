@@ -488,9 +488,9 @@ else
                                         }
                                     </div>
 
-                                    <div class="form-check mt-4 p-3 rounded" style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);">
-                                        <input class="form-check-input" type="checkbox" id="licenseAgreementModal" @bind="_hasAgreedToLicense" style="cursor: pointer; border-color: var(--accent-primary);">
-                                        <label class="form-check-label ms-2" for="licenseAgreementModal" style="font-size: 0.95rem; color: var(--text-main); cursor: pointer; user-select: none;">
+                                    <div class="d-flex align-items-center mt-4 p-3 rounded" style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);">
+                                        <input class="form-check-input m-0" type="checkbox" id="licenseAgreementModal" @bind="_hasAgreedToLicense" style="cursor: pointer; border-color: var(--accent-primary); width: 1.2rem; height: 1.2rem;">
+                                        <label class="ms-3" for="licenseAgreementModal" style="font-size: 0.95rem; color: var(--text-main); cursor: pointer; user-select: none; margin-bottom: 0;">
                                             I agree to the <strong>@(_selectedLicense == LicenseType.Commercial ? "Commercial Use License" : "Personal Use License")</strong>
                                         </label>
                                     </div>
