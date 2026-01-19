@@ -257,12 +257,16 @@
         
         if (!string.IsNullOrEmpty(id))
         {
+            // 1. Load Data
             await LoadEventData(id);
-            // Re-init Uppy since the container might have been hidden/shown (though standard Blazor diff should keep it, safer to check)
-            // Actually Uppy attaches to #uppy-dashboard. If that div is removed/re-added, Uppy breaks.
-            // Since we conditionally render the whole block based on _selectedEventId, we MUST re-init uppy.
-             // Slight delay to allow DOM to render
+            
+            // 2. Force Render so the #uppy-dashboard div is created
+            StateHasChanged();
+            
+            // 3. Yield to let the renderer catch up (Critical for Uppy)
             await Task.Delay(100);
+            
+            // 4. Initialize
             await InitializeUppy();
         }
     }
