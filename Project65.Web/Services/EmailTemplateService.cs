@@ -7,17 +7,28 @@ namespace Project65.Web.Services;
 public class EmailTemplateService
 {
     private readonly ISettingsRepository _settingsRepository;
-    private readonly NavigationManager _navigationManager;
+    private readonly IConfiguration _configuration;
     private readonly IStorageService _storageService;
 
     public EmailTemplateService(
         ISettingsRepository settingsRepository,
-        NavigationManager navigationManager,
+        IConfiguration configuration,
         IStorageService storageService)
     {
         _settingsRepository = settingsRepository;
-        _navigationManager = navigationManager;
+        _configuration = configuration;
         _storageService = storageService;
+    }
+
+    private string GetBaseUrl()
+    {
+        var allowedOrigins = _configuration.GetSection("AllowedOrigins").Get<string[]>();
+        // Use the first allowed origin (Production) or localhost
+        var baseUrl = allowedOrigins?.FirstOrDefault(o => o.StartsWith("https://")) 
+                      ?? allowedOrigins?.FirstOrDefault() 
+                      ?? "https://project65.com"; // Fallback
+        
+        return baseUrl.TrimEnd('/');
     }
 
     public async Task<string> GenerateOrderReceiptHtmlAsync(string orderId, List<Purchase> items, string customerName)
@@ -179,7 +190,7 @@ public class EmailTemplateService
             </div>
 
             <div style=""text-align: center; margin-top: 20px;"">
-                <a href=""{_navigationManager.BaseUri}my-purchases"" style=""display: inline-block; padding: 16px 32px; background-color: #111111; color: #ffffff; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 16px;"">
+                <a href=""{GetBaseUrl()}/my-purchases"" style=""display: inline-block; padding: 16px 32px; background-color: #111111; color: #ffffff; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 16px;"">
                     View Your Clips
                 </a>
             </div>
@@ -195,7 +206,7 @@ public class EmailTemplateService
             </p>
             <p style=""margin: 0;"">
                 You are receiving this email because you made a purchase at {storeName}.<br/>
-                <a href=""{_navigationManager.BaseUri}Account/Manage"" style=""color: #888888; text-decoration: underline;"">Manage Preferences</a>
+                <a href=""{GetBaseUrl()}/Account/Manage"" style=""color: #888888; text-decoration: underline;"">Manage Preferences</a>
             </p>
         </div>
     </div>
@@ -223,7 +234,7 @@ public class EmailTemplateService
         sb.AppendLine($"TOTAL: ${subtotal:N2} USD");
         sb.AppendLine();
         sb.AppendLine("View your clips here:");
-        sb.AppendLine($"{_navigationManager.BaseUri}my-purchases");
+        sb.AppendLine($"{GetBaseUrl()}/my-purchases");
         sb.AppendLine();
         sb.AppendLine("Thank you for your business.");
         sb.AppendLine("Project65 Studios");
@@ -288,7 +299,7 @@ public class EmailTemplateService
         // CTA link should use BaseSiteUrl if configured
         var effectiveBaseUri = !string.IsNullOrEmpty(baseSiteUrl)
             ? baseSiteUrl.TrimEnd('/') + "/"
-            : _navigationManager.BaseUri;
+            : GetBaseUrl() + "/";
 
         return $@"
 <!DOCTYPE html>
