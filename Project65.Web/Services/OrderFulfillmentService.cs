@@ -95,8 +95,11 @@ public class OrderFulfillmentService
 
         if (!purchases.Any())
         {
+            _logger.LogWarning($"[OrderFulfillment] No purchases found for session {sessionId}.");
             return new List<Purchase>();
         }
+        
+        _logger.LogInformation($"[OrderFulfillment] Found {purchases.Count} items for session {sessionId}. Processing...");
 
         // 2. Identify User
         // Note: In Webhook context, AuthenticationStateProvider might not have user, 
@@ -142,10 +145,12 @@ public class OrderFulfillmentService
                 {
                     p.FulfillmentStatus = FulfillmentStatus.Fulfilled;
                     p.FulfilledAt = DateTime.UtcNow;
+                    _logger.LogInformation($"[OrderFulfillment] Item {p.ClipId} is GIF. Auto-fulfilling.");
                 }
                 else
                 {
                     p.FulfillmentStatus = FulfillmentStatus.Pending;
+                    _logger.LogInformation($"[OrderFulfillment] Item {p.ClipId} is Video. Status set to Pending.");
                 }
                 p.StripeSessionId = sessionId;
                 p.OrderId = shortOrderId;

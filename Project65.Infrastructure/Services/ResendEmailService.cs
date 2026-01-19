@@ -39,7 +39,7 @@ public class ResendEmailService : IEmailService, IEmailSender
                 message.TextBody = plainTextBody;
             }
             
-            _logger.LogInformation($"[Resend] Sending email to {to} with subject '{subject}' from {_fromEmail}");
+            _logger.LogInformation($"[Resend] Attempting to send '{subject}' to {to} from {_fromEmail}...");
             
             var response = await _resend.EmailSendAsync(message);
 

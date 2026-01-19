@@ -48,21 +48,23 @@ public class StripeWebhookController : ControllerBase
             );
 
             // Handle the event
+            _logger.LogInformation($"[StripeWebhook] Received Event: {stripeEvent.Type} | ID: {stripeEvent.Id}");
+
             if (stripeEvent.Type == "checkout.session.completed")
             {
                 var session = stripeEvent.Data.Object as Session;
 
                 if (session != null)
                 {
-                    _logger.LogInformation($"Processing Stripe Session: {session.Id}");
+                    _logger.LogInformation($"[StripeWebhook] Processing Session: {session.Id}");
                     await _fulfillmentService.FulfillOrderAsync(session.Id);
-                    _logger.LogInformation($"Successfully fulfilled order for session: {session.Id}");
+                    _logger.LogInformation($"[StripeWebhook] Successfully fulfilled order for session: {session.Id}");
                 }
             }
             else
             {
                 // Just log other events
-                // _logger.LogInformation($"Unhandled event type: {stripeEvent.Type}");
+                _logger.LogInformation($"[StripeWebhook] Unhandled event type: {stripeEvent.Type}");
             }
 
             return Ok();
