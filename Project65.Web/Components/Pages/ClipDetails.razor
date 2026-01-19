@@ -111,6 +111,7 @@ else
                                  disable-tracking
                                  disable-cast
                                  style="width: 100%; height: 100%;"
+                                 thumbnail-token="@GetTokenFromCache(_clip.PlaybackIdSigned, "t")"
                               >
                                  @* Watermark removed for purchased content *@
                               </mux-player>
@@ -1041,9 +1042,11 @@ else
 
     private bool HasTokens(string playbackId)
     {
-        // Only enforce Video token presence for playback.
-        // Thumbnail and Storyboard are optional enhancements.
-        return _tokenCache.TryGetValue($"{playbackId}-v", out var v) && !string.IsNullOrEmpty(v);
+        // Enforce ALL tokens (v, t, s) to prevent mux-player warnings.
+        // If any are missing, wait/don't render the player yet.
+        return _tokenCache.TryGetValue($"{playbackId}-v", out var v) && !string.IsNullOrEmpty(v) &&
+               _tokenCache.TryGetValue($"{playbackId}-t", out var t) && !string.IsNullOrEmpty(t) &&
+               _tokenCache.TryGetValue($"{playbackId}-s", out var s) && !string.IsNullOrEmpty(s);
     }
 
     private string? GetPreviewId()
