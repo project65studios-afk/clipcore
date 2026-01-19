@@ -191,12 +191,21 @@ public class PurchaseRepository : IPurchaseRepository
             existingPurchase.OrderId = purchase.OrderId;
             existingPurchase.StripeSessionId = purchase.StripeSessionId;
             
+            // Critical: Allow Self-Healing of UserId
+            existingPurchase.UserId = purchase.UserId;
+            existingPurchase.BrandedPlaybackId = purchase.BrandedPlaybackId;
+
             // Update Snapshots if they were missing or corrected
             existingPurchase.ClipTitle = purchase.ClipTitle;
             existingPurchase.EventName = purchase.EventName;
             existingPurchase.EventDate = purchase.EventDate;
             existingPurchase.ClipRecordingStartedAt = purchase.ClipRecordingStartedAt;
             existingPurchase.ClipDurationSec = purchase.ClipDurationSec;
+            
+            // GIF Fields (Immutable mostly, but good to sync)
+            existingPurchase.IsGif = purchase.IsGif;
+            existingPurchase.GifStartTime = purchase.GifStartTime;
+            existingPurchase.GifEndTime = purchase.GifEndTime;
 
             await context.SaveChangesAsync();
         }

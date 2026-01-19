@@ -243,11 +243,13 @@
         var cancelUrl = Navigation.BaseUri + "cart";
         
         string? userEmail = null;
+        string? userId = null;
         var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
         var user = authState.User;
         if (user.Identity?.IsAuthenticated == true)
         {
             userEmail = user.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value ?? user.Identity.Name;
+            userId = user.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
         }
 
         // Calculate final prices after best available discount
@@ -297,7 +299,7 @@
             GifEndTime = i.GifEndTime
         });
 
-        var url = await PaymentService.CreateCheckoutSessionAsync(checkoutItems, successUrl, cancelUrl, userEmail, null, CartService.AppliedPromoCode?.Id);
+        var url = await PaymentService.CreateCheckoutSessionAsync(checkoutItems, successUrl, cancelUrl, userEmail, userId, CartService.AppliedPromoCode?.Id);
         Navigation.NavigateTo(url);
     }
 

@@ -60,6 +60,32 @@ public class OrderFulfillmentService
         var existingPurchases = await _purchaseRepository.GetBySessionIdAsync(sessionId);
         if (existingPurchases.Any())
         {
+            // SELF-HEALING: Claim Orphaned Purchases (Ghost Orders)
+            // If webhooks processed the order without UserId context, but now we have it.
+            string? currentUserId = null;
+            try 
+            {
+                var authState = await _authenticationStateProvider.GetAuthenticationStateAsync();
+                if (authState.User.Identity?.IsAuthenticated == true) 
+                {
+                     currentUserId = authState.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+                }
+            } catch {}
+
+            if (currentUserId != null && existingPurchases.Any(p => string.IsNullOrEmpty(p.UserId)))
+            {
+                 var orphanCount = existingPurchases.Count(p => string.IsNullOrEmpty(p.UserId));
+                 _logger.LogInformation($"[OrderFulfillment] Self-Healing: Claiming {orphanCount} orphaned purchases for User {currentUserId}");
+                 foreach (var p in existingPurchases)
+                 {
+                     if (string.IsNullOrEmpty(p.UserId))
+                     {
+                         p.UserId = currentUserId;
+                         await _purchaseRepository.UpdateAsync(p);
+                     }
+                 }
+            }
+
             _logger.LogInformation($"[OrderFulfillment] Session {sessionId} already processed. Returning {existingPurchases.Count} items.");
             return existingPurchases;
         }
