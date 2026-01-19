@@ -12,7 +12,7 @@ public class SummaryGenerationService
     private readonly IStorageService _storageService;
 
     public SummaryGenerationService(
-        IServiceScopeFactory scopeFactory, 
+        IServiceScopeFactory scopeFactory,
         IVisionService visionService,
         IVideoService videoService,
         IStorageService storageService)
@@ -27,7 +27,7 @@ public class SummaryGenerationService
     {
         using var scope = _scopeFactory.CreateScope();
         var eventRepo = scope.ServiceProvider.GetRequiredService<IEventRepository>();
-        
+
         var evt = await eventRepo.GetByIdAsync(eventId);
         if (evt == null) return "Event not found.";
 
@@ -48,7 +48,7 @@ public class SummaryGenerationService
         if (!imageUrls.Any()) return "Could not retrieve any clip thumbnails for analysis.";
 
         var summary = await _visionService.GenerateBatchSummaryAsync(imageUrls);
-        
+
         if (!string.IsNullOrEmpty(summary) && !summary.StartsWith("Error"))
         {
             evt.Summary = summary;
@@ -63,8 +63,8 @@ public class SummaryGenerationService
         // 1. Try R2 Thumbnail (Cloud-accessible URL)
         if (!string.IsNullOrEmpty(clip.ThumbnailFileName))
         {
-            var storageKey = clip.ThumbnailFileName.Contains("/") 
-                ? clip.ThumbnailFileName 
+            var storageKey = clip.ThumbnailFileName.Contains("/")
+                ? clip.ThumbnailFileName
                 : $"thumbnails/{clip.ThumbnailFileName}";
             return _storageService.GetPresignedDownloadUrl(storageKey);
         }

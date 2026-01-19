@@ -17,7 +17,7 @@ public class CartItem
     public string? MasterFileName { get; set; }
     public string? ThumbnailFileName { get; set; }
     public LicenseType LicenseType { get; set; } = LicenseType.Personal;
-    
+
     public bool IsGif { get; set; } = false;
     public double? GifStartTime { get; set; }
     public double? GifEndTime { get; set; }

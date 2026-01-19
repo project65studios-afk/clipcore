@@ -12,7 +12,7 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 
 namespace Project65.Web.Areas.Identity.Pages.Account.Manage
 {
-using Project65.Core.Entities;
+    using Project65.Core.Entities;
 
     public class IndexModel : PageModel
     {

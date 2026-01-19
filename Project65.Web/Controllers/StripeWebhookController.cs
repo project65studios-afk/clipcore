@@ -14,7 +14,7 @@ public class StripeWebhookController : ControllerBase
     private readonly OrderFulfillmentService _fulfillmentService;
 
     public StripeWebhookController(
-        IConfiguration configuration, 
+        IConfiguration configuration,
         ILogger<StripeWebhookController> logger,
         OrderFulfillmentService fulfillmentService)
     {
@@ -33,12 +33,12 @@ public class StripeWebhookController : ControllerBase
             // Verify signature using the secret from configuration (or Env Var)
             // Ideally 'Stripe:WebhookSecret', fallback to direct check
             var endpointSecret = _configuration["Stripe:WebhookSecret"];
-            
+
             if (string.IsNullOrEmpty(endpointSecret))
             {
-                 // In dev, we might accept without signature if explicitly allowed, but better to be strict
-                 _logger.LogWarning("Stripe Webhook Secret is missing from configuration.");
-                 return BadRequest("Configuration Error");
+                // In dev, we might accept without signature if explicitly allowed, but better to be strict
+                _logger.LogWarning("Stripe Webhook Secret is missing from configuration.");
+                return BadRequest("Configuration Error");
             }
 
             var stripeEvent = EventUtility.ConstructEvent(
@@ -51,12 +51,12 @@ public class StripeWebhookController : ControllerBase
             if (stripeEvent.Type == "checkout.session.completed")
             {
                 var session = stripeEvent.Data.Object as Session;
-                
-                if (session != null) 
+
+                if (session != null)
                 {
-                     _logger.LogInformation($"Processing Stripe Session: {session.Id}");
-                     await _fulfillmentService.FulfillOrderAsync(session.Id);
-                     _logger.LogInformation($"Successfully fulfilled order for session: {session.Id}");
+                    _logger.LogInformation($"Processing Stripe Session: {session.Id}");
+                    await _fulfillmentService.FulfillOrderAsync(session.Id);
+                    _logger.LogInformation($"Successfully fulfilled order for session: {session.Id}");
                 }
             }
             else

@@ -12,7 +12,7 @@ using Microsoft.Extensions.Logging;
 
 namespace Project65.Web.Areas.Identity.Pages.Account.Manage
 {
-using Project65.Core.Entities;
+    using Project65.Core.Entities;
 
     public class ChangePasswordModel : PageModel
     {

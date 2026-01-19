@@ -66,7 +66,7 @@ public class OrderFulfillmentService
 
         // 1. Get Purchases from Stripe Session
         var purchases = (await _paymentService.GetPurchasesFromSessionAsync(sessionId)).ToList();
-        
+
         if (!purchases.Any())
         {
             return new List<Purchase>();
@@ -77,7 +77,7 @@ public class OrderFulfillmentService
         // but purchases should have UserId from Stripe metadata if it was set during checkout creation.
         // We will try to resolve it from AuthState if redundant check needed, but mostly rely on what's in 'purchases'
         string? userId = null;
-        try 
+        try
         {
             var authState = await _authenticationStateProvider.GetAuthenticationStateAsync();
             var user = authState.User;
@@ -86,7 +86,7 @@ public class OrderFulfillmentService
                 userId = user.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
             }
         }
-        catch 
+        catch
         {
             // Ignore auth state errors (e.g. if running in background/webhook where no http context)
         }
@@ -95,19 +95,19 @@ public class OrderFulfillmentService
         var shortOrderId = !string.IsNullOrEmpty(sessionId) && sessionId.Length >= 8
             ? sessionId.Substring(sessionId.Length - 8).ToUpper()
             : Guid.NewGuid().ToString("N").Substring(0, 8).ToUpper();
-        
+
         foreach (var p in purchases)
         {
-            if (p.UserId == null && userId != null) p.UserId = userId; 
-            
+            if (p.UserId == null && userId != null) p.UserId = userId;
+
             // Only check duplication if we have a userId and ClipId
             bool shouldAdd = true;
             if (!string.IsNullOrEmpty(p.UserId) && !string.IsNullOrEmpty(p.ClipId))
             {
-                    if (await _purchaseRepository.HasPurchasedAsync(p.UserId, p.ClipId, p.LicenseType))
-                    {
-                        shouldAdd = false;
-                    }
+                if (await _purchaseRepository.HasPurchasedAsync(p.UserId, p.ClipId, p.LicenseType))
+                {
+                    shouldAdd = false;
+                }
             }
 
             if (shouldAdd && !string.IsNullOrEmpty(p.ClipId))
@@ -122,7 +122,7 @@ public class OrderFulfillmentService
                     p.FulfillmentStatus = FulfillmentStatus.Pending;
                 }
                 p.StripeSessionId = sessionId;
-                p.OrderId = shortOrderId; 
+                p.OrderId = shortOrderId;
                 p.CreatedAt = DateTime.UtcNow;
 
                 // Healing Snapshots: If Stripe metadata failed but clip exists in DB, populate snapshots
@@ -131,7 +131,7 @@ public class OrderFulfillmentService
                 {
                     p.Clip = dbClip; // Link for Email Template
                     if (!p.ClipDurationSec.HasValue) p.ClipDurationSec = dbClip.DurationSec;
-                    
+
                     // CRITICAL: Explicitly clear any filename that might have come from Stripe Metadata or other sources.
                     // We WANT this to be null so the system knows no order-specific file exists yet.
                     p.ClipMasterFileName = null;
@@ -140,11 +140,11 @@ public class OrderFulfillmentService
                     // --- BRANDING LOGIC START ---
                     if (p.IsGif && string.IsNullOrEmpty(p.BrandedPlaybackId))
                     {
-                        try 
+                        try
                         {
                             // 1. Prioritize GIF-specific watermark setting
                             var logo = await _storeSettingsService.GetGifWatermarkUrlAsync();
-                            
+
                             // 2. Fallback to general brand logo if GIF-specific setting is empty
                             if (string.IsNullOrEmpty(logo))
                             {
@@ -158,28 +158,28 @@ public class OrderFulfillmentService
 
                                 // Create the watermarked asset
                                 p.BrandedPlaybackId = await _videoService.CreateBrandedAssetAsync(dbClip.MuxAssetId, logo, $"purchase:{p.Id}");
-                                Console.WriteLine($"[GIF-BRANDING] Triggered for Purchase {p.Id}, Clip {dbClip.Id}. Branded PID: {p.BrandedPlaybackId}");
+                                _logger.LogInformation($"[GIF-BRANDING] Triggered for Purchase {p.Id}, Clip {dbClip.Id}. Branded PID: {p.BrandedPlaybackId}");
                             }
                         }
                         catch (Exception gifEx)
                         {
-                            Console.Error.WriteLine($"[GIF-BRANDING-ERROR] {gifEx.Message}");
+                            _logger.LogError(gifEx, $"[GIF-BRANDING-ERROR] {gifEx.Message}");
                         }
                     }
                     // --- BRANDING LOGIC END ---
                 }
                 else
                 {
-                     // Even if clip not found in DB (edge case), ensure we don't carry over metadata filenames strictly
-                     p.ClipMasterFileName = null; 
-                     p.ClipThumbnailFileName = null;
+                    // Even if clip not found in DB (edge case), ensure we don't carry over metadata filenames strictly
+                    p.ClipMasterFileName = null;
+                    p.ClipThumbnailFileName = null;
                 }
 
                 // DETACH CLIP BEFORE SAVE:
                 // p.Clip comes from _clipRepository (Context A). _purchaseRepository uses a new Context B.
                 // If we leave p.Clip attached, Context B will try to insert it as a new row, causing "Duplicate Key" on PK_Events.
                 var tempClip = p.Clip;
-                p.Clip = null; 
+                p.Clip = null;
 
                 await _purchaseRepository.AddAsync(p);
 
@@ -190,19 +190,19 @@ public class OrderFulfillmentService
         }
 
         // 3. Clear Cart (Only if running in user context, safer to try-catch)
-        try 
+        try
         {
             // Only applicable if we have a circuit to the active user's cart session
             // In a webhook, this won't clear the user's browser cart, but that's acceptable.
             // The CheckoutSuccess page will handle clearing via the service if called from frontend.
-             if (userId != null) 
-             {
-                 // CartService usually relies on HttpContext or LocalStorage, which might not work in Webhook.
-                 // We will skip this here and let the Frontend call explicit Clear if necessary, 
-                 // or rely on the Fact that FulfillOrderAsync is called from CheckoutSuccess.
-             }
+            if (userId != null)
+            {
+                // CartService usually relies on HttpContext or LocalStorage, which might not work in Webhook.
+                // We will skip this here and let the Frontend call explicit Clear if necessary, 
+                // or rely on the Fact that FulfillOrderAsync is called from CheckoutSuccess.
+            }
         }
-        catch {}
+        catch { }
 
         // 4. Handle Promo Code Usage
         var promoId = await _paymentService.GetPromoCodeIdFromSessionAsync(sessionId);
@@ -211,11 +211,11 @@ public class OrderFulfillmentService
             await _promoCodeRepository.IncrementUsageAsync(promoId.Value);
             var promo = await _promoCodeRepository.GetByIdAsync(promoId.Value);
             await _auditService.LogActionAsync(
-                userId, 
-                null, 
-                "Apply Promo Code", 
-                "PromoCode", 
-                promoId.Value.ToString(), 
+                userId,
+                null,
+                "Apply Promo Code",
+                "PromoCode",
+                promoId.Value.ToString(),
                 $"Code: {promo?.Code ?? "Unknown"} used in order {sessionId}");
         }
 
@@ -226,7 +226,7 @@ public class OrderFulfillmentService
             var subject = $"{storeName ?? "Project65"} Order Receipt (#{shortOrderId})";
             var customerEmail = await _paymentService.GetCustomerEmailFromSessionAsync(sessionId) ?? "customer@example.com";
             var customerName = purchases.FirstOrDefault()?.CustomerName ?? "Customer";
-            
+
             var htmlBody = await _emailTemplateService.GenerateOrderReceiptHtmlAsync(shortOrderId, purchases, customerName);
             var textBody = await _emailTemplateService.GenerateOrderReceiptTextAsync(shortOrderId, purchases, customerName);
             await _emailService.SendEmailAsync(customerEmail, subject, htmlBody, textBody);

@@ -105,24 +105,24 @@ public class CartService
     }
 
     public List<CartItem> GetItems() => _cart;
-    
+
     public int Count => _cart.Count;
-    
+
     public long SubTotalCents => _cart.Sum(c => c.PriceCents);
-    
+
     public bool IsBundleDiscountApplied => Count >= 3;
-    
+
     public long BundleDiscountCents => IsBundleDiscountApplied ? (long)(SubTotalCents * 0.25) : 0;
-    
+
     public long PromoDiscountCents => _appliedPromo?.CalculateDiscount(SubTotalCents) ?? 0;
 
     public long TotalDiscountCents => Math.Max(BundleDiscountCents, PromoDiscountCents);
-    
+
     public long TotalPriceCents => SubTotalCents - TotalDiscountCents;
 
     private async Task SaveCartAsync()
     {
-        try 
+        try
         {
             await _storage.SetAsync("cart_items", _cart);
         }

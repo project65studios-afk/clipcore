@@ -52,7 +52,7 @@ public class RegisterModel : PageModel
     {
         returnUrl ??= Url.Content("~/");
         ExternalLogins = (await _signInManager.GetExternalAuthenticationSchemesAsync()).ToList();
-        
+
         if (ModelState.IsValid)
         {
             var user = new ApplicationUser { UserName = Input.Email, Email = Input.Email };

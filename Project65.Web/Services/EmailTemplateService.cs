@@ -11,7 +11,7 @@ public class EmailTemplateService
     private readonly IStorageService _storageService;
 
     public EmailTemplateService(
-        ISettingsRepository settingsRepository, 
+        ISettingsRepository settingsRepository,
         NavigationManager navigationManager,
         IStorageService storageService)
     {
@@ -24,7 +24,7 @@ public class EmailTemplateService
     {
         var settings = await _settingsRepository.ListAllAsync();
         var logoUrl = settings.FirstOrDefault(s => s.Key == "BrandLogoUrl")?.Value;
-        
+
         string ResolveUrl(string? url)
         {
             if (string.IsNullOrEmpty(url)) return "";
@@ -33,26 +33,27 @@ public class EmailTemplateService
         }
 
         var absoluteLogoUrl = ResolveUrl(logoUrl);
-            
+
         var storeName = settings.FirstOrDefault(s => s.Key == "StoreName")?.Value ?? "Project65 Studios";
         var firstItem = items.FirstOrDefault();
         var orderDate = firstItem?.CreatedAt.ToString("yyyy-MM-dd") ?? DateTime.UtcNow.ToString("yyyy-MM-dd");
 
-        var itemRows = string.Join("\n", items.Select(i => {
+        var itemRows = string.Join("\n", items.Select(i =>
+        {
             string? thumbUrl = null;
             // Fallback to global Clip thumbnail if order-specific one is not yet set (common in Receipt email)
             var thumbFile = !string.IsNullOrEmpty(i.ClipThumbnailFileName) ? i.ClipThumbnailFileName : i.Clip?.ThumbnailFileName;
-            
+
             if (!string.IsNullOrEmpty(thumbFile))
             {
                 var cleanName = thumbFile.TrimStart('/');
-                var storageKey = cleanName.StartsWith("thumbnails/") 
-                    ? cleanName 
+                var storageKey = cleanName.StartsWith("thumbnails/")
+                    ? cleanName
                     : $"thumbnails/{cleanName}";
                 thumbUrl = _storageService.GetPresignedDownloadUrl(storageKey);
             }
 
-            var imgHtml = !string.IsNullOrEmpty(thumbUrl) 
+            var imgHtml = !string.IsNullOrEmpty(thumbUrl)
                 ? $@"<img src=""{thumbUrl}"" alt=""{i.ClipTitle}"" style=""width: 80px; height: 80px; object-fit: cover; border-radius: 4px; display: block; background-color: #333;"" />"
                 : $@"<div style=""width: 80px; height: 80px; background-color: #f1f5f9; border-radius: 4px; border: 1px solid #e2e8f0; display: table-cell; vertical-align: middle; text-align: center;"">
                         <span style=""font-size: 24px; color: #cbd5e1;"">📹</span>
@@ -77,7 +78,7 @@ public class EmailTemplateService
         }));
 
         var subtotal = items.Sum(i => i.PricePaidCents) / 100.0;
-        var total = subtotal; 
+        var total = subtotal;
 
         var logoImg = !string.IsNullOrEmpty(absoluteLogoUrl)
             ? $@"<img src=""{absoluteLogoUrl}"" alt=""{storeName}"" style=""max-height: 80px; width: auto; display: block; margin: 0 auto;"" />"
@@ -199,7 +200,7 @@ public class EmailTemplateService
     </div>
 </body>
 </html>
-" ;
+";
     }
 
     public Task<string> GenerateOrderReceiptTextAsync(string orderId, List<Purchase> items, string customerName)
@@ -209,7 +210,7 @@ public class EmailTemplateService
         sb.AppendLine("==========================================");
         sb.AppendLine($"Hi {customerName}, your order is confirmed!");
         sb.AppendLine();
-        
+
         var subtotal = items.Sum(i => i.PricePaidCents) / 100.0;
         foreach (var item in items)
         {
@@ -217,7 +218,7 @@ public class EmailTemplateService
             sb.AppendLine($"Price: ${(item.PricePaidCents / 100.0):N2} USD");
             sb.AppendLine("------------------------------------------");
         }
-        
+
         sb.AppendLine($"TOTAL: ${subtotal:N2} USD");
         sb.AppendLine();
         sb.AppendLine("View your clips here:");
@@ -226,7 +227,7 @@ public class EmailTemplateService
         sb.AppendLine("Thank you for your business.");
         sb.AppendLine("Project65 Studios");
         sb.AppendLine("123 Creator Way, Suite 100, Los Angeles, CA, 90012, USA");
-        
+
         return Task.FromResult(sb.ToString());
     }
 
@@ -245,8 +246,9 @@ public class EmailTemplateService
 
         var absoluteLogoUrl = ResolveUrl(logoUrl);
         var storeName = settings.FirstOrDefault(s => s.Key == "StoreName")?.Value ?? "Project65 Studios";
-        
-        var itemRows = string.Join("\n", items.Select(i => {
+
+        var itemRows = string.Join("\n", items.Select(i =>
+        {
             string? thumbUrl = null;
             // Fallback to global Clip thumbnail
             var thumbFile = !string.IsNullOrEmpty(i.ClipThumbnailFileName) ? i.ClipThumbnailFileName : i.Clip?.ThumbnailFileName;
@@ -254,13 +256,13 @@ public class EmailTemplateService
             if (!string.IsNullOrEmpty(thumbFile))
             {
                 var cleanName = thumbFile.TrimStart('/');
-                var storageKey = cleanName.StartsWith("thumbnails/") 
-                    ? cleanName 
+                var storageKey = cleanName.StartsWith("thumbnails/")
+                    ? cleanName
                     : $"thumbnails/{cleanName}";
                 thumbUrl = _storageService.GetPresignedDownloadUrl(storageKey);
             }
 
-            var imgHtml = !string.IsNullOrEmpty(thumbUrl) 
+            var imgHtml = !string.IsNullOrEmpty(thumbUrl)
                 ? $@"<img src=""{thumbUrl}"" alt=""Clip"" style=""width: 80px; height: 80px; object-fit: cover; border-radius: 4px; display: block; background-color: #333;"" />"
                 : $@"<div style=""width: 80px; height: 80px; background-color: #f1f5f9; border-radius: 4px; border: 1px solid #e2e8f0; display: table-cell; vertical-align: middle; text-align: center;"">
                         <span style=""font-size: 24px; color: #cbd5e1;"">📹</span>
@@ -283,8 +285,8 @@ public class EmailTemplateService
             : $@"<div style=""font-size: 24px; font-weight: bold; color: #111111; text-align: center; text-transform: uppercase;"">{storeName}</div>";
 
         // CTA link should use BaseSiteUrl if configured
-        var effectiveBaseUri = !string.IsNullOrEmpty(baseSiteUrl) 
-            ? baseSiteUrl.TrimEnd('/') + "/" 
+        var effectiveBaseUri = !string.IsNullOrEmpty(baseSiteUrl)
+            ? baseSiteUrl.TrimEnd('/') + "/"
             : _navigationManager.BaseUri;
 
         return $@"
@@ -359,22 +361,22 @@ public class EmailTemplateService
     </div>
 </body>
 </html>
-" ;
+";
     }
 
     public Task<string> GenerateFulfillmentTextAsync(string orderId, List<Purchase> items, string customerName)
     {
-         var sb = new System.Text.StringBuilder();
+        var sb = new System.Text.StringBuilder();
         sb.AppendLine($"YOUR ORDER IS READY #{orderId}");
         sb.AppendLine("==========================================");
         sb.AppendLine($"Hi {customerName}, your clips are ready!");
         sb.AppendLine();
-        
+
         foreach (var item in items)
         {
             sb.AppendLine($"{item.ClipTitle} - {item.EventName}");
         }
-        
+
         sb.AppendLine();
         sb.AppendLine("Access and download your clips here:");
         // Need to replicate the logic for effectiveBaseUri, but we are inside a method.
@@ -382,16 +384,16 @@ public class EmailTemplateService
         // Let's re-calculate it locally or pass it if complex.
         // Re-fetching settings is safe since it's cached usually, or we just use NavManager fallback.
         // For text email, simple links are key.
-        
+
         // Simulating the logic from the HTML method for consistency, though slightly redundant refetch.
         // In a real refactor, we'd extract this logic.
         sb.AppendLine($"{_navigationManager.BaseUri}delivery/{items.FirstOrDefault()?.StripeSessionId}");
-        
+
         sb.AppendLine();
         sb.AppendLine("Thank you for your business.");
         sb.AppendLine("Project65 Studios");
         sb.AppendLine("123 Creator Way, Suite 100, Los Angeles, CA, 90012, USA");
-        
+
         return Task.FromResult(sb.ToString());
     }
 }

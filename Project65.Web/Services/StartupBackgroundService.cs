@@ -19,7 +19,7 @@ public sealed class StartupBackgroundService : BackgroundService
     private readonly IHostEnvironment _environment;
 
     public StartupBackgroundService(
-        IServiceProvider serviceProvider, 
+        IServiceProvider serviceProvider,
         ILogger<StartupBackgroundService> logger,
         IConfiguration configuration,
         IHostEnvironment environment)
@@ -51,7 +51,7 @@ public sealed class StartupBackgroundService : BackgroundService
             await storageService.ConfigureCorsAsync();
 
             _logger.LogInformation(">>> STARTUP BACKGROUND SERVICE: Testing connection...");
-            try 
+            try
             {
                 var connString = context.Database.GetConnectionString();
                 var host = connString?.Split(';').FirstOrDefault(s => s.StartsWith("Host=")) ?? "Unknown";

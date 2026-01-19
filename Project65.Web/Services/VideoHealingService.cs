@@ -33,7 +33,7 @@ public class VideoHealingService
     /// </summary>
     public void StartHealingForClips(IEnumerable<Clip> clips)
     {
-        var brokenClips = clips.Where(c => 
+        var brokenClips = clips.Where(c =>
             (string.IsNullOrEmpty(c.PlaybackIdSigned) && string.IsNullOrEmpty(c.PlaybackIdTeaser) && !string.IsNullOrEmpty(c.MuxUploadId))
             || (!c.RecordingStartedAt.HasValue && !string.IsNullOrEmpty(c.MuxAssetId))
         ).ToList();
@@ -59,7 +59,7 @@ public class VideoHealingService
                 using var scope = _scopeFactory.CreateScope();
                 var clipRepo = scope.ServiceProvider.GetRequiredService<IClipRepository>();
                 var videoService = scope.ServiceProvider.GetRequiredService<IVideoService>();
-                
+
                 var clip = await clipRepo.GetByIdAsync(clipId);
                 if (clip == null) break;
 
@@ -91,7 +91,7 @@ public class VideoHealingService
                         if (!string.IsNullOrEmpty(playbackId))
                         {
                             clip.PlaybackIdSigned = playbackId;
-                            
+
                             var (duration, startedAt) = await videoService.GetAssetDetailsAsync(clip.MuxAssetId);
                             if (duration.HasValue) clip.DurationSec = duration;
                             if (startedAt.HasValue) clip.RecordingStartedAt = startedAt;

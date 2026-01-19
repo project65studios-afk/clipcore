@@ -29,8 +29,8 @@ Console.Error.WriteLine(">>> DEPLOYMENT START: Process ID " + Environment.Proces
 
 
 
-    Console.Error.WriteLine(">>> DEPLOYMENT DEBUG: Builder Init...");
-    var builder = WebApplication.CreateBuilder(args);
+Console.Error.WriteLine(">>> DEPLOYMENT DEBUG: Builder Init...");
+var builder = WebApplication.CreateBuilder(args);
 
 // Flag to track if critical config loaded successfully
 bool configLoaded = true;
@@ -38,39 +38,39 @@ string configError = "";
 
 // ALWAYS try to load SSM, but handle failures gracefully in Development
 Console.Error.WriteLine(">>> DEPLOYMENT DEBUG: Starting SSM Pre-Check...");
-try 
+try
 {
     // MANUAL PRE-CHECK: Creates a temporary client with strict timeout.
     // This ensures meaningful connectivity before we let the standard config source 
     // silently hang line 385 (builder.Build).
-    
-    var checkTask = Task.Run(async () => 
+
+    var checkTask = Task.Run(async () =>
     {
-        var ssmConfig = new AmazonSimpleSystemsManagementConfig 
-        { 
-            Timeout = TimeSpan.FromSeconds(5), 
+        var ssmConfig = new AmazonSimpleSystemsManagementConfig
+        {
+            Timeout = TimeSpan.FromSeconds(5),
             MaxErrorRetry = 0,
             RegionEndpoint = Amazon.RegionEndpoint.USEast1 // Explicit region is safer
         };
-        
+
         using var ssmClient = new AmazonSimpleSystemsManagementClient(ssmConfig);
-        
+
         // Just try to list parameters. Light op.
-        var req = new GetParametersByPathRequest 
-        { 
-            Path = "/project65", 
-            MaxResults = 1 
+        var req = new GetParametersByPathRequest
+        {
+            Path = "/project65",
+            MaxResults = 1
         };
-        
+
         await ssmClient.GetParametersByPathAsync(req);
     });
 
     if (checkTask.Wait(TimeSpan.FromSeconds(6))) // 1s buffer over 5s timeout
     {
         if (checkTask.IsFaulted) throw checkTask.Exception!.InnerException!;
-        
+
         Console.Error.WriteLine(">>> DEPLOYMENT DEBUG: Pre-Check PASSED. Registering Source.");
-        
+
         // Only now do we register the standard source.
         // It will re-fetch during builder.Build(), but we know the path is open.
         builder.Configuration.AddSystemsManager("/project65");
@@ -129,21 +129,21 @@ builder.Services.AddRazorComponents()
     });
 builder.Services.AddCascadingAuthenticationState();
 builder.Services.AddSignalR();
-    
-    // Configure ForwardedHeaders for App Runner (Envoy)
-    // This fixes the "WebSocket failed to connect" error by ensuring HTTPS is detected correctly.
-    // Configure ForwardedHeaders for App Runner (Envoy)
-    // Refined to only trust Proto and For to avoid Host header confusion
-    builder.Services.Configure<ForwardedHeadersOptions>(options =>
-    {
-        options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
-        options.KnownIPNetworks.Clear(); 
-        options.KnownProxies.Clear();
-    });
+
+// Configure ForwardedHeaders for App Runner (Envoy)
+// This fixes the "WebSocket failed to connect" error by ensuring HTTPS is detected correctly.
+// Configure ForwardedHeaders for App Runner (Envoy)
+// Refined to only trust Proto and For to avoid Host header confusion
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+    options.KnownIPNetworks.Clear();
+    options.KnownProxies.Clear();
+});
 
 // Database Configuration
 string connectionString = "";
-if (configLoaded) 
+if (configLoaded)
 {
     connectionString = builder.Configuration.GetConnectionString("DefaultConnection")!;
     // Note: We used ! because configLoaded implies config validation passed, so key exists.
@@ -166,7 +166,7 @@ if (configLoaded)
 
         // Note: We use PostgresDbContext class, but configured with SQLite options.
         // This is safe because PostgresDbContext is just AppDbContext + strict constructor.
-        
+
         // Provide Scoped PostgresDbContext
         builder.Services.AddScoped<PostgresDbContext>(p => p.GetRequiredService<IDbContextFactory<PostgresDbContext>>().CreateDbContext());
 
@@ -174,7 +174,7 @@ if (configLoaded)
         builder.Services.AddScoped<AppDbContext>(p => p.GetRequiredService<PostgresDbContext>());
 
         // IMPORTANT: Forward IDbContextFactory<AppDbContext> to the PostgresDbContext factory.
-        builder.Services.AddSingleton<IDbContextFactory<AppDbContext>>(sp => 
+        builder.Services.AddSingleton<IDbContextFactory<AppDbContext>>(sp =>
         {
             var factory = sp.GetRequiredService<IDbContextFactory<PostgresDbContext>>();
             return new Project65.Infrastructure.Data.DbContextFactoryWrapper(factory);
@@ -196,7 +196,7 @@ if (configLoaded)
         builder.Services.AddScoped<AppDbContext>(p => p.GetRequiredService<PostgresDbContext>());
 
         // IMPORTANT: Forward IDbContextFactory<AppDbContext> to the PostgresDbContext factory.
-        builder.Services.AddSingleton<IDbContextFactory<AppDbContext>>(sp => 
+        builder.Services.AddSingleton<IDbContextFactory<AppDbContext>>(sp =>
         {
             var factory = sp.GetRequiredService<IDbContextFactory<PostgresDbContext>>();
             return new Project65.Infrastructure.Data.DbContextFactoryWrapper(factory);
@@ -205,9 +205,9 @@ if (configLoaded)
 
     builder.Services.AddDefaultIdentity<ApplicationUser>(options => options.SignIn.RequireConfirmedAccount = false)
         .AddRoles<Microsoft.AspNetCore.Identity.IdentityRole>()
-        .AddEntityFrameworkStores<PostgresDbContext>(); 
+        .AddEntityFrameworkStores<PostgresDbContext>();
 }
-else 
+else
 {
     Console.Error.WriteLine(">>> SKIPPING DB SETUP: Config load failed.");
 }
@@ -225,39 +225,39 @@ builder.Services.ConfigureApplicationCookie(options =>
 
 var authBuilder = builder.Services.AddAuthentication();
 
-    // Support both standard and flattened config keys for Google Auth
-    var googleClientId = builder.Configuration["Authentication:Google:ClientId"] ?? builder.Configuration["Google:ClientId"];
-    var googleClientSecret = builder.Configuration["Authentication:Google:ClientSecret"] ?? builder.Configuration["Google:ClientSecret"];
-    
-    if (!string.IsNullOrEmpty(googleClientId))
-    {
-        var maskedId = googleClientId.Length > 10 ? googleClientId.Substring(0, 10) + "..." : "SHORT_ID";
-        Console.WriteLine($">>> GOOGLE AUTH SETUP: Found ClientID starting with '{maskedId}'");
-    }
-    else
-    {
-        Console.WriteLine(">>> GOOGLE AUTH SETUP: No ClientID found.");
-    }
+// Support both standard and flattened config keys for Google Auth
+var googleClientId = builder.Configuration["Authentication:Google:ClientId"] ?? builder.Configuration["Google:ClientId"];
+var googleClientSecret = builder.Configuration["Authentication:Google:ClientSecret"] ?? builder.Configuration["Google:ClientSecret"];
 
-    if (!string.IsNullOrEmpty(googleClientId) && !string.IsNullOrEmpty(googleClientSecret))
-    {
-        authBuilder.AddGoogle(options =>
-        {
-            options.ClientId = googleClientId;
-            options.ClientSecret = googleClientSecret;
-        });
-    }
+if (!string.IsNullOrEmpty(googleClientId))
+{
+    var maskedId = googleClientId.Length > 10 ? googleClientId.Substring(0, 10) + "..." : "SHORT_ID";
+    Console.WriteLine($">>> GOOGLE AUTH SETUP: Found ClientID starting with '{maskedId}'");
+}
+else
+{
+    Console.WriteLine(">>> GOOGLE AUTH SETUP: No ClientID found.");
+}
 
-    var facebookAppId = builder.Configuration["Authentication:Facebook:AppId"];
-    var facebookAppSecret = builder.Configuration["Authentication:Facebook:AppSecret"];
-    if (!string.IsNullOrEmpty(facebookAppId) && !string.IsNullOrEmpty(facebookAppSecret))
+if (!string.IsNullOrEmpty(googleClientId) && !string.IsNullOrEmpty(googleClientSecret))
+{
+    authBuilder.AddGoogle(options =>
     {
-        authBuilder.AddFacebook(options =>
-        {
-            options.AppId = facebookAppId;
-            options.AppSecret = facebookAppSecret;
-        });
-    }
+        options.ClientId = googleClientId;
+        options.ClientSecret = googleClientSecret;
+    });
+}
+
+var facebookAppId = builder.Configuration["Authentication:Facebook:AppId"];
+var facebookAppSecret = builder.Configuration["Authentication:Facebook:AppSecret"];
+if (!string.IsNullOrEmpty(facebookAppId) && !string.IsNullOrEmpty(facebookAppSecret))
+{
+    authBuilder.AddFacebook(options =>
+    {
+        options.AppId = facebookAppId;
+        options.AppSecret = facebookAppSecret;
+    });
+}
 
 builder.Services.AddScoped<IEventRepository, EventRepository>();
 builder.Services.AddScoped<IClipRepository, ClipRepository>();
@@ -278,20 +278,20 @@ builder.Services.AddScoped<IVisionService, OpenAIVisionService>();
 builder.Services.AddHttpClient<OpenAIVisionService>(); // Best practice for HttpClient injection
 
 // Configure R2 manually to ensure ForcePathStyle and correct ServiceURL
-builder.Services.AddSingleton<IAmazonS3>(sp => 
+builder.Services.AddSingleton<IAmazonS3>(sp =>
 {
     var r2Config = new AmazonS3Config
     {
         ServiceURL = $"https://{builder.Configuration["R2:AccountId"]}.r2.cloudflarestorage.com",
         ForcePathStyle = true,
-         // Use AuthenticationRegion to force SigV4 region without overriding the endpoint
+        // Use AuthenticationRegion to force SigV4 region without overriding the endpoint
         AuthenticationRegion = "us-east-1"
     };
-    
+
     var creds = new Amazon.Runtime.BasicAWSCredentials(
-        builder.Configuration["R2:AccessKeyId"], 
+        builder.Configuration["R2:AccessKeyId"],
         builder.Configuration["R2:SecretAccessKey"]);
-        
+
     return new AmazonS3Client(creds, r2Config);
 });
 builder.Services.AddScoped<IStorageService, R2StorageService>();
@@ -327,7 +327,7 @@ if (!string.IsNullOrEmpty(resendApiKey))
     builder.Services.AddScoped<ResendEmailService>();
     builder.Services.AddScoped<IEmailService>(sp => sp.GetRequiredService<ResendEmailService>());
     builder.Services.AddScoped<Microsoft.AspNetCore.Identity.UI.Services.IEmailSender>(sp => sp.GetRequiredService<ResendEmailService>());
-    
+
     Console.WriteLine(">>> EMAIL SETUP: Using Resend.");
 }
 
@@ -336,7 +336,7 @@ else
     builder.Services.AddScoped<ConsoleEmailService>();
     builder.Services.AddScoped<IEmailService>(sp => sp.GetRequiredService<ConsoleEmailService>());
     builder.Services.AddScoped<Microsoft.AspNetCore.Identity.UI.Services.IEmailSender>(sp => sp.GetRequiredService<ConsoleEmailService>());
-    
+
     Console.WriteLine(">>> EMAIL SETUP: Using Console (Dev Mode).");
 }
 
@@ -359,28 +359,28 @@ builder.Services.AddMemoryCache();
 // });
 
 // Implementation of Rate Limiting
-builder.Services.AddRateLimiter(options => 
+builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
-    
+
     // Global rate limit
     options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(httpContext =>
     {
-                var isTestOrDev = builder.Environment.IsDevelopment() || builder.Environment.EnvironmentName == "Testing";
-        
+        var isTestOrDev = builder.Environment.IsDevelopment() || builder.Environment.EnvironmentName == "Testing";
+
         // Stricter limit for delivery page to prevent session ID enumeration
         // 10 requests per minute per IP
         if (httpContext.Request.Path.StartsWithSegments("/delivery"))
         {
-             return RateLimitPartition.GetFixedWindowLimiter(
-                partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "anon_delivery",
-                factory: _ => new FixedWindowRateLimiterOptions
-                {
-                    AutoReplenishment = true,
-                    PermitLimit = 60,
-                    QueueLimit = 0,
-                    Window = TimeSpan.FromMinutes(1)
-                });
+            return RateLimitPartition.GetFixedWindowLimiter(
+               partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "anon_delivery",
+               factory: _ => new FixedWindowRateLimiterOptions
+               {
+                   AutoReplenishment = true,
+                   PermitLimit = 60,
+                   QueueLimit = 0,
+                   Window = TimeSpan.FromMinutes(1)
+               });
         }
 
         return RateLimitPartition.GetFixedWindowLimiter(
@@ -395,7 +395,7 @@ builder.Services.AddRateLimiter(options =>
     });
 
     // Specific limit for Login
-    options.AddFixedWindowLimiter("login", opt => 
+    options.AddFixedWindowLimiter("login", opt =>
     {
         opt.PermitLimit = 5;
         opt.Window = TimeSpan.FromMinutes(1);
@@ -403,7 +403,7 @@ builder.Services.AddRateLimiter(options =>
     });
 
     // Specific limit for Admin/Upload actions
-    options.AddFixedWindowLimiter("admin", opt => 
+    options.AddFixedWindowLimiter("admin", opt =>
     {
         opt.PermitLimit = 10;
         opt.Window = TimeSpan.FromMinutes(1);
@@ -423,14 +423,14 @@ builder.Services.AddResponseCompression(options =>
 builder.Services.AddControllers();
 
 // Configure CORS for Mux/R2/Stripe interactions
-var allowedOrigins = builder.Configuration.GetSection("AllowedOrigins").Get<string[]>() 
+var allowedOrigins = builder.Configuration.GetSection("AllowedOrigins").Get<string[]>()
                      ?? new[] { "http://localhost:5094", "http://127.0.0.1:5094", "https://localhost:7192" };
 
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("ProductionOrigins", policy =>
     {
-        policy.WithOrigins(allowedOrigins) 
+        policy.WithOrigins(allowedOrigins)
               .AllowAnyMethod()
               .AllowAnyHeader();
     });
@@ -476,7 +476,7 @@ app.UseForwardedHeaders();
 // app.Use(async (context, next) => ...);
 
 // DEBUG: View Config Load Status
-app.MapGet("/debug/config", () => 
+app.MapGet("/debug/config", () =>
 {
     if (configLoaded) return Results.Ok("Config Loaded Successfully.");
     return Results.Problem($"Config Validation Failed: {configError}");
@@ -488,12 +488,12 @@ app.Use(async (context, next) =>
     context.Response.Headers["X-Content-Type-Options"] = "nosniff";
     context.Response.Headers["X-Frame-Options"] = "SAMEORIGIN";
     context.Response.Headers["Referrer-Policy"] = "strict-origin-when-cross-origin";
-    
+
     // Hardened CSP: specific allowed origins for Mux, Stripe, and Cloudflare R2
     // mux.com: player/streaming | cloudflarestorage.com: R2 | stripe.com: payments | transloadit.com: uppy
     // We add our own allowed origins to the CSP connect-src
     string appOrigins = string.Join(" ", allowedOrigins);
-    
+
     // Note: Replaced "ws://localhost:*" with "wss://" and "ws://" dynamically if needed, 
     // but simplified heavily here to ensure it doesn't block local dev.
     string csp = "default-src 'self'; " +
@@ -519,14 +519,14 @@ if (!app.Environment.IsDevelopment())
 {
     // app.UseExceptionHandler("/Error", createScopeForErrors: true);
     app.UseDeveloperExceptionPage(); // FORCE ENABLE to print stack trace to logs for v6 debugging
-    
+
     // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
     app.UseHsts();
 }
 app.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages: true);
 app.UseHttpsRedirection();
 app.UseCors("ProductionOrigins");
-    // app.UseRateLimiter();
+// app.UseRateLimiter();
 if (configLoaded)
 {
     app.UseAuthentication();
@@ -542,7 +542,7 @@ if (configLoaded)
 {
     app.MapRazorComponents<App>()
         .AddInteractiveServerRenderMode();
-    
+
     // REMOVED: Explicit MapBlazorHub config. 
     // We rely on the CLIENT (App.razor) to request LongPolling.
     // Forcing it here caused a 500 error on /_blazor/initializers.

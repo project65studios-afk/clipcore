@@ -60,7 +60,7 @@ public class StoreSettingsService : IDisposable
         {
             _gifWatermarkUrl = value;
         }
-        
+
         // We notify for ANY key so that DynamicTheme.razor (and others) can reload if needed
         NotifyStateChanged();
     }
