@@ -52,7 +52,7 @@
                         <div>
                             <div style="font-weight: 700; color: var(--text-main);">@orderId</div>
                             <div style="font-size: 0.85rem; color: var(--text-muted);">
-                                						Purchased on @ToClientTime(firstItem.CreatedAt).ToString("MMMM dd, yyyy") at @ToClientTime(firstItem.CreatedAt).ToString("t")
+                                						Purchased on @ToClientTime(firstItem.CreatedAt).ToString("MMMM dd, yyyy") at @ToClientTime(firstItem.CreatedAt).ToString("h:mm tt")
 					</div>
 					@if (!string.IsNullOrEmpty(firstItem.CustomerAddress) || !string.IsNullOrEmpty(firstItem.CustomerPhone))
 					{
@@ -151,7 +151,7 @@
                                             @if (startTime.HasValue)
                                             {
                                                 <span style="color: var(--text-muted); margin-left: 0.5rem;">
-                                                    • @ToClientTime(startTime.Value).ToString("t")
+                                                    • @ToClientTime(startTime.Value).ToString("h:mm tt")
                                                 </span>
                                             }
                                         </div>
@@ -169,7 +169,7 @@
                                             }
                                             @if (startTimeDisplay.HasValue)
                                             {
-                                                <span>• @ToClientTime(startTimeDisplay.Value).ToString("t")</span>
+                                                <span>• @ToClientTime(startTimeDisplay.Value).ToString("h:mm tt")</span>
                                             }
                                             @if (purchase.IsGif)
                                             {
