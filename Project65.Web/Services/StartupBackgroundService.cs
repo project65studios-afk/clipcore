@@ -45,6 +45,19 @@ public sealed class StartupBackgroundService : BackgroundService
             var roleManager = services.GetRequiredService<RoleManager<IdentityRole>>();
             var storageService = services.GetRequiredService<IStorageService>();
 
+            // Double-Tap CORS Configuration
+            // We do this Sychronously in Program.cs AND here asynchronously to be absolutely sure.
+            // This catches cases where Program.cs might have timed out or failed silently.
+            _ = Task.Run(async () => {
+                try {
+                     await Task.Delay(2000); // Short delay to let things settle
+                     await storageService.ConfigureCorsAsync();
+                     _logger.LogInformation(">>> STARTUP BACKGROUND SERVICE: R2 CORS policies re-applied (Async Backup).");
+                } catch (Exception ex) {
+                     _logger.LogError(ex, ">>> STARTUP BACKGROUND SERVICE: Async CORS Backup Failed.");
+                }
+            });
+
 
 
             _logger.LogInformation(">>> STARTUP BACKGROUND SERVICE: Testing connection...");
