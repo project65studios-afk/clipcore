@@ -34,9 +34,7 @@ public sealed class StartupBackgroundService : BackgroundService
     {
         try
         {
-            // Wait a few seconds to ensure Kestrel is fully up (optional but safe)
-            await Task.Delay(2000, stoppingToken);
-
+            // Removed Task.Delay to ensure CORS applies immediately
             _logger.LogInformation(">>> STARTUP BACKGROUND SERVICE: Beginning database initialization...");
             using var scope = _serviceProvider.CreateScope();
             var services = scope.ServiceProvider;
