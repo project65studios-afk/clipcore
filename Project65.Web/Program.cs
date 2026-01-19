@@ -583,6 +583,23 @@ if (configLoaded)
     {
         Console.Error.WriteLine($">>> STARTUP ERROR: Failed to apply R2 CORS rules: {ex.Message}");
     }
+
+    // BLOCKING STARTUP TASK: Migrate Data
+    try 
+    {
+        Console.Error.WriteLine(">>> STARTUP: Running Data Migrations...");
+        using (var scope = app.Services.CreateScope())
+        {
+            var purchaseRepo = scope.ServiceProvider.GetRequiredService<IPurchaseRepository>();
+            // Update existing GIF purchases to new LicenseType enum value to prevent collision
+            purchaseRepo.MigrateGifLicenseTypesAsync().GetAwaiter().GetResult();
+            Console.Error.WriteLine(">>> STARTUP: Data Migrations Complete.");
+        }
+    }
+    catch (Exception ex)
+    {
+         Console.Error.WriteLine($">>> STARTUP ERROR: Data Migration Failed: {ex.Message}");
+    }
 }
 
 app.Run();

@@ -24,4 +24,5 @@ public interface IPurchaseRepository
     Task<Dictionary<DateOnly, long>> GetDailyRevenueAsync(int days);
     Task DeleteAsync(int id);
     Task DeleteAllAsync();
+    Task MigrateGifLicenseTypesAsync();
 }

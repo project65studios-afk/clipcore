@@ -28,7 +28,7 @@ public class PurchaseRepository : IPurchaseRepository
         // Explicitly exclude GIF purchases from standard license checks
         // "HasPurchasedAsync" implies "Has Purchased the Full Video License"
         return await context.Purchases
-            .AnyAsync(p => p.UserId == userId && p.ClipId == clipId && p.LicenseType == license && !p.IsGif);
+            .AnyAsync(p => p.UserId == userId && p.ClipId == clipId && p.LicenseType == license);
     }
 
     public async Task<bool> HasPurchasedGifAsync(string? userId, string clipId)
@@ -266,5 +266,13 @@ public class PurchaseRepository : IPurchaseRepository
         // Note: TRUNCATE is faster but might need cascading. DELETE is safer for FKs if configured.
         // Given we want a clean slate, and Purchases are the leaf nodes (usually), DELETE is fine.
         await context.Database.ExecuteSqlRawAsync("DELETE FROM \"Purchases\"");
+    }
+
+    public async Task MigrateGifLicenseTypesAsync()
+    {
+        using var context = await _contextFactory.CreateDbContextAsync();
+        // Fix for Unique Constraint Violation: Update existing GIFs to have LicenseType = Gif (2)
+        // instead of reusing Personal (0). This prevents collision when a user buys both styles.
+        await context.Database.ExecuteSqlRawAsync("UPDATE \"Purchases\" SET \"LicenseType\" = 2 WHERE \"IsGif\" = true AND \"LicenseType\" != 2");
     }
 }
