@@ -6,16 +6,18 @@ public class StoreSettingsService : IDisposable
 {
     private readonly ISettingsRepository _settingsRepository;
     private readonly GlobalSettingsNotifier _globalNotifier;
+    private readonly ILogger<StoreSettingsService> _logger;
     private string? _storeName;
     private string? _brandLogoUrl;
     private string? _gifWatermarkUrl;
 
     public event Action? OnChange;
 
-    public StoreSettingsService(ISettingsRepository settingsRepository, GlobalSettingsNotifier globalNotifier)
+    public StoreSettingsService(ISettingsRepository settingsRepository, GlobalSettingsNotifier globalNotifier, ILogger<StoreSettingsService> logger)
     {
         _settingsRepository = settingsRepository;
         _globalNotifier = globalNotifier;
+        _logger = logger;
         _globalNotifier.OnSettingsChanged += HandleGlobalUpdate;
     }
 
@@ -50,6 +52,7 @@ public class StoreSettingsService : IDisposable
     {
         if (key == "StoreName")
         {
+            _logger.LogInformation($"[StoreSettings] StoreName updated to '{value}'");
             _storeName = value;
         }
         else if (key == "BrandLogoUrl")

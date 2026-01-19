@@ -4,6 +4,7 @@ using Project65.Core.Interfaces;
 using Stripe;
 using Stripe.Checkout;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using Polly;
 using Polly.Retry;
 
@@ -13,9 +14,11 @@ public class StripePaymentService : IPaymentService
 {
     private readonly string _apiKey;
     private readonly Polly.ResiliencePipeline _resiliencePipeline;
+    private readonly ILogger<StripePaymentService> _logger;
 
-    public StripePaymentService(IConfiguration configuration)
+    public StripePaymentService(IConfiguration configuration, ILogger<StripePaymentService> logger)
     {
+        _logger = logger;
         _apiKey = configuration["Stripe:SecretKey"] ?? throw new ArgumentNullException("Stripe:SecretKey");
         StripeConfiguration.ApiKey = _apiKey; // Global setting, simpler for MVP
         
@@ -27,8 +30,12 @@ public class StripePaymentService : IPaymentService
                 MaxRetryAttempts = 3,
                 Delay = TimeSpan.FromSeconds(2),
                 BackoffType = Polly.DelayBackoffType.Exponential,
-                OnRetry = static args =>
+                OnRetry = args =>
                 {
+                    // Can't access instance logger easily in static context without capturing, 
+                    // but we can just use Console for fallback or restructure. 
+                    // Better to just leave Console or capture logger if we change to non-static.
+                    // For now, let's keep it simple as this is a delegate.
                     Console.WriteLine($"[STRIPE-RETRY] Retrying Stripe API call... (Attempt {args.AttemptNumber})");
                     return ValueTask.CompletedTask;
                 }
@@ -39,7 +46,7 @@ public class StripePaymentService : IPaymentService
     public async Task<string> CreateCheckoutSessionAsync(IEnumerable<CheckoutItem> items, string successUrl, string cancelUrl, string? userEmail = null, string? userId = null, int? promoCodeId = null)
     {
         var itemsList = items.ToList();
-        Console.WriteLine($"[STRIPE] Creating Session for {itemsList.Count} items.");
+        _logger.LogInformation($"[Stripe] Creating Session for {itemsList.Count} items. User: {userId ?? "Guest"}");
         
         var lineItems = new List<SessionLineItemOptions>();
         var clipIds = new List<string>();
@@ -141,8 +148,7 @@ public class StripePaymentService : IPaymentService
         }
         catch (StripeException ex)
         {
-            Console.WriteLine($"[STRIPE ERROR] Failed to create session: {ex.Message}");
-            Console.WriteLine($"[STRIPE ERROR] Type: {ex.StripeError?.Type}, Code: {ex.StripeError?.Code}");
+            _logger.LogError(ex, $"[Stripe] Failed to create session. Type: {ex.StripeError?.Type}, Code: {ex.StripeError?.Code}");
             throw; // Re-throw to show error page or handle upstream
         }
     }

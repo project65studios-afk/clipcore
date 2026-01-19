@@ -10,17 +10,20 @@ public class SummaryGenerationService
     private readonly IVisionService _visionService;
     private readonly IVideoService _videoService;
     private readonly IStorageService _storageService;
+    private readonly ILogger<SummaryGenerationService> _logger;
 
     public SummaryGenerationService(
         IServiceScopeFactory scopeFactory,
         IVisionService visionService,
         IVideoService videoService,
-        IStorageService storageService)
+        IStorageService storageService,
+        ILogger<SummaryGenerationService> logger)
     {
         _scopeFactory = scopeFactory;
         _visionService = visionService;
         _videoService = videoService;
         _storageService = storageService;
+        _logger = logger;
     }
 
     public async Task<string> GenerateEventSummaryAsync(string eventId)
@@ -47,6 +50,7 @@ public class SummaryGenerationService
 
         if (!imageUrls.Any()) return "Could not retrieve any clip thumbnails for analysis.";
 
+        _logger.LogInformation($"[SummaryGen] Generating summary for Event {eventId} using {imageUrls.Count} images...");
         var summary = await _visionService.GenerateBatchSummaryAsync(imageUrls);
 
         if (!string.IsNullOrEmpty(summary) && !summary.StartsWith("Error"))

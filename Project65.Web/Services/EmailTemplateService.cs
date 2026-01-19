@@ -399,7 +399,7 @@ public class EmailTemplateService
 
         // Simulating the logic from the HTML method for consistency, though slightly redundant refetch.
         // In a real refactor, we'd extract this logic.
-        sb.AppendLine($"{_navigationManager.BaseUri}delivery/{items.FirstOrDefault()?.StripeSessionId}");
+        sb.AppendLine($"{GetBaseUrl()}/delivery/{items.FirstOrDefault()?.StripeSessionId}");
 
         sb.AppendLine();
         sb.AppendLine("Thank you for your business.");

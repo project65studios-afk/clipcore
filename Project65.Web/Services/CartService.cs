@@ -7,6 +7,7 @@ namespace Project65.Web.Services;
 public class CartService
 {
     private readonly ProtectedLocalStorage _storage;
+    private readonly ILogger<CartService> _logger;
     internal List<CartItem> _cart = new();
     internal bool _isInitialized = false;
 
@@ -17,9 +18,10 @@ public class CartService
     internal PromoCode? _appliedPromo;
     public PromoCode? AppliedPromoCode => _appliedPromo;
 
-    public CartService(ProtectedLocalStorage storage)
+    public CartService(ProtectedLocalStorage storage, ILogger<CartService> logger)
     {
         _storage = storage;
+        _logger = logger;
     }
 
     public async Task InitializeAsync()
@@ -46,8 +48,9 @@ public class CartService
             _isInitialized = true;
             NotifyStateChanged();
         }
-        catch
+        catch (Exception ex)
         {
+            _logger.LogWarning($"[CartService] Failed to load cart from storage: {ex.Message}. Resetting cart.");
             _cart = new List<CartItem>();
         }
         finally
