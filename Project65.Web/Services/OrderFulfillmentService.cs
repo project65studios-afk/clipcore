@@ -4,6 +4,8 @@ using Project65.Infrastructure.Data.Repositories;
 using Microsoft.AspNetCore.Components; // For NavigationManager if needed, though usually not in service
 using Microsoft.AspNetCore.Components.Authorization;
 
+using Microsoft.Extensions.Logging;
+
 namespace Project65.Web.Services;
 
 public class OrderFulfillmentService
@@ -20,6 +22,7 @@ public class OrderFulfillmentService
     private readonly Project65.Web.Services.StoreSettingsService _storeSettingsService;
     private readonly IVideoService _videoService;
     private readonly IStorageService _storageService;
+    private readonly ILogger<OrderFulfillmentService> _logger;
 
     public OrderFulfillmentService(
         IPaymentService paymentService,
@@ -33,7 +36,8 @@ public class OrderFulfillmentService
         AuthenticationStateProvider authenticationStateProvider,
         Project65.Web.Services.StoreSettingsService storeSettingsService,
         IVideoService videoService,
-        IStorageService storageService)
+        IStorageService storageService,
+        ILogger<OrderFulfillmentService> logger)
     {
         _paymentService = paymentService;
         _purchaseRepository = purchaseRepository;
@@ -47,6 +51,7 @@ public class OrderFulfillmentService
         _storeSettingsService = storeSettingsService;
         _videoService = videoService;
         _storageService = storageService;
+        _logger = logger;
     }
 
     public async Task<List<Purchase>> FulfillOrderAsync(string sessionId)
@@ -55,6 +60,7 @@ public class OrderFulfillmentService
         var existingPurchases = await _purchaseRepository.GetBySessionIdAsync(sessionId);
         if (existingPurchases.Any())
         {
+            _logger.LogInformation($"[OrderFulfillment] Session {sessionId} already processed. Returning {existingPurchases.Count} items.");
             return existingPurchases;
         }
 

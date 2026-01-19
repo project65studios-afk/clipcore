@@ -154,10 +154,19 @@
         <div style="padding: 0 2.5rem 3rem;">
             <div class="d-flex justify-content-between align-items-center mb-4">
                 <h5 class="m-0 fw-bold">Order Summary</h5>
-                <div class="processing-pulse">
-                    <span class="pulse-dot"></span>
-                    Processing Clips
-                </div>
+                @if (_purchases.All(p => p.FulfillmentStatus == FulfillmentStatus.Fulfilled))
+                {
+                    <div class="badge bg-success py-2 px-3 rounded-pill">
+                        <i class="bi bi-check-circle-fill me-1"></i> Order Complete
+                    </div>
+                }
+                else
+                {
+                    <div class="processing-pulse">
+                        <span class="pulse-dot"></span>
+                        Processing Clips
+                    </div>
+                }
             </div>
 
             <div class="purchase-list mb-5">
