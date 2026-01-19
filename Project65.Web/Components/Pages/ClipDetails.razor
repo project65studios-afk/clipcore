@@ -366,7 +366,29 @@ else
                     <span style="float: right;">@(_clip?.DurationSec.HasValue == true ? TimeSpan.FromSeconds(_clip.DurationSec.Value).ToString(@"mm\:ss") : "--:--")</span>
                 </div>
 
-                @if (_hasPurchasedPersonal || _hasPurchasedCommercial || _gifPurchase != null)
+                @* GIF Download Block - Moved to Top per User Request *@
+                @if (_gifPurchase != null)
+                {
+                    <div style="background: var(--accent-secondary-dim); border: 1px solid var(--accent-secondary); color: var(--accent-secondary); padding: 1.25rem; border-radius: var(--radius-md); text-align: center; margin-bottom: 1.5rem;">
+                         <div class="fw-bold mb-2"><i class="bi bi-filetype-gif me-1"></i> Owned GIF License</div>
+                         
+                         @if (!string.IsNullOrEmpty(_gifPurchase.BrandedPlaybackId))
+                         {
+                             <a href="https://image.mux.com/@(_gifPurchase.BrandedPlaybackId)/animated.gif" target="_blank" download="@(_clip?.Title).gif" class="btn btn-sm btn-outline-info w-100">
+                                 <i class="bi bi-download me-1"></i> Download Branded GIF
+                             </a>
+                         }
+                         else
+                         {
+                             <div class="d-flex align-items-center justify-content-center gap-2 small opacity-75">
+                                 <div class="spinner-border spinner-border-sm" role="status"></div>
+                                 <span>Branding your GIF...</span>
+                             </div>
+                         }
+                    </div>
+                }
+
+                @if (_hasPurchasedPersonal || _hasPurchasedCommercial)
                 {
                     <div class="p-3 mb-4 rounded" style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);">
                         <h6 class="text-white mb-2" style="font-size: 0.85rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">Your Licenses</h6>
@@ -378,10 +400,6 @@ else
                             @if (_hasPurchasedCommercial) 
                             { 
                                 <span class="badge" style="background: var(--accent-purple-dim); color: var(--accent-purple); border: 1px solid var(--accent-purple); font-weight: 600;">Commercial</span> 
-                            }
-                            @if (_gifPurchase != null) 
-                            { 
-                                <span class="badge" style="background: var(--accent-secondary-dim); color: var(--accent-secondary); border: 1px solid var(--accent-secondary); font-weight: 600;">GIF</span> 
                             }
                         </div>
                     </div>
@@ -436,26 +454,7 @@ else
                     }
                 }
 
-                @if (_gifPurchase != null)
-                {
-                    <div style="background: var(--accent-secondary-dim); border: 1px solid var(--accent-secondary); color: var(--accent-secondary); padding: 1.25rem; border-radius: var(--radius-md); text-align: center; margin-top: 1rem; margin-bottom: 2rem;">
-                         <div class="fw-bold mb-2"><i class="bi bi-filetype-gif me-1"></i> Owned GIF License</div>
-                         
-                         @if (!string.IsNullOrEmpty(_gifPurchase.BrandedPlaybackId))
-                         {
-                             <a href="https://image.mux.com/@(_gifPurchase.BrandedPlaybackId)/animated.gif" target="_blank" download="@(_clip?.Title).gif" class="btn btn-sm btn-outline-info w-100">
-                                 <i class="bi bi-download me-1"></i> Download Branded GIF
-                             </a>
-                         }
-                         else
-                         {
-                             <div class="d-flex align-items-center justify-content-center gap-2 small opacity-75">
-                                 <div class="spinner-border spinner-border-sm" role="status"></div>
-                                 <span>Branding your GIF...</span>
-                             </div>
-                         }
-                    </div>
-                }
+
 
                     @if (_showLicenseModal)
                     {

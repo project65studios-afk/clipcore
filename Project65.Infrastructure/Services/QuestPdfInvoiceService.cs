@@ -152,7 +152,7 @@ public class QuestPdfInvoiceService : IInvoiceService
 
                             table.Cell().Element(CellStyle).Text("1");
                             table.Cell().Element(CellStyle).Text(purchase.ClipTitle ?? "Video Clip");
-                            table.Cell().Element(CellStyle).Text(purchase.LicenseType.ToString());
+                            table.Cell().Element(CellStyle).Text(purchase.IsGif ? "GIF License" : purchase.LicenseType.ToString());
                             table.Cell().Element(CellStyle).AlignRight().Text($"${purchase.PricePaidCents / 100.00:F2}");
 
                             static IContainer CellStyle(IContainer container)
