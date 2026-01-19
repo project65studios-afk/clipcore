@@ -101,6 +101,7 @@ else
                               <mux-player
                                  id="purchased-player"
                                  playback-id="@_clip.PlaybackIdSigned"
+                                 poster="@($"https://image.mux.com/{_clip.PlaybackIdSigned}/thumbnail.png?token={GetTokenFromCache(_clip.PlaybackIdSigned!, "t")}")"
                                  playback-token="@GetTokenFromCache(_clip.PlaybackIdSigned!, "v")"
                                  thumbnail-token="@GetTokenFromCache(_clip.PlaybackIdSigned!, "t")"
                                  storyboard-token="@GetTokenFromCache(_clip.PlaybackIdSigned!, "s")"
@@ -148,6 +149,7 @@ else
                               <mux-player
                                  id="preview-player"
                                  playback-id="@pid"
+                                 poster="@($"https://image.mux.com/{pid}/thumbnail.png?token={GetTokenFromCache(pid, "t")}")"
                                  playback-token="@GetTokenFromCache(pid, "v")"
                                  thumbnail-token="@GetTokenFromCache(pid, "t")"
                                  storyboard-token="@GetTokenFromCache(pid, "s")"
@@ -1043,7 +1045,7 @@ else
     {
         // Enforce ALL tokens (v, t, s) to prevent mux-player warnings.
         // Also verify they resemble a valid JWT (3 parts) because mux-player will throw if it gets a garbage string.
-        bool IsJwt(string? t) => !string.IsNullOrEmpty(t) && t.Count(c => c == '.') == 2;
+        bool IsJwt(string? t) => !string.IsNullOrEmpty(t) && t.Trim().Count(c => c == '.') == 2;
 
         return _tokenCache.TryGetValue($"{playbackId}-v", out var v) && IsJwt(v) &&
                _tokenCache.TryGetValue($"{playbackId}-t", out var t) && IsJwt(t) &&
