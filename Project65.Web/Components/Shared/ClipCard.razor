@@ -36,7 +36,7 @@
                 </div>
             }
 
-            <img src="@GetThumbnailUrl()" alt="@Clip.Title" class="video-thumb-img" />
+            <img src="@GetThumbnailUrl()" alt="@Clip.Title" class="video-thumb-img" crossorigin="anonymous" />
 
             <!-- Hover Preview -->
             @if (!string.IsNullOrEmpty(PreviewId) && !PreviewId.StartsWith("mock"))
