@@ -9,15 +9,18 @@ public class EmailTemplateService
     private readonly ISettingsRepository _settingsRepository;
     private readonly IConfiguration _configuration;
     private readonly IStorageService _storageService;
+    private readonly IVideoService _videoService;
 
     public EmailTemplateService(
         ISettingsRepository settingsRepository,
         IConfiguration configuration,
-        IStorageService storageService)
+        IStorageService storageService,
+        IVideoService videoService)
     {
         _settingsRepository = settingsRepository;
         _configuration = configuration;
         _storageService = storageService;
+        _videoService = videoService;
     }
 
     private string GetBaseUrl()
@@ -70,6 +73,23 @@ public class EmailTemplateService
                         <span style=""font-size: 24px; color: #cbd5e1;"">📹</span>
                      </div>";
 
+            var downloadButtonHtml = "";
+            if (i.IsGif)
+            {
+                 var pid = !string.IsNullOrEmpty(i.BrandedPlaybackId) ? i.BrandedPlaybackId : i.Clip?.PlaybackIdSigned;
+                 if (!string.IsNullOrEmpty(pid))
+                 {
+                     var start = i.GifStartTime ?? 0;
+                     var duration = (i.GifEndTime ?? 5) - start;
+                     if (duration <= 0) duration = 5;
+                     
+                     var gifUrl = _videoService.GetGifUrlAsync(pid, start, duration);
+                     downloadButtonHtml = $@"<div style=""margin-top: 8px;"">
+                        <a href=""{gifUrl}"" style=""display: inline-block; padding: 6px 12px; background-color: #db2777; color: #ffffff; text-decoration: none; border-radius: 4px; font-size: 12px; font-weight: 600;"">Download GIF</a>
+                     </div>";
+                 }
+            }
+
             return $@"
             <tr style=""border-bottom: 1px solid #eeeeee;"">
                 <td style=""padding: 20px 0; width: 80px; vertical-align: top;"">
@@ -79,9 +99,9 @@ public class EmailTemplateService
                     <div style=""font-weight: 600; color: #111111; font-size: 16px; margin-bottom: 4px;"">{i.ClipTitle}</div>
                     <div style=""font-size: 14px; color: #666666;"">
                         {i.EventName}
-                        {i.EventName}
                         {(i.LicenseType == LicenseType.Gif ? @"<br/><span style=""display: inline-block; background-color: #fdf2f8; color: #db2777; border: 1px solid #db2777; font-size: 10px; padding: 2px 6px; border-radius: 4px; font-weight: 700; text-transform: uppercase; margin-top: 4px;"">GIF License</span>" : $@"<br/><span style=""display: inline-block; background-color: #f0fdfa; color: #0d9488; border: 1px solid #0d9488; font-size: 10px; padding: 2px 6px; border-radius: 4px; font-weight: 700; text-transform: uppercase; margin-top: 4px;"">{i.LicenseType} License</span>")}
                     </div>
+                    {downloadButtonHtml}
                 </td>
                 <td style=""padding: 20px 0; text-align: right; vertical-align: top; font-weight: 600; color: #111111;"">
                     ${(i.PricePaidCents / 100.0):N2} USD
@@ -108,6 +128,14 @@ public class EmailTemplateService
             if (country.Trim().Equals("US", StringComparison.OrdinalIgnoreCase)) country = "USA";
 
             return $@"<strong style=""color: #111111;"">{street}</strong><br/>{details}<br/>{country.ToUpper()}";
+        }
+
+        var ctaHtml = "";
+        if (items.Any(i => !i.IsGif))
+        {
+            ctaHtml = $@"<a href=""{GetBaseUrl()}/my-purchases"" style=""display: inline-block; padding: 16px 32px; background-color: #111111; color: #ffffff; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 16px;"">
+                    View Your Clips
+                </a>";
         }
 
         return $@"
@@ -190,9 +218,7 @@ public class EmailTemplateService
             </div>
 
             <div style=""text-align: center; margin-top: 20px;"">
-                <a href=""{GetBaseUrl()}/my-purchases"" style=""display: inline-block; padding: 16px 32px; background-color: #111111; color: #ffffff; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 16px;"">
-                    View Your Clips
-                </a>
+                {ctaHtml}
             </div>
         </div>
 
@@ -233,9 +259,31 @@ public class EmailTemplateService
 
         sb.AppendLine($"TOTAL: ${subtotal:N2} USD");
         sb.AppendLine();
-        sb.AppendLine("View your clips here:");
-        sb.AppendLine($"{GetBaseUrl()}/my-purchases");
-        sb.AppendLine();
+        
+        if (items.Any(i => i.IsGif))
+        {
+             sb.AppendLine("Download your GIFs:");
+             foreach(var i in items.Where(x => x.IsGif))
+             {
+                 var pid = !string.IsNullOrEmpty(i.BrandedPlaybackId) ? i.BrandedPlaybackId : i.Clip?.PlaybackIdSigned;
+                 if (!string.IsNullOrEmpty(pid))
+                 {
+                     var start = i.GifStartTime ?? 0;
+                     var duration = (i.GifEndTime ?? 5) - start;
+                     if (duration <= 0) duration = 5;
+                     var url = _videoService.GetGifUrlAsync(pid, start, duration);
+                     sb.AppendLine($"- {i.ClipTitle}: {url}");
+                 }
+             }
+             sb.AppendLine();
+        }
+
+        if (items.Any(i => !i.IsGif))
+        {
+            sb.AppendLine("View your clips here:");
+            sb.AppendLine($"{GetBaseUrl()}/my-purchases");
+            sb.AppendLine();
+        }
         sb.AppendLine("Thank you for your business.");
         sb.AppendLine("Project65 Studios");
         sb.AppendLine("123 Creator Way, Suite 100, Los Angeles, CA, 90012, USA");
@@ -280,6 +328,23 @@ public class EmailTemplateService
                         <span style=""font-size: 24px; color: #cbd5e1;"">📹</span>
                      </div>";
 
+            var downloadButtonHtml = "";
+            if (i.IsGif)
+            {
+                 var pid = !string.IsNullOrEmpty(i.BrandedPlaybackId) ? i.BrandedPlaybackId : i.Clip?.PlaybackIdSigned;
+                 if (!string.IsNullOrEmpty(pid))
+                 {
+                     var start = i.GifStartTime ?? 0;
+                     var duration = (i.GifEndTime ?? 5) - start;
+                     if (duration <= 0) duration = 5;
+                     
+                     var gifUrl = _videoService.GetGifUrlAsync(pid, start, duration);
+                     downloadButtonHtml = $@"<div style=""margin-top: 8px;"">
+                        <a href=""{gifUrl}"" style=""display: inline-block; padding: 6px 12px; background-color: #db2777; color: #ffffff; text-decoration: none; border-radius: 4px; font-size: 12px; font-weight: 600;"">Download GIF</a>
+                     </div>";
+                 }
+            }
+
             return $@"
             <tr style=""border-bottom: 1px solid #eeeeee;"">
                 <td style=""padding: 20px 0; width: 80px; vertical-align: top;"">
@@ -288,6 +353,7 @@ public class EmailTemplateService
                 <td style=""padding: 20px 0 20px 20px; vertical-align: top;"">
                     <div style=""font-weight: 600; color: #111111; font-size: 16px; margin-bottom: 4px;"">{i.ClipTitle}</div>
                     <div style=""font-size: 14px; color: #666666;"">{i.EventName}</div>
+                    {downloadButtonHtml}
                 </td>
             </tr>";
         }));
@@ -300,6 +366,14 @@ public class EmailTemplateService
         var effectiveBaseUri = !string.IsNullOrEmpty(baseSiteUrl)
             ? baseSiteUrl.TrimEnd('/') + "/"
             : GetBaseUrl() + "/";
+
+        var ctaHtml = "";
+        if (items.Any(i => !i.IsGif))
+        {
+            ctaHtml = $@"<a href=""{effectiveBaseUri}delivery/{items.FirstOrDefault()?.StripeSessionId}"" style=""display: inline-block; padding: 18px 40px; background-color: #111111; color: #ffffff; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 18px;"">
+                Access My Clips
+            </a>";
+        }
 
         return $@"
 <!DOCTYPE html>
@@ -343,9 +417,7 @@ public class EmailTemplateService
             <p style=""font-size: 16px; color: #444444; margin-bottom: 30px; line-height: 1.6;"">
                 You can now view and download your high-quality clips directly from your order delivery page.
             </p>
-            <a href=""{effectiveBaseUri}delivery/{items.FirstOrDefault()?.StripeSessionId}"" style=""display: inline-block; padding: 18px 40px; background-color: #111111; color: #ffffff; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 18px;"">
-                Access My Clips
-            </a>
+            {ctaHtml}
         </div>
 
         <!-- Info Section -->
@@ -399,7 +471,28 @@ public class EmailTemplateService
 
         // Simulating the logic from the HTML method for consistency, though slightly redundant refetch.
         // In a real refactor, we'd extract this logic.
-        sb.AppendLine($"{GetBaseUrl()}/delivery/{items.FirstOrDefault()?.StripeSessionId}");
+        if (items.Any(i => i.IsGif))
+        {
+             sb.AppendLine("Download your GIFs:");
+             foreach(var i in items.Where(x => x.IsGif))
+             {
+                 var pid = !string.IsNullOrEmpty(i.BrandedPlaybackId) ? i.BrandedPlaybackId : i.Clip?.PlaybackIdSigned;
+                 if (!string.IsNullOrEmpty(pid))
+                 {
+                     var start = i.GifStartTime ?? 0;
+                     var duration = (i.GifEndTime ?? 5) - start;
+                     if (duration <= 0) duration = 5;
+                     var url = _videoService.GetGifUrlAsync(pid, start, duration);
+                     sb.AppendLine($"- {i.ClipTitle}: {url}");
+                 }
+             }
+             sb.AppendLine();
+        }
+
+        if (items.Any(i => !i.IsGif))
+        {
+            sb.AppendLine($"{GetBaseUrl()}/delivery/{items.FirstOrDefault()?.StripeSessionId}");
+        }
 
         sb.AppendLine();
         sb.AppendLine("Thank you for your business.");
