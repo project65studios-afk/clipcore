@@ -82,9 +82,6 @@ namespace Project65.Infrastructure.Services
                 return url;
             }
 
-                var url = _s3Client.GetPreSignedURL(request);
-                return url;
-            }
             catch (Exception ex)
             {
                 _logger.LogError(ex, $"[R2] Failed to generate download URL for {fileName}");
