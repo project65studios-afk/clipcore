@@ -2027,3 +2027,71 @@ h3 {
     border-color: var(--border-color);
     opacity: 0.1;
 }
+
+/* Mobile Responsiveness Improvements */
+@media (max-width: 768px) {
+    .responsive-container {
+        padding: 1rem 0.5rem;
+    }
+
+    .order-header-flex {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .order-header-flex>div:last-child {
+        width: 100%;
+        justify-content: space-between;
+        margin-top: 1rem;
+    }
+
+    .purchase-item-flex {
+        flex-direction: column;
+        padding: 1rem;
+    }
+
+    .purchase-thumbnail {
+        width: 100%;
+        max-width: 240px;
+        /* Limit size on mobile so it doesn't look absurd */
+    }
+
+    .purchase-item-flex .purchase-actions {
+        min-width: unset;
+        width: 100%;
+        flex-direction: column;
+    }
+}
+
+.responsive-container {
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: 2rem 1rem;
+}
+
+.order-header-flex {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+}
+
+.purchase-item-flex {
+    display: flex;
+    gap: 1rem;
+    padding: 1.5rem;
+}
+
+.purchase-thumbnail {
+    width: 140px;
+    aspect-ratio: 16/9;
+    flex-shrink: 0;
+}
+
+.purchase-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    min-width: 200px;
+    justify-content: center;
+}

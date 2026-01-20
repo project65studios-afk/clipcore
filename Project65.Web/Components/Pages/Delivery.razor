@@ -60,8 +60,8 @@
                             @foreach (var item in _items)
                             {
                                 <div class="list-group-item p-4 border-bottom-0 border-top border-secondary">
-                                    <div class="d-flex align-items-center justify-content-between">
-                                    <div class="me-3 overflow-hidden">
+                                    <div class="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3">
+                                    <div class="me-3 overflow-hidden w-100">
                                         <h5 class="mb-1 text-truncate" style="color: var(--text-main);">@(item.Clip?.Title ?? item.Purchase.ClipTitle ?? "Deleted Clip")</h5>
                                         <div class="d-flex gap-1 align-items-center flex-wrap">
                                             @if (item.Clip?.Event != null)
@@ -179,68 +179,42 @@
                 foreach (var p in orderPurchases)
                 {
                     // 1. Determine the best file key to use
+                    // 1. Try R2 (Direct Storage)
                     string? targetKey = null;
+                    if (!string.IsNullOrEmpty(p.ClipMasterFileName)) targetKey = p.ClipMasterFileName;
+                    else if (p.Clip != null && !string.IsNullOrEmpty(p.Clip.MasterFileName)) targetKey = p.Clip.MasterFileName;
 
-                    // Priority A: Order-specific file
-                    if (!string.IsNullOrEmpty(p.ClipMasterFileName))
-                    {
-                        targetKey = p.ClipMasterFileName;
-                        // Console.WriteLine($"[Delivery] Using order file: {targetKey}");
-                    }
-                    else
-                    {
-                        // Priority B: Fallback (Legacy Only)
-                        // Only use global file if it was fulfilled before the folder system was strictly enforced
-                        // OR if we failed to copy the file.
-                        // We prefer to fail safe (show "Processing") than show a potentially wrong file if the copy failed.
-                        
-                        if (p.Clip != null && !string.IsNullOrEmpty(p.Clip.MasterFileName))
-                        {
-                            // Optional: Could log a warning here that we are falling back
-                             targetKey = p.Clip.MasterFileName;
-                        }
-                    }
-
+                    string? downloadUrl = null;
                     if (targetKey != null)
                     {
-                        var url = StorageService.GetPresignedDownloadUrl(targetKey);
-                        if (string.IsNullOrEmpty(url)) Console.WriteLine($"[Delivery] Generated empty URL for key {targetKey}");
-                        
-                        _items.Add(new DeliveryItem
-                        {
-                            Purchase = p,
-                            Clip = p.Clip ?? new Clip { Title = p.ClipTitle ?? "Video Clip" },
-                            DownloadUrl = url
-                        });
+                        downloadUrl = StorageService.GetPresignedDownloadUrl(targetKey);
+                        if (string.IsNullOrEmpty(downloadUrl)) Console.WriteLine($"[Delivery] R2 Link Generation Failed for {targetKey}");
                     }
-                    else if (!string.IsNullOrEmpty(p.FulfillmentMuxAssetId))
+
+                    // 2. Try Mux (Fallback if R2 failed or missing)
+                    if (string.IsNullOrEmpty(downloadUrl) && !string.IsNullOrEmpty(p.FulfillmentMuxAssetId))
                     {
-                        // Priority C: Mux Direct Download
                         var fileName = p.Clip?.MasterFileName ?? p.ClipMasterFileName ?? p.Clip?.Title ?? p.ClipTitle ?? "video.mov";
                         if (!fileName.EndsWith(".mov", StringComparison.OrdinalIgnoreCase) && !fileName.EndsWith(".mp4", StringComparison.OrdinalIgnoreCase))
                         {
-                            fileName += ".mov"; // Default to mov for high-quality masters
+                            fileName += ".mov";
                         }
+                        downloadUrl = await VideoService.GetDownloadUrlAsync(p.FulfillmentMuxAssetId, fileName);
+                    }
 
-                        var url = await VideoService.GetDownloadUrlAsync(p.FulfillmentMuxAssetId, fileName);
-                        
-                        _items.Add(new DeliveryItem
-                        {
-                            Purchase = p,
-                            Clip = p.Clip ?? new Clip { Title = p.ClipTitle ?? "Video Clip" },
-                            DownloadUrl = url
-                        });
-                    }
-                    else if (!string.IsNullOrEmpty(p.HighResDownloadUrl))
+                    // 3. Try Legacy URL (Last Resort)
+                    if (string.IsNullOrEmpty(downloadUrl) && !string.IsNullOrEmpty(p.HighResDownloadUrl))
                     {
-                         // Fallback to manual link if set and no file key found
-                        _items.Add(new DeliveryItem
-                        {
-                            Purchase = p,
-                            Clip = p.Clip ?? new Clip { Title = p.ClipTitle ?? "Video Clip" },
-                            DownloadUrl = p.HighResDownloadUrl
-                        });
+                        downloadUrl = p.HighResDownloadUrl;
                     }
+
+                    // Add Item regardless (if null, will show "Processing")
+                    _items.Add(new DeliveryItem
+                    {
+                        Purchase = p,
+                        Clip = p.Clip ?? new Clip { Title = p.ClipTitle ?? "Video Clip" },
+                        DownloadUrl = downloadUrl
+                    });
                 }
             }
         }
