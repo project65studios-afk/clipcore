@@ -95,8 +95,9 @@ public class OrderFulfillmentService
 
         if (!purchases.Any())
         {
-            _logger.LogWarning($"[OrderFulfillment] No purchases found for session {sessionId}.");
-            return new List<Purchase>();
+            var msg = $"[OrderFulfillment] No purchases found for session {sessionId}. This implies a parsing failure or metadata mismatch.";
+            _logger.LogError(msg);
+            throw new Exception(msg); // Throwing forces the Webhook to fail (500), triggering Stripe Retry.
         }
         
         _logger.LogInformation($"[OrderFulfillment] Found {purchases.Count} items for session {sessionId}. Processing...");

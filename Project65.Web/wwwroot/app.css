@@ -28,6 +28,8 @@
 
     --accent-primary-dim: color-mix(in srgb, var(--accent-primary), transparent 90%);
     --accent-secondary-dim: color-mix(in srgb, var(--accent-secondary), transparent 90%);
+    --accent-purple: #a855f7;
+    --accent-purple-dim: color-mix(in srgb, var(--accent-purple), transparent 90%);
     --accent-primary-gradient: linear-gradient(90deg, var(--btn-gradient-start) 0%, var(--btn-gradient-end) 100%);
     --brand-accent-color: var(--accent-primary);
 

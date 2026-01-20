@@ -322,6 +322,11 @@ public class StripePaymentService : IPaymentService
                             foundClipIds.Add(clipId);
                         }
                     }
+                    else
+                    {
+                        var productName = item.Price?.Product?.Name ?? "Unknown";
+                        Console.WriteLine($"[STRIPE-WARNING] Item '{productName}' (Index {index}) skipped. Missing ClipId. Metadata Count: {item.Price?.Product?.Metadata?.Count ?? 0}");
+                    }
                 }
             }
 

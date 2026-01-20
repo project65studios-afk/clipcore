@@ -244,7 +244,7 @@ else
                 
                 @if (_clip != null && _clip.AllowGifSale)
                 {
-                    <div class="gif-promo-box mobile-order-gif-promo" style="margin-top: 1.5rem; max-width: 400px; padding: 1.25rem; background: linear-gradient(135deg, rgba(6, 182, 212, 0.1), rgba(59, 130, 246, 0.1)); border: 1px dashed rgba(6, 182, 212, 0.3); border-radius: var(--radius-lg); text-align: center; position: relative; overflow: hidden;">
+                    <div class="gif-promo-box mobile-order-gif-promo" style="margin-top: 1rem; max-width: 400px; padding: 1rem; background: linear-gradient(135deg, rgba(6, 182, 212, 0.1), rgba(59, 130, 246, 0.1)); border: 1px dashed rgba(6, 182, 212, 0.3); border-radius: var(--radius-lg); text-align: center; position: relative; overflow: hidden;">
                         <div style="position: absolute; top: -10px; right: -10px; width: 40px; height: 40px; background: rgba(6, 182, 212, 0.1); border-radius: 50%; filter: blur(15px);"></div>
                         
                         <div class="d-flex align-items-center justify-content-center gap-2 mb-1">
@@ -264,13 +264,13 @@ else
             <div class="premium-card mobile-order-purchase" style="height: fit-content;">
 
 
-                <div style="font-size: 0.85rem; color: var(--accent-primary); margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem;">
+                <div style="font-size: 0.85rem; color: var(--accent-primary); margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem;">
                     <i class="bi bi-stars"></i> Includes 4K Master File
                 </div>
 
                 <!-- License Selection -->
                 <div class="mb-3">
-                    <label class="form-label" style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 0.75rem; display: block;">Select License Type</label>
+                    <label class="form-label" style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 0.5rem; display: block;">Select License Type</label>
                     <div class="d-flex flex-column gap-2">
                         <div class="license-choice @(_selectedLicense == LicenseType.Personal ? "active" : "")" @onclick="() => _selectedLicense = LicenseType.Personal">
                             <div class="d-flex flex-column me-5"> <!-- me-5 ensures text doesn't overlap price -->
@@ -361,15 +361,15 @@ else
                     </div>
                 </AuthorizeView>
                 
-                <div style="margin-bottom: 2rem;">
+                <div style="margin-bottom: 0.5rem;">
                     <span style="color: var(--text-secondary);">Duration</span>
                     <span style="float: right;">@(_clip?.DurationSec.HasValue == true ? TimeSpan.FromSeconds(_clip.DurationSec.Value).ToString(@"mm\:ss") : "--:--")</span>
                 </div>
 
                 @if (_hasPurchasedPersonal || _hasPurchasedCommercial || _gifPurchase != null)
                 {
-                    <div class="p-3 mb-4 rounded" style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);">
-                        <h6 class="text-white mb-3" style="font-size: 0.85rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">Owned Licenses</h6>
+                    <div class="p-3 mb-3 rounded" style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);">
+                        <h6 class="mb-3" style="color: var(--text-main); font-size: 0.85rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">Owned Licenses</h6>
                         
                         <div class="d-flex flex-wrap gap-2 mb-3">
                             @if (_gifPurchase != null) 
@@ -521,10 +521,10 @@ else
                  <!-- GIF Maker Section -->
                 @if (_clip != null && _clip.AllowGifSale)
                 {
-                    <div id="gif-maker-section" style="margin-top: 1.5rem; padding: 2rem; background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: var(--radius-lg);">
+                    <div id="gif-maker-section" style="margin-top: 1rem; padding: 1.5rem; background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: var(--radius-lg);">
 
 
-                        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 2rem;">
+                        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem;">
                             <div>
                                 <h3 class="h5 mb-1 text-white">Create Custom GIF</h3>
                                 <p class="text-secondary small mb-0">Select up to 10 seconds to loop.</p>
@@ -576,7 +576,7 @@ else
                  <!-- Related Clips Section -->
                 @if (_relatedClips.Any())
         {
-            <div style="margin-top: 2rem;">
+            <div style="margin-top: 1.5rem;">
                 <h3 class="section-title">Related Clips</h3>
                  <div class="video-grid">
                     @foreach (var clip in _relatedClips)
