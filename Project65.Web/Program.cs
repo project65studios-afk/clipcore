@@ -470,7 +470,7 @@ app.MapGet("/health", () => Results.Ok("ok"));
 app.UseForwardedHeaders();
 
 // Explicitly enable WebSockets REMOVED (Forcing LongPolling)
-// app.UseWebSockets();
+app.UseWebSockets();
 
 // DEBUG LOGGING REMOVED to reduce noise
 // app.Use(async (context, next) => ...);
