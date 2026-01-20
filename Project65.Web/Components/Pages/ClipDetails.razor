@@ -29,9 +29,9 @@
 @if (_clip != null)
 {
     <HeadContent>
-        <meta name="description" content="Watch @_clip.Title. Exclusive 4K footage from Project65." />
+        <meta name="description" content="Watch @_clip.Title. Exclusive 1080p footage from Project65." />
         <meta property="og:title" content="@_clip.Title | @(_storeName ?? "Project65 Studios")" />
-        <meta property="og:description" content="Watch @_clip.Title. Exclusive 4K footage." />
+        <meta property="og:description" content="Watch @_clip.Title. Exclusive 1080p footage." />
         <meta property="og:type" content="video.other" />
         <meta property="og:url" content="@Navigation.Uri" />
         @if (!string.IsNullOrEmpty(_clip.ThumbnailFileName))
@@ -265,7 +265,7 @@ else
 
 
                 <div style="font-size: 0.85rem; color: var(--accent-primary); margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem;">
-                    <i class="bi bi-stars"></i> Includes 4K Master File
+                    <i class="bi bi-stars"></i> Includes 1080p Master File
                 </div>
 
                 <!-- License Selection -->
@@ -480,7 +480,7 @@ else
                                             <ul>
                                                 <li><strong>Allowed:</strong> Personal use, social media posts, personal portfolios, and submission to sponsors/recruiting (non-paid).</li>
                                                 <li><strong>Prohibited:</strong> Paid advertisements, broadcast use, resale, or any form of business promotion where revenue is directly tied to the video's reach.</li>
-                                                <li><strong>Quality:</strong> Includes the full 4K master file for your private collection.</li>
+                                                <li><strong>Quality:</strong> Includes the full 1080p master file for your private collection.</li>
                                             </ul>
                                         }
                                     </div>
@@ -509,10 +509,10 @@ else
                     }
                     <p style="font-size: 0.8rem; color: var(--text-muted); text-align: center; margin-top: 1rem;">
                         <strong>Note:</strong> The video player shows a low-quality preview for speed. 
-                        Your download will be the full <strong>Original Quality (4K)</strong> file.
+                        Your download will be the full <strong>Original Quality (1080p)</strong> file.
                     </p>
                     <p style="font-size: 0.8rem; color: var(--text-muted); text-align: center; opacity: 0.7;">
-                        Secure payment via Stripe. 4K Master file delivered shortly.
+                        Secure payment via Stripe. 1080p Master file delivered shortly.
                     </p>
                 </div>
             </div>
