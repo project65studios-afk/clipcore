@@ -20,18 +20,5 @@ window.themeManager = {
 // Initial sync
 themeManager.init();
 
-// Handle Blazor Enhanced Navigation
-if (window.Blazor) {
-    Blazor.addEventListener('enhancedload', () => {
-        themeManager.init();
-    });
-} else {
-    // Falls back if Blazor isn't ready yet
-    document.addEventListener('DOMContentLoaded', () => {
-        if (window.Blazor) {
-            Blazor.addEventListener('enhancedload', () => {
-                themeManager.init();
-            });
-        }
-    });
-}
+// Initial sync
+themeManager.init();

@@ -58,6 +58,13 @@
                     });
                 }
             }
+        }).then(() => {
+            // Re-apply theme on enhanced navigation (Blazor Web App)
+            if (window.Blazor && typeof Blazor.addEventListener === 'function') {
+                Blazor.addEventListener('enhancedload', () => {
+                    if (window.themeManager) themeManager.init();
+                });
+            }
         });
     </script>
 </body>
