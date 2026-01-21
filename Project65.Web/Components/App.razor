@@ -46,8 +46,7 @@
             circuit: {
                 configureSignalR: function (builder) {
                     builder.withUrl("/_blazor", {
-                        transport: 4, // Force Long Polling (HttpTransportType.LongPolling)
-                        skipNegotiation: true
+                        transport: 4 // Force Long Polling (HttpTransportType.LongPolling)
                     });
                 }
             }
