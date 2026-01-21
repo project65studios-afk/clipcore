@@ -41,6 +41,14 @@
         <Routes @rendermode="@(new InteractiveServerRenderMode(prerender: false))" />
     </CascadingAuthenticationState>
     <script src="@Assets["_framework/blazor.web.js"]" autostart="false"></script>
+    <script src="js/sales-chart.js"></script>
+    <script src="js/upload.js?v=3"></script>
+    <script src="js/theme.js"></script>
+    <script src="js/fullscreen.js"></script>
+    <script src="js/video-observer.js"></script>
+    <script>
+        window.getUserTimezoneOffset = () => new Date().getTimezoneOffset();
+    </script>
     <script>
         Blazor.start({
             circuit: {
@@ -51,14 +59,6 @@
                 }
             }
         });
-    </script>
-    <script src="js/sales-chart.js"></script>
-    <script src="js/upload.js?v=3"></script>
-    <script src="js/theme.js"></script>
-    <script src="js/fullscreen.js"></script>
-    <script src="js/video-observer.js"></script>
-    <script>
-        window.getUserTimezoneOffset = () => new Date().getTimezoneOffset();
     </script>
 </body>
 
