@@ -257,24 +257,41 @@ public class MuxVideoService : IVideoService
         {
             long unixNow = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
             
-            var context = _httpContextAccessor.HttpContext;
-            string ip = context?.Connection?.RemoteIpAddress?.ToString() ?? "unknown";
+            string ip = "unknown";
+            Microsoft.AspNetCore.Http.HttpContext? context = null;
+
+            try
+            {
+                context = _httpContextAccessor.HttpContext;
+                if (context?.Connection?.RemoteIpAddress != null)
+                {
+                    ip = context.Connection.RemoteIpAddress.ToString();
+                }
+            }
+            catch 
+            {
+                // Ignore context access errors (common in Blazor SignalR)
+            }
+            
             if (ip == "::1") ip = "127.0.0.1";
 
             // ANTI-BOT: Block known non-browser user agents
             try 
             {
-                string ua = context?.Request?.Headers["User-Agent"].ToString() ?? "";
-                if (ua.Contains("curl", StringComparison.OrdinalIgnoreCase) || 
-                    ua.Contains("python", StringComparison.OrdinalIgnoreCase) || 
-                    ua.Contains("wget", StringComparison.OrdinalIgnoreCase) ||
-                    ua.Contains("postman", StringComparison.OrdinalIgnoreCase))
+                if (context?.Request?.Headers?.ContainsKey("User-Agent") == true)
                 {
-                     _logger.LogWarning($"[BOT BLOCKED] UA: {ua} IP: {ip}");
-                     return ""; // Block
+                    string ua = context.Request.Headers["User-Agent"].ToString();
+                    if (ua.Contains("curl", StringComparison.OrdinalIgnoreCase) || 
+                        ua.Contains("python", StringComparison.OrdinalIgnoreCase) || 
+                        ua.Contains("wget", StringComparison.OrdinalIgnoreCase) ||
+                        ua.Contains("postman", StringComparison.OrdinalIgnoreCase))
+                    {
+                         _logger.LogWarning($"[BOT BLOCKED] UA: {ua} IP: {ip}");
+                         return ""; // Block
+                    }
                 }
             }
-            catch {} // Ignore UA check failures (e.g. if Request is null)
+            catch {} // Ignore UA check failures
 
             // CACHE CHECK
             string cacheKey = $"mux_token_{ip}_{playbackId}_{audience}_{maxResolution ?? "full"}";
