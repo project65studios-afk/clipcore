@@ -353,10 +353,24 @@ public class MuxVideoService : IVideoService
     {
         try 
         {
-            byte[] keyBytes = Convert.FromBase64String(_signingKeyPrivate);
+            string pem;
+            byte[] keyBytes;
+
+            if (_signingKeyPrivate.Contains("BEGIN", StringComparison.OrdinalIgnoreCase))
+            {
+                // It's a raw PEM string
+                pem = _signingKeyPrivate;
+                keyBytes = System.Text.Encoding.UTF8.GetBytes(pem);
+            }
+            else
+            {
+                 // Assume it's Base64
+                 keyBytes = Convert.FromBase64String(_signingKeyPrivate);
+                 pem = System.Text.Encoding.UTF8.GetString(keyBytes);
+            }
+
             var rsa = System.Security.Cryptography.RSA.Create();
             
-            string pem = System.Text.Encoding.UTF8.GetString(keyBytes);
             if (pem.Contains("PRIVATE KEY"))
             {
                 var base64 = pem
@@ -367,9 +381,19 @@ public class MuxVideoService : IVideoService
                     .Replace("\n", "")
                     .Replace("\r", "")
                     .Trim();
-                var derBytes = Convert.FromBase64String(base64);
-                if (pem.Contains("RSA PRIVATE KEY")) rsa.ImportRSAPrivateKey(derBytes, out _);
-                else rsa.ImportPkcs8PrivateKey(derBytes, out _);
+                try 
+                {
+                    var derBytes = Convert.FromBase64String(base64);
+                    if (pem.Contains("RSA PRIVATE KEY")) rsa.ImportRSAPrivateKey(derBytes, out _);
+                    else rsa.ImportPkcs8PrivateKey(derBytes, out _);
+                }
+                catch (FormatException)
+                {
+                    // Fallback: the original input might have been the key itself if logic above failed?
+                    // If we are here, PEM parsing failed.
+                     _logger.LogWarning("[MUX] PEM parsing failed. Trying raw PKCS8 import.");
+                     rsa.ImportPkcs8PrivateKey(keyBytes, out _);
+                }
             }
             else 
             {
