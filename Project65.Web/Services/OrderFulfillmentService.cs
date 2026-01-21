@@ -170,34 +170,16 @@ public class OrderFulfillmentService
                     p.ClipThumbnailFileName = null;
 
                     // --- BRANDING LOGIC START ---
+                    // --- BRANDING LOGIC START ---
+                    // USER REQUEST: Disabled GIF Watermark. Using original ID directly.
                     if (p.IsGif && string.IsNullOrEmpty(p.BrandedPlaybackId))
                     {
-                        try
-                        {
-                            // 1. Prioritize GIF-specific watermark setting
-                            var logo = await _storeSettingsService.GetGifWatermarkUrlAsync();
-
-                            // 2. Fallback to general brand logo if GIF-specific setting is empty
-                            if (string.IsNullOrEmpty(logo))
-                            {
-                                logo = await _storeSettingsService.GetBrandLogoUrlAsync();
-                            }
-
-                            if (!string.IsNullOrEmpty(logo) && !string.IsNullOrEmpty(dbClip.MuxAssetId))
-                            {
-                                // Resolve internal R2 path to public signed URL for Mux
-                                if (!logo.StartsWith("http")) logo = _storageService.GetPresignedDownloadUrl(logo);
-
-                                // Create the watermarked asset
-                                p.BrandedPlaybackId = await _videoService.CreateBrandedAssetAsync(dbClip.MuxAssetId, logo, $"purchase:{p.Id}");
-                                _logger.LogInformation($"[GIF-BRANDING] Triggered for Purchase {p.Id}, Clip {dbClip.Id}. Branded PID: {p.BrandedPlaybackId}");
-                            }
-                        }
-                        catch (Exception gifEx)
-                        {
-                            _logger.LogError(gifEx, $"[GIF-BRANDING-ERROR] {gifEx.Message}");
-                        }
+                        // Direct assignment of original PlaybackID as the "Branded" ID
+                        // This allows the Frontend to "Download Branded GIF" immediately using the source asset.
+                        p.BrandedPlaybackId = dbClip.PlaybackIdSigned;
+                        _logger.LogInformation($"[GIF-BRANDING] Disabled. Using Original PlaybackId for Purchase {p.Id}: {p.BrandedPlaybackId}");
                     }
+                    // --- BRANDING LOGIC END ---
                     // --- BRANDING LOGIC END ---
                 }
                 else
