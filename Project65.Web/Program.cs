@@ -496,7 +496,8 @@ app.Use(async (context, next) =>
 
     // Note: Replaced "ws://localhost:*" with "wss://" and "ws://" dynamically if needed, 
     // but simplified heavily here to ensure it doesn't block local dev.
-    string csp = "default-src 'self'; " +
+    string csp = "upgrade-insecure-requests; " + 
+                 "default-src 'self'; " +
                  "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://unpkg.com https://releases.transloadit.com https://js.stripe.com https://www.gstatic.com http://www.gstatic.com https://maps.googleapis.com chrome-extension:; " +
                  "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://releases.transloadit.com https://fonts.googleapis.com https://fonts.gstatic.com; " +
                  "img-src 'self' data: blob: https://*.mux.com https://*.r2.cloudflarestorage.com https://*.stripe.com https://www.gstatic.com http://www.gstatic.com; " +
