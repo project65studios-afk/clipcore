@@ -402,7 +402,12 @@ else
     private string GetImageUrl(string urlOrKey)
     {
         if (string.IsNullOrEmpty(urlOrKey)) return "";
-        if (urlOrKey.StartsWith("http") || urlOrKey.StartsWith("/")) return urlOrKey;
+        if (urlOrKey.StartsWith("http") || urlOrKey.StartsWith("/")) 
+        {
+             // Append cache buster to static URLs to fix watermark caching issues
+             var separator = urlOrKey.Contains("?") ? "&" : "?";
+             return $"{urlOrKey}{separator}v={DateTime.UtcNow.Ticks}";
+        }
         return StorageService.GetPresignedDownloadUrl(urlOrKey, asAttachment: false);
     }
 
