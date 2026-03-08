@@ -14,14 +14,14 @@ public static class DataSeeder
         bool isDevelopment)
     {
         // Seed Roles
-        var adminRole = "Admin";
-        if (!await roleManager.RoleExistsAsync(adminRole))
+        foreach (var role in new[] { "Admin", "Seller", "Buyer" })
         {
-            await roleManager.CreateAsync(new Microsoft.AspNetCore.Identity.IdentityRole(adminRole));
+            if (!await roleManager.RoleExistsAsync(role))
+                await roleManager.CreateAsync(new Microsoft.AspNetCore.Identity.IdentityRole(role));
         }
 
         // Seed Admin User (Production Safe)
-        var adminEmail = configuration["SEED_ADMIN_EMAIL"] ?? "admin@project65.com";
+        var adminEmail = configuration["SEED_ADMIN_EMAIL"] ?? "admin@clipcore.com";
         var user = await userManager.FindByEmailAsync(adminEmail);
         
         // In Production, require SEED_ADMIN_PASSWORD env var. In Dev, fallback to default.

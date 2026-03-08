@@ -262,6 +262,7 @@ if (!string.IsNullOrEmpty(facebookAppId) && !string.IsNullOrEmpty(facebookAppSec
 builder.Services.AddScoped<ISellerRepository, SellerRepository>();
 builder.Services.AddScoped<IStorefrontRepository, StorefrontRepository>();
 builder.Services.AddScoped<IStorefrontResolver, SlugStorefrontResolver>();
+builder.Services.AddScoped<ClipCore.Web.Services.SellerService>();
 builder.Services.AddScoped<ICollectionRepository, CollectionRepository>();
 builder.Services.AddScoped<IClipRepository, ClipRepository>();
 builder.Services.AddSingleton<ISearchService, LevenshteinSearchService>();
