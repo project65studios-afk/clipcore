@@ -314,13 +314,13 @@
                     
                     <div>
                         <label class="form-label" style="color: var(--text-main);">Store Name</label>
-                        <input type="text" class="form-control p-3" @bind="_storeName" placeholder="ClipCore Studios" style="background: var(--bg-subtle); border-color: var(--border-color); color: var(--text-main);" />
+                        <input type="text" class="form-control p-3" @bind="_storeName" placeholder="ClipCore" style="background: var(--bg-subtle); border-color: var(--border-color); color: var(--text-main);" />
                         <div class="form-text text-muted">Displayed in browser title and emails.</div>
                     </div>
 
                     <div>
                         <label class="form-label" style="color: var(--text-main);">Store Address (for Invoices)</label>
-                        <textarea class="form-control p-3" @bind="_storeAddress" placeholder="ClipCore Studios&#10;123 Creative Blvd&#10;Los Angeles, CA 90001" style="background: var(--bg-subtle); border-color: var(--border-color); color: var(--text-main); min-height: 100px;"></textarea>
+                        <textarea class="form-control p-3" @bind="_storeAddress" placeholder="ClipCore&#10;123 Creative Blvd&#10;Los Angeles, CA 90001" style="background: var(--bg-subtle); border-color: var(--border-color); color: var(--text-main); min-height: 100px;"></textarea>
                         <div class="form-text text-muted">Appears in the "From" section of PDF invoices.</div>
                     </div>
 
@@ -336,12 +336,12 @@
                     <div class="row g-3">
                         <div class="col-12">
                             <label class="form-label" style="color: var(--text-main);">Base Site URL</label>
-                            <input type="text" class="form-control p-3" @bind="_baseSiteUrl" placeholder="https://project65.com" style="background: var(--bg-subtle); border-color: var(--border-color); color: var(--text-main);" />
+                            <input type="text" class="form-control p-3" @bind="_baseSiteUrl" placeholder="https://clipcore.com" style="background: var(--bg-subtle); border-color: var(--border-color); color: var(--text-main);" />
                             <div class="form-text text-muted">Required for correct links in customer emails.</div>
                         </div>
                         <div class="col-12">
                             <label class="form-label" style="color: var(--text-main);">Support Email</label>
-                            <input type="email" class="form-control p-3" @bind="_supportEmail" placeholder="support@project65.com" style="background: var(--bg-subtle); border-color: var(--border-color); color: var(--text-main);" />
+                            <input type="email" class="form-control p-3" @bind="_supportEmail" placeholder="support@clipcore.com" style="background: var(--bg-subtle); border-color: var(--border-color); color: var(--text-main);" />
                             <div class="form-text text-muted">Where customers can reply to receipts.</div>
                         </div>
                     </div>
@@ -449,7 +449,7 @@
             _useGifWatermarkUpload = false;
         }
 
-        _storeName = await SettingsRepository.GetValueAsync("StoreName") ?? "ClipCore Studios";
+        _storeName = await SettingsRepository.GetValueAsync("StoreName") ?? "ClipCore";
         _storeAddress = await SettingsRepository.GetValueAsync("StoreAddress") ?? "";
         _supportEmail = await SettingsRepository.GetValueAsync("SupportEmail") ?? "";
         _baseSiteUrl = await SettingsRepository.GetValueAsync("BaseSiteUrl") ?? "";
@@ -561,7 +561,7 @@
             await SettingsRepository.SetValueAsync("BrandLogoUrl", _brandLogoUrl ?? "");
             await SettingsRepository.SetValueAsync("GifWatermarkUrl", _gifWatermarkUrl ?? "");
             await SettingsRepository.SetValueAsync("WatermarkUrl", _watermarkUrl ?? "");
-            await SettingsRepository.SetValueAsync("StoreName", _storeName ?? "ClipCore Studios");
+            await SettingsRepository.SetValueAsync("StoreName", _storeName ?? "ClipCore");
             await SettingsRepository.SetValueAsync("StoreAddress", _storeAddress ?? "");
             await SettingsRepository.SetValueAsync("SupportEmail", _supportEmail ?? "");
             await SettingsRepository.SetValueAsync("BaseSiteUrl", _baseSiteUrl ?? "");
@@ -569,7 +569,7 @@
             await SettingsRepository.SetValueAsync("MaintenanceMode", _maintenanceMode ? "true" : "false");
             
             // Notify local service for immediate UI updates
-            StoreSettingsService.NotifySettingChanged("StoreName", _storeName ?? "ClipCore Studios");
+            StoreSettingsService.NotifySettingChanged("StoreName", _storeName ?? "ClipCore");
             StoreSettingsService.NotifySettingChanged("BrandLogoUrl", _brandLogoUrl ?? "");
             StoreSettingsService.NotifySettingChanged("GifWatermarkUrl", _gifWatermarkUrl ?? "");
 

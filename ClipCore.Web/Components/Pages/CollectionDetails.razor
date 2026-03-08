@@ -17,11 +17,11 @@
 @implements IAsyncDisposable
 @implements IDisposable
 
-<PageTitle>@_collection?.Name - @(_storeName ?? "ClipCore Studios")</PageTitle>
+<PageTitle>@_collection?.Name - @(_storeName ?? "ClipCore")</PageTitle>
 <HeadContent>
     @if (_collection != null)
     {
-        <meta property="og:title" content="@_collection.Name | @(_storeName ?? "ClipCore Studios")" />
+        <meta property="og:title" content="@_collection.Name | @(_storeName ?? "ClipCore")" />
         <meta name="description" content="@_collection.Summary" />
         <meta property="og:description" content="@_collection.Summary" />
         <meta property="og:type" content="website" />

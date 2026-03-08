@@ -4,7 +4,7 @@
 @inject ISettingsRepository SettingsRepository
 @{
     Layout = null; // Standalone layout like Login
-    var storeName = await SettingsRepository.GetValueAsync("StoreName") ?? "ClipCore Studios";
+    var storeName = await SettingsRepository.GetValueAsync("StoreName") ?? "ClipCore";
 }
 
 <!DOCTYPE html>

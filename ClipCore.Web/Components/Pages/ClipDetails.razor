@@ -24,13 +24,13 @@
 @implements IAsyncDisposable
 @implements IDisposable
 
-<PageTitle>@_clip?.Title - @(_storeName ?? "ClipCore Studios")</PageTitle>
+<PageTitle>@_clip?.Title - @(_storeName ?? "ClipCore")</PageTitle>
 
 @if (_clip != null)
 {
     <HeadContent>
         <meta name="description" content="Watch @_clip.Title. Exclusive 1080p footage from ClipCore." />
-        <meta property="og:title" content="@_clip.Title | @(_storeName ?? "ClipCore Studios")" />
+        <meta property="og:title" content="@_clip.Title | @(_storeName ?? "ClipCore")" />
         <meta property="og:description" content="Watch @_clip.Title. Exclusive 1080p footage." />
         <meta property="og:type" content="video.other" />
         <meta property="og:url" content="@Navigation.Uri" />

@@ -40,7 +40,7 @@
                 <div class="mb-4">
                     <label class="form-label fw-bold">Store URL <span class="text-danger">*</span></label>
                     <div class="input-group">
-                        <span class="input-group-text text-secondary">clipcore.com/store/</span>
+                        <span class="input-group-text text-secondary">@Navigation.BaseUri.TrimEnd('/')/@("store/")</span>
                         <input class="form-control @(_slugError != null ? "is-invalid" : _slugOk ? "is-valid" : "")"
                                @bind="_slug"
                                @bind:event="oninput"

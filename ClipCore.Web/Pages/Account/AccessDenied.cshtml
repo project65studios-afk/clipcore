@@ -4,7 +4,7 @@
 @inject ISettingsRepository SettingsRepository
 @{
     Layout = null; // Standalone page like Login/Register
-    var storeName = await SettingsRepository.GetValueAsync("StoreName") ?? "ClipCore Studios";
+    var storeName = await SettingsRepository.GetValueAsync("StoreName") ?? "ClipCore";
     ViewData["Title"] = "Access Denied";
 }
 

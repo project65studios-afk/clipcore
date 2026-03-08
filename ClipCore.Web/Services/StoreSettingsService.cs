@@ -25,7 +25,7 @@ public class StoreSettingsService : IDisposable
     {
         if (_storeName == null)
         {
-            _storeName = await _settingsRepository.GetValueAsync("StoreName") ?? "ClipCore Studios";
+            _storeName = await _settingsRepository.GetValueAsync("StoreName") ?? "ClipCore";
         }
         return _storeName;
     }

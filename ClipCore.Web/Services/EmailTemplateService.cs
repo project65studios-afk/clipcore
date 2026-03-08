@@ -29,7 +29,7 @@ public class EmailTemplateService
         // Use the first allowed origin (Production) or localhost
         var baseUrl = allowedOrigins?.FirstOrDefault(o => o.StartsWith("https://")) 
                       ?? allowedOrigins?.FirstOrDefault() 
-                      ?? "https://project65.com"; // Fallback
+                      ?? "https://clipcore.com"; // Fallback
         
         return baseUrl.TrimEnd('/');
     }
@@ -48,7 +48,7 @@ public class EmailTemplateService
 
         var absoluteLogoUrl = ResolveUrl(logoUrl);
 
-        var storeName = settings.FirstOrDefault(s => s.Key == "StoreName")?.Value ?? "ClipCore Studios";
+        var storeName = settings.FirstOrDefault(s => s.Key == "StoreName")?.Value ?? "ClipCore";
         var firstItem = items.FirstOrDefault();
         var orderDate = firstItem?.CreatedAt.ToString("yyyy-MM-dd") ?? DateTime.UtcNow.ToString("yyyy-MM-dd");
 
@@ -285,7 +285,7 @@ public class EmailTemplateService
             sb.AppendLine();
         }
         sb.AppendLine("Thank you for your business.");
-        sb.AppendLine("ClipCore Studios");
+        sb.AppendLine("ClipCore");
         sb.AppendLine("123 Creator Way, Suite 100, Los Angeles, CA, 90012, USA");
 
         return Task.FromResult(sb.ToString());
@@ -305,7 +305,7 @@ public class EmailTemplateService
         }
 
         var absoluteLogoUrl = ResolveUrl(logoUrl);
-        var storeName = settings.FirstOrDefault(s => s.Key == "StoreName")?.Value ?? "ClipCore Studios";
+        var storeName = settings.FirstOrDefault(s => s.Key == "StoreName")?.Value ?? "ClipCore";
 
         var itemRows = string.Join("\n", items.Select(i =>
         {
@@ -496,7 +496,7 @@ public class EmailTemplateService
 
         sb.AppendLine();
         sb.AppendLine("Thank you for your business.");
-        sb.AppendLine("ClipCore Studios");
+        sb.AppendLine("ClipCore");
         sb.AppendLine("123 Creator Way, Suite 100, Los Angeles, CA, 90012, USA");
 
         return Task.FromResult(sb.ToString());
