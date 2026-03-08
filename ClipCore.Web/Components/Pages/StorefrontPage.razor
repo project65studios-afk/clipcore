@@ -1,0 +1,470 @@
+@page "/store/{Slug}"
+@inject IStorefrontRepository StorefrontRepository
+@inject ICollectionRepository CollectionRepository
+@inject IVideoService VideoService
+@inject IStorageService StorageService
+@inject IWebHostEnvironment Environment
+@inject NavigationManager Navigation
+@using System.IO
+
+@if (_loading)
+{
+    <div style="display: flex; justify-content: center; align-items: center; min-height: 50vh;">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+    </div>
+}
+else if (_storefront == null)
+{
+    <div class="text-center py-5">
+        <div style="font-size: 3rem; margin-bottom: 1rem;">🔍</div>
+        <h3>Storefront not found</h3>
+        <p class="text-muted">This store doesn't exist or isn't published yet.</p>
+        <a href="/" class="btn-primary mt-3" style="display: inline-block; padding: 0.75rem 1.5rem; text-decoration: none; border-radius: var(--radius-md);">Browse All Collections</a>
+    </div>
+}
+else
+{
+    <PageTitle>@_storefront.DisplayName — ClipCore</PageTitle>
+
+    <!-- Storefront Header -->
+    <div class="storefront-header mb-5">
+        @if (!string.IsNullOrEmpty(_storefront.BannerUrl))
+        {
+            <div class="storefront-banner" style="background-image: url('@_storefront.BannerUrl');"></div>
+        }
+        else
+        {
+            <div class="storefront-banner storefront-banner-default" style="background: linear-gradient(135deg, @(_storefront.AccentColor ?? "#0f1129") 0%, #1e1b4b 100%);"></div>
+        }
+
+        <div class="storefront-profile">
+            @if (!string.IsNullOrEmpty(_storefront.LogoUrl))
+            {
+                <img src="@_storefront.LogoUrl" alt="@_storefront.DisplayName logo" class="storefront-logo" />
+            }
+            else
+            {
+                <div class="storefront-logo-placeholder">
+                    @(_storefront.DisplayName.Length > 0 ? _storefront.DisplayName[0].ToString().ToUpper() : "S")
+                </div>
+            }
+            <div class="storefront-info">
+                <h1 class="storefront-name">@_storefront.DisplayName</h1>
+                @if (!string.IsNullOrEmpty(_storefront.Bio))
+                {
+                    <p class="storefront-bio">@_storefront.Bio</p>
+                }
+                <div class="storefront-stats">
+                    <span><strong>@_collections.Count</strong> collections</span>
+                    <span class="meta-dot">•</span>
+                    <span><strong>@_totalClips</strong> clips</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Collections Grid -->
+    @if (!_collections.Any())
+    {
+        <div class="text-center py-5">
+            <div style="font-size: 3rem; margin-bottom: 1rem;">🎬</div>
+            <h3>No collections yet</h3>
+            <p class="text-muted">Check back soon for new footage.</p>
+        </div>
+    }
+    else
+    {
+        <h2 class="section-title mb-4">Collections</h2>
+        <div class="card-grid">
+            @foreach (var (collection, index) in _collections.Select((c, i) => (c, i)))
+            {
+                var thumbUrl = GetThumbnailUrl(collection.Id);
+
+                <a href="/collections/@collection.Id" class="grid-card animated-card" style="animation-delay: @(index * 0.05)s">
+                    <div class="card-img-container">
+                        @if (!string.IsNullOrEmpty(thumbUrl))
+                        {
+                            <img src="@thumbUrl" alt="@collection.Name" class="event-thumb" />
+                        }
+                        else
+                        {
+                            <div class="placeholder-logo">
+                                <i class="bi bi-camera-video" style="font-size: 2.5rem; color: var(--text-muted);"></i>
+                            </div>
+                        }
+                        <div class="card-overlay">
+                            <span class="view-btn">View Collection</span>
+                        </div>
+                    </div>
+
+                    <div class="card-body">
+                        <h3 class="card-title">@collection.Name</h3>
+                        @if (!string.IsNullOrEmpty(collection.Location))
+                        {
+                            <div class="card-location">
+                                <i class="bi bi-geo-alt-fill"></i> @collection.Location
+                            </div>
+                        }
+                        <div class="card-meta">
+                            <span>@collection.Date.ToString("MMM dd, yyyy")</span>
+                            <span class="meta-dot">•</span>
+                            <span>@(collection.Clips?.Count ?? 0) clips</span>
+                        </div>
+                        @if (!string.IsNullOrEmpty(collection.Summary))
+                        {
+                            <p class="card-summary">@collection.Summary</p>
+                        }
+                    </div>
+                </a>
+            }
+        </div>
+    }
+}
+
+<style>
+    .storefront-header {
+        position: relative;
+        border-radius: var(--radius-lg);
+        overflow: hidden;
+        border: 1px solid var(--border-subtle);
+    }
+
+    .storefront-banner {
+        height: 180px;
+        background-size: cover;
+        background-position: center;
+        background-color: var(--bg-subtle);
+    }
+
+    .storefront-banner-default {
+        opacity: 0.8;
+    }
+
+    .storefront-profile {
+        display: flex;
+        align-items: flex-end;
+        gap: 1.5rem;
+        padding: 0 2rem 2rem;
+        margin-top: -50px;
+        position: relative;
+    }
+
+    .storefront-logo {
+        width: 96px;
+        height: 96px;
+        border-radius: 50%;
+        border: 4px solid var(--bg-main);
+        object-fit: cover;
+        flex-shrink: 0;
+        background: var(--bg-surface);
+    }
+
+    .storefront-logo-placeholder {
+        width: 96px;
+        height: 96px;
+        border-radius: 50%;
+        border: 4px solid var(--bg-main);
+        background: var(--bg-surface);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 2.5rem;
+        font-weight: 800;
+        color: var(--accent-primary);
+        flex-shrink: 0;
+    }
+
+    .storefront-info {
+        flex: 1;
+        padding-bottom: 0.25rem;
+    }
+
+    .storefront-name {
+        font-size: 1.75rem;
+        font-weight: 800;
+        color: var(--text-main);
+        margin-bottom: 0.35rem;
+        line-height: 1.2;
+    }
+
+    .storefront-bio {
+        color: var(--text-secondary);
+        font-size: 0.95rem;
+        margin-bottom: 0.5rem;
+        max-width: 600px;
+    }
+
+    .storefront-stats {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 0.9rem;
+        color: var(--text-muted);
+    }
+
+    .storefront-stats strong {
+        color: var(--text-main);
+    }
+
+    .card-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        gap: 2rem;
+    }
+
+    .grid-card {
+        display: block;
+        text-decoration: none;
+        transition: transform 0.3s cubic-bezier(0.2, 0, 0, 1);
+    }
+
+    .grid-card:hover {
+        transform: translateY(-6px);
+    }
+
+    .card-img-container {
+        height: 200px;
+        background: var(--bg-subtle);
+        border-radius: var(--radius-md);
+        overflow: hidden;
+        position: relative;
+        margin-bottom: 1.1rem;
+        border: 1px solid var(--border-subtle);
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        transition: box-shadow 0.3s ease, border-color 0.3s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .grid-card:hover .card-img-container {
+        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.15);
+        border-color: var(--accent-primary-dim);
+    }
+
+    .event-thumb {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        transition: transform 0.7s ease;
+    }
+
+    .grid-card:hover .event-thumb {
+        transform: scale(1.06);
+    }
+
+    .placeholder-logo {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 100%;
+        height: 100%;
+    }
+
+    .card-body {
+        padding: 0 0.25rem;
+    }
+
+    .card-title {
+        font-size: 1.15rem;
+        font-weight: 700;
+        color: var(--text-main);
+        margin-bottom: 0.4rem;
+        line-height: 1.3;
+    }
+
+    .card-location {
+        font-size: 0.85rem;
+        color: var(--accent-primary);
+        margin-bottom: 0.4rem;
+        display: flex;
+        align-items: center;
+        gap: 0.3rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+    }
+
+    .card-meta {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 0.85rem;
+        color: var(--text-secondary);
+    }
+
+    .meta-dot {
+        color: var(--border-color);
+    }
+
+    .card-summary {
+        font-size: 0.9rem;
+        color: var(--text-muted);
+        margin-top: 0.5rem;
+        line-height: 1.5;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+
+    .card-overlay {
+        position: absolute;
+        inset: 0;
+        background: rgba(15, 23, 42, 0.3);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        opacity: 0;
+        transition: opacity 0.3s ease;
+        backdrop-filter: blur(2px);
+    }
+
+    .grid-card:hover .card-overlay {
+        opacity: 1;
+    }
+
+    .view-btn {
+        background: white;
+        color: #0f172a;
+        padding: 0.65rem 1.4rem;
+        border-radius: 2rem;
+        font-weight: 700;
+        transform: translateY(8px);
+        transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.15);
+    }
+
+    .grid-card:hover .view-btn {
+        transform: translateY(0);
+    }
+
+    .animated-card {
+        opacity: 0;
+        animation: fadeInUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+
+    @@keyframes fadeInUp {
+        from { opacity: 0; transform: translateY(16px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    @@media (max-width: 768px) {
+        .storefront-profile {
+            flex-direction: column;
+            align-items: flex-start;
+            margin-top: -40px;
+            padding: 0 1.25rem 1.5rem;
+        }
+
+        .storefront-name {
+            font-size: 1.4rem;
+        }
+
+        .card-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+
+@code {
+    [Parameter] public string Slug { get; set; } = string.Empty;
+
+    private bool _loading = true;
+    private Storefront? _storefront;
+    private List<Collection> _collections = new();
+    private int _totalClips;
+    private Dictionary<string, string> _tokenCache = new();
+    private Dictionary<string, string?> _thumbCache = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        _storefront = await StorefrontRepository.GetBySlugAsync(Slug);
+
+        if (_storefront == null || !_storefront.IsPublished)
+        {
+            _storefront = null;
+            _loading = false;
+            return;
+        }
+
+        _collections = await CollectionRepository.ListBySellerAsync(_storefront.SellerId);
+        _totalClips = _collections.Sum(c => c.Clips?.Count ?? 0);
+
+        // Load thumbnail tokens for display clips
+        var tokenTasks = new List<Task<(string playbackId, string token)>>();
+
+        foreach (var collection in _collections)
+        {
+            var heroClip = collection.Clips?.FirstOrDefault(c => c.Id == collection.HeroClipId);
+            var displayClip = heroClip ?? collection.Clips?.OrderBy(c => c.RecordingStartedAt ?? DateTime.MaxValue).FirstOrDefault();
+            if (displayClip != null)
+            {
+                var playbackId = !string.IsNullOrEmpty(displayClip.PlaybackIdSigned)
+                    ? displayClip.PlaybackIdSigned
+                    : displayClip.PlaybackIdTeaser;
+                if (!string.IsNullOrEmpty(playbackId) && !playbackId.StartsWith("mock") && !_tokenCache.ContainsKey(playbackId))
+                {
+                    tokenTasks.Add(GetThumbnailTokenAsync(playbackId));
+                }
+            }
+        }
+
+        var results = await Task.WhenAll(tokenTasks);
+        foreach (var (pid, token) in results)
+        {
+            if (!string.IsNullOrEmpty(token))
+                _tokenCache[pid] = token;
+        }
+
+        // Pre-calculate thumbnails
+        foreach (var collection in _collections)
+        {
+            var heroClip = collection.Clips?.FirstOrDefault(c => c.Id == collection.HeroClipId);
+            var displayClip = heroClip ?? collection.Clips?.OrderBy(c => c.RecordingStartedAt ?? DateTime.MaxValue).FirstOrDefault();
+            if (displayClip != null)
+                _thumbCache[collection.Id] = GetThumbnailUrlInternal(displayClip);
+        }
+
+        _loading = false;
+    }
+
+    private async Task<(string playbackId, string token)> GetThumbnailTokenAsync(string playbackId)
+    {
+        var token = await VideoService.GetPlaybackToken(playbackId, "t");
+        return (playbackId, token);
+    }
+
+    private string? GetThumbnailUrl(string collectionId)
+    {
+        _thumbCache.TryGetValue(collectionId, out var url);
+        return url;
+    }
+
+    private string? GetThumbnailUrlInternal(Clip? clip)
+    {
+        if (clip == null) return null;
+
+        if (!string.IsNullOrEmpty(clip.ThumbnailFileName))
+        {
+            var localPath = Path.Combine(Environment.WebRootPath, "thumbnails", clip.ThumbnailFileName);
+            if (File.Exists(localPath))
+                return $"/thumbnails/{clip.ThumbnailFileName}";
+
+            var storageKey = clip.ThumbnailFileName.Contains("/")
+                ? clip.ThumbnailFileName
+                : $"thumbnails/{clip.ThumbnailFileName}";
+            return StorageService.GetPresignedDownloadUrl(storageKey, asAttachment: false);
+        }
+
+        var playbackId = !string.IsNullOrEmpty(clip.PlaybackIdSigned) ? clip.PlaybackIdSigned : clip.PlaybackIdTeaser;
+        if (string.IsNullOrEmpty(playbackId) || playbackId.StartsWith("mock")) return null;
+
+        if (_tokenCache.TryGetValue(playbackId, out var token))
+            return $"https://image.mux.com/{playbackId}/thumbnail.jpg?token={token}";
+
+        return null;
+    }
+}

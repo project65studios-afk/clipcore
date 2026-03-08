@@ -85,8 +85,15 @@ else if (_collection == null)
 }
 else
 {
-    <div class="mb-4">
+    <div class="mb-4" style="display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;">
         <a href="/" class="text-decoration-none text-secondary small">← Back to Collections</a>
+        @if (_collection.Seller?.Storefront != null)
+        {
+            <span class="text-secondary small">•</span>
+            <a href="/store/@_collection.Seller.Storefront.Slug" class="text-decoration-none small" style="color: var(--accent-primary); font-weight: 600;">
+                <i class="bi bi-shop me-1"></i>@_collection.Seller.Storefront.DisplayName
+            </a>
+        }
     </div>
 
     <div class="premium-card">

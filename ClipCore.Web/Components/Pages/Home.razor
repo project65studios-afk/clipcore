@@ -24,8 +24,13 @@ else
     <!-- Hero Section -->
     <div class="hero-section mb-5">
         <div class="hero-content">
-            <h1 class="hero-title">@(_storeName ?? "ClipCore Studios")</h1>
-            <p class="hero-subtitle">Premium Video Collections & Exclusive Content</p>
+            <h1 class="hero-title">@(_storeName ?? "ClipCore")</h1>
+            <p class="hero-subtitle">Discover and buy footage from independent videographers — buy only what you need.</p>
+            <div style="margin-top: 1.5rem; display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap;">
+                <a href="/seller/register" style="display: inline-block; background: rgba(255,255,255,0.12); color: #e2e8f0; border: 1px solid rgba(255,255,255,0.2); padding: 0.65rem 1.4rem; border-radius: 2rem; font-weight: 600; font-size: 0.95rem; text-decoration: none; backdrop-filter: blur(4px); transition: background 0.2s;">
+                    <i class="bi bi-camera-video me-2"></i>Sell Your Footage
+                </a>
+            </div>
         </div>
         <div class="hero-bg"></div>
     </div>
@@ -64,6 +69,13 @@ else
                     
                     <div class="card-body">
                         <h3 class="card-title">@evt.Name</h3>
+                        @if (evt.Seller?.Storefront != null)
+                        {
+                            <div class="card-seller">
+                                <i class="bi bi-shop"></i>
+                                <a href="/store/@evt.Seller.Storefront.Slug" @onclick:stopPropagation="true" style="color: var(--accent-primary); text-decoration: none; font-weight: 600;">@evt.Seller.Storefront.DisplayName</a>
+                            </div>
+                        }
                         @if (!string.IsNullOrEmpty(evt.Location))
                         {
                             <div class="card-location">
@@ -250,6 +262,15 @@ else
         color: var(--text-main);
         margin-bottom: 0.5rem;
         line-height: 1.3;
+    }
+
+    .card-seller {
+        font-size: 0.82rem;
+        color: var(--text-muted);
+        margin-bottom: 0.35rem;
+        display: flex;
+        align-items: center;
+        gap: 0.3rem;
     }
 
     .card-location {

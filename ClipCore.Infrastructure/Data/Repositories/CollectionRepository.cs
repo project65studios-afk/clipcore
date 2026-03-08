@@ -23,6 +23,7 @@ public class CollectionRepository : ICollectionRepository
         return await context.Collections
             .AsNoTracking()
             .Include(e => e.Clips)
+            .Include(e => e.Seller).ThenInclude(s => s!.Storefront)
             .AsSplitQuery()
             .FirstOrDefaultAsync(e => e.Id == id);
     }
@@ -33,6 +34,7 @@ public class CollectionRepository : ICollectionRepository
         return await context.Collections
             .AsNoTracking()
             .Include(e => e.Clips)
+            .Include(e => e.Seller).ThenInclude(s => s!.Storefront)
             .AsSplitQuery()
             .OrderByDescending(e => e.Date)
             .ToListAsync();
