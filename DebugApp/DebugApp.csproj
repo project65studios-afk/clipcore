@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
-    <ProjectReference Include="..\Project65.Infrastructure\Project65.Infrastructure.csproj" />
+    <ProjectReference Include="..\ClipCore.Infrastructure\ClipCore.Infrastructure.csproj" />
   </ItemGroup>
 
   <PropertyGroup>

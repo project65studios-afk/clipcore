@@ -1,0 +1,385 @@
+@page "/collections/{Id}"
+@using ClipCore.Core.Interfaces
+@using ClipCore.Core.Entities
+@inject ICollectionRepository CollectionRepository
+@inject IVideoService VideoService
+@inject ISettingsRepository SettingsRepository
+@inject ClipCore.Web.Services.StoreSettingsService StoreSettingsService
+@inject IStorageService StorageService
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+@inject ClipCore.Web.Services.CartService CartService
+@inject IPurchaseRepository PurchaseRepository
+@using System.IO
+@inject ClipCore.Web.Services.VideoHealingService VideoHealingService
+@inject ClipCore.Web.Services.SummaryGenerationService SummaryGenerationService
+@using Microsoft.AspNetCore.SignalR.Client
+@implements IAsyncDisposable
+@implements IDisposable
+
+<PageTitle>@_collection?.Name - @(_storeName ?? "ClipCore Studios")</PageTitle>
+<HeadContent>
+    @if (_collection != null)
+    {
+        <meta property="og:title" content="@_collection.Name | @(_storeName ?? "ClipCore Studios")" />
+        <meta name="description" content="@_collection.Summary" />
+        <meta property="og:description" content="@_collection.Summary" />
+        <meta property="og:type" content="website" />
+        <meta property="og:url" content="@Navigation.Uri" />
+        @if (_collection.Clips.Any() && !string.IsNullOrEmpty(_collection.Clips.First().ThumbnailFileName))
+        {
+             var firstClip = _collection.Clips.First();
+             var thumbKey = firstClip.ThumbnailFileName!.Contains("/")
+                ? firstClip.ThumbnailFileName
+                : $"thumbnails/{firstClip.ThumbnailFileName}";
+             <meta property="og:image" content="@($"{Navigation.BaseUri}{thumbKey}")" />
+        }
+    }
+</HeadContent>
+
+@if (_loading)
+{
+    <div class="mb-4">
+        <div class="skeleton-text" style="width: 120px;"></div>
+    </div>
+
+    <div class="premium-card">
+        <div class="row g-4">
+            <!-- Left Column: Skeleton Details -->
+            <div class="col-lg-7 col-xl-8">
+                <div class="skeleton-text" style="width: 60%; height: 3rem; margin-bottom: 1rem;"></div> <!-- Title -->
+                <div class="event-meta">
+                    <div class="skeleton-text" style="width: 100px;"></div>
+                    <span class="meta-dot">•</span>
+                    <div class="skeleton-text" style="width: 120px;"></div>
+                </div>
+                <!-- Summary Lines -->
+                <div class="skeleton-text" style="width: 90%; height: 1rem; margin-bottom: 0.5rem;"></div>
+                <div class="skeleton-text" style="width: 80%; height: 1rem; margin-bottom: 0.5rem;"></div>
+                <div class="skeleton-text" style="width: 50%; height: 1rem;"></div>
+
+                <div class="event-header-actions" style="margin-top: 1.5rem; display: flex; gap: 0.5rem;">
+                     <!-- Skeleton Buttons -->
+                    <div class="skeleton" style="width: 120px; height: 45px; border-radius: 12px;"></div>
+                    <div class="skeleton" style="width: 120px; height: 45px; border-radius: 12px;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="mb-4 event-details-header" style="display: flex; justify-content: space-between; align-items: center;">
+        <h3 class="section-title">All Clips</h3>
+        <div class="skeleton" style="width: 200px; height: 38px; border-radius: 12px;"></div>
+    </div>
+
+    <div class="video-grid">
+        @for (int i = 0; i < 8; i++)
+        {
+            <SkeletonCard />
+        }
+    </div>
+}
+else if (_collection == null)
+{
+    <p>Collection not found.</p>
+}
+else
+{
+    <div class="mb-4">
+        <a href="/" class="text-decoration-none text-secondary small">← Back to Collections</a>
+    </div>
+
+    <div class="premium-card">
+        <div class="row g-4">
+            <!-- Left Column: Collection Details -->
+            <div class="col-12">
+                <h1 class="display-4 fw-bold mb-2">@_collection.Name</h1>
+                <div class="event-meta">
+                    <div class="meta-item">
+                        <i class="bi bi-calendar3"></i>
+                        @_collection.Date.ToString("MMMM dd, yyyy")
+                    </div>
+                    @if (!string.IsNullOrEmpty(_collection.Location))
+                    {
+                        <span class="meta-dot">•</span>
+                        <div class="meta-item">
+                            <i class="bi bi-geo-alt"></i>
+                            @_collection.Location
+                        </div>
+                    }
+                    <span class="meta-dot">•</span>
+                    <div class="meta-item">
+                        <i class="bi bi-film"></i>
+                        @_collection.Clips.Count clips
+                    </div>
+                </div>
+                <p class="lead text-secondary" style="max-width: 600px;">@_collection.Summary</p>
+
+                <div class="event-header-actions" style="margin-top: 1.5rem; display: flex; gap: 0.5rem; align-items: center;">
+                    <div class="event-actions">
+                        <button class="btn-primary" @onclick="ShareCollectionAsync">Share Collection</button>
+                        <button class="btn-secondary" @onclick="CopyLinkAsync">
+                            @(_showCopiedMessage ? "Link Copied!" : "Copy Link")
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @if (_collection.Clips.Count >= 3)
+    {
+        <div class="bundle-banner" style="background: color-mix(in srgb, var(--accent-primary), transparent 90%); border: 1px solid var(--accent-primary-dim); border-radius: var(--radius-md); padding: 1rem; margin-bottom: 3rem; display: flex; align-items: center; gap: 1rem;">
+            <i class="bi bi-stars" style="font-size: 1.5rem; color: var(--accent-primary);"></i>
+            <div>
+                <div class="fw-bold text-body">Collection Bundle Discount!</div>
+                <div style="font-size: 0.9rem;" class="text-secondary">Add 3 or more clips from this collection to your cart and get <span style="color: var(--accent-primary); font-weight: 600;">25% OFF</span> your entire order.</div>
+            </div>
+        </div>
+    }
+
+    <div class="mb-4 event-details-header" style="display: flex; justify-content: space-between; align-items: center;">
+        <h3 class="section-title">All Clips</h3>
+        <select class="form-control" style="width: auto;" @onchange="OnSortChanged" value="@_sortBy">
+            <option value="TimeUsedAsc">Time Used: Oldest First</option>
+            <option value="TimeUsedDesc">Time Used: Newest First</option>
+            <option value="PriceLowHigh">Price: Low to High</option>
+            <option value="PriceHighLow">Price: High to Low</option>
+            <option value="DurationShortLong">Duration: Shortest First</option>
+            <option value="DurationLongShort">Duration: Longest First</option>
+        </select>
+    </div>
+
+    @if (!_collection.Clips.Any())
+    {
+        <p>No clips available yet.</p>
+    }
+    else
+    {
+        <div class="video-grid">
+            @foreach (var clip in _collection.Clips)
+            {
+                <ClipCard Clip="clip" IsPurchased="_purchasedClipIds.Contains(clip.Id)" WatermarkUrl="@_watermarkUrl" />
+            }
+        </div>
+    }
+}
+
+@code {
+    [Parameter]
+    public string Id { get; set; } = string.Empty;
+
+    private Collection? _collection;
+    private bool _loading = true;
+    private string? _watermarkUrl;
+    private string _sortBy = "TimeUsedAsc"; // Default sort
+    private string? _userId;
+    private bool _isAuthenticated = false;
+    private bool _showCopiedMessage = false;
+    private HashSet<string> _purchasedClipIds = new();
+
+    [CascadingParameter]
+    private Task<AuthenticationState> AuthenticationStateTask { get; set; } = null!;
+
+    private async Task CopyLinkAsync()
+    {
+        var uri = Navigation.Uri;
+        await JS.InvokeVoidAsync("navigator.clipboard.writeText", uri);
+        _showCopiedMessage = true;
+        StateHasChanged();
+        await Task.Delay(2000);
+        _showCopiedMessage = false;
+        StateHasChanged();
+    }
+
+    private async Task ShareCollectionAsync()
+    {
+        var uri = Navigation.Uri;
+        try
+        {
+            await JS.InvokeVoidAsync("navigator.share", new { title = _collection?.Name ?? (_storeName ?? "ClipCore") + " Collection", url = uri });
+        }
+        catch
+        {
+            await CopyLinkAsync();
+        }
+    }
+
+
+    private HubConnection? _hubConnection;
+    private string? _storeName;
+    [Inject] private IClipRepository ClipRepository { get; set; } = default!;
+
+
+    protected override async Task OnInitializedAsync()
+    {
+        _loading = true;
+        var storeNameTask = SettingsRepository.GetValueAsync("StoreName");
+        var watermarkTask = SettingsRepository.GetValueAsync("WatermarkUrl");
+        var collectionTask = CollectionRepository.GetByIdAsync(Id);
+
+        await Task.WhenAll(watermarkTask, collectionTask);
+
+        _storeName = await StoreSettingsService.GetStoreNameAsync();
+        StoreSettingsService.OnChange += HandleSettingsChange;
+        _watermarkUrl = GetImageUrl(await watermarkTask ?? "");
+        _collection = await collectionTask;
+
+        if (_collection?.Clips != null)
+        {
+            SortClips();
+        }
+
+        VideoHealingService.OnClipHealed += HandleClipHealed;
+
+        if (AuthenticationStateTask != null)
+        {
+            var authState = await AuthenticationStateTask;
+            var user = authState.User;
+            _isAuthenticated = user.Identity?.IsAuthenticated == true;
+
+            if (_isAuthenticated)
+            {
+                _userId = user.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+                var purchases = await PurchaseRepository.GetByUserIdAsync(_userId);
+                _purchasedClipIds = purchases
+                    .Where(p => !string.IsNullOrEmpty(p.ClipId))
+                    .Select(p => p.ClipId!)
+                    .ToHashSet();
+            }
+        }
+
+        _loading = false;
+    }
+
+    private void HandleClipHealed(Clip healedClip)
+    {
+        if (_collection?.Clips == null) return;
+
+        var existing = _collection.Clips.FirstOrDefault(c => c.Id == healedClip.Id);
+        if (existing != null)
+        {
+            // Update the existing object in the list
+            existing.PlaybackIdSigned = healedClip.PlaybackIdSigned;
+            existing.DurationSec = healedClip.DurationSec;
+            existing.RecordingStartedAt = healedClip.RecordingStartedAt;
+            existing.MuxAssetId = healedClip.MuxAssetId;
+
+            InvokeAsync(() => {
+                SortClips();
+                StateHasChanged();
+            });
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender && _collection != null)
+        {
+            await CartService.InitializeAsync();
+             // Start background healing if needed
+            VideoHealingService.StartHealingForClips(_collection.Clips);
+
+            StateHasChanged();
+
+            // SignalR Connection
+            _hubConnection = new HubConnectionBuilder()
+                .WithUrl(Navigation.ToAbsoluteUri("/processingHub"))
+                .WithAutomaticReconnect()
+                .Build();
+
+            _hubConnection.On<string, string>("ClipStatusUpdated", (clipId, status) =>
+            {
+                var clip = _collection.Clips.FirstOrDefault(c => c.Id == clipId);
+                if (clip != null)
+                {
+                    InvokeAsync(async () => {
+                        var freshClip = await ClipRepository.GetByIdAsync(clipId);
+                        if (freshClip != null)
+                        {
+                            clip.PlaybackIdSigned = freshClip.PlaybackIdSigned;
+                            clip.DurationSec = freshClip.DurationSec;
+                            clip.RecordingStartedAt = freshClip.RecordingStartedAt;
+                            clip.MuxAssetId = freshClip.MuxAssetId;
+                            SortClips();
+                            StateHasChanged();
+                        }
+                    });
+                }
+            });
+
+            await _hubConnection.StartAsync();
+        }
+    }
+
+    private void HandleSettingsChange()
+    {
+        InvokeAsync(async () => {
+            _storeName = await StoreSettingsService.GetStoreNameAsync();
+            StateHasChanged();
+        });
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        VideoHealingService.OnClipHealed -= HandleClipHealed;
+        if (_hubConnection is not null)
+        {
+            await _hubConnection.DisposeAsync();
+        }
+    }
+
+    public void Dispose()
+    {
+        StoreSettingsService.OnChange -= HandleSettingsChange;
+    }
+
+    private void OnSortChanged(ChangeEventArgs e)
+    {
+        _sortBy = e.Value?.ToString() ?? "TimeUsedAsc";
+        SortClips();
+    }
+
+    private string GetImageUrl(string urlOrKey)
+    {
+        if (string.IsNullOrEmpty(urlOrKey)) return "";
+        if (urlOrKey.StartsWith("http") || urlOrKey.StartsWith("/"))
+        {
+             // Append cache buster to static URLs to fix watermark caching issues
+             var separator = urlOrKey.Contains("?") ? "&" : "?";
+             return $"{urlOrKey}{separator}v={DateTime.UtcNow.Ticks}";
+        }
+        return StorageService.GetPresignedDownloadUrl(urlOrKey, asAttachment: false);
+    }
+
+    private void SortClips()
+    {
+        if (_collection?.Clips == null || !_collection.Clips.Any()) return;
+
+        switch (_sortBy)
+        {
+            case "TimeUsedAsc": // Default: Least to greatest time used
+                _collection.Clips = _collection.Clips.OrderBy(c => c.RecordingStartedAt ?? DateTime.MaxValue).ToList();
+                break;
+            case "TimeUsedDesc":
+                _collection.Clips = _collection.Clips.OrderByDescending(c => c.RecordingStartedAt ?? DateTime.MinValue).ToList();
+                break;
+            case "PriceLowHigh":
+                _collection.Clips = _collection.Clips.OrderBy(c => c.PriceCents).ToList();
+                break;
+            case "PriceHighLow":
+                _collection.Clips = _collection.Clips.OrderByDescending(c => c.PriceCents).ToList();
+                break;
+            case "DurationShortLong":
+                _collection.Clips = _collection.Clips.OrderBy(c => c.DurationSec ?? double.MaxValue).ToList();
+                break;
+            case "DurationLongShort":
+                _collection.Clips = _collection.Clips.OrderByDescending(c => c.DurationSec ?? double.MinValue).ToList();
+                break;
+            default:
+                _collection.Clips = _collection.Clips.OrderBy(c => c.RecordingStartedAt ?? DateTime.MaxValue).ToList();
+                break;
+        }
+    }
+
+}

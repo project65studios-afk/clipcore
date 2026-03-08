@@ -1,0 +1,530 @@
+@page "/admin"
+@using ClipCore.Core.Entities
+@using ClipCore.Core.Interfaces
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize(Roles = "Admin")]
+@inject ICollectionRepository CollectionRepository
+@inject IVideoService VideoService
+@inject IJSRuntime JS
+@inject NavigationManager Navigation
+@inject IStorageService StorageService
+@inject IAuditService AuditService
+@rendermode RenderMode.InteractiveServer
+
+<div class="container-fluid py-4" style="max-width: 1400px;">
+    <!-- Header & Toolbar -->
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
+        <div>
+            <h1 class="h3 fw-bold mb-1 text-body">Admin Portal</h1>
+            <p class="text-body opacity-75 mb-0">Manage system, commerce, and logs.</p>
+        </div>
+
+        <div class="d-flex flex-column flex-sm-row align-items-stretch align-items-sm-center gap-2 w-100 w-md-auto">
+            <div class="position-relative flex-grow-1" style="min-width: 200px;">
+                <i class="bi bi-search position-absolute top-50 start-0 translate-middle-y ms-3 text-muted"></i>
+                <input type="text" class="form-control ps-5" placeholder="Search..." @bind="SearchTerm" @bind:event="oninput" />
+            </div>
+             <a href="/admin/upload" class="btn btn-primary d-flex align-items-center justify-content-center gap-2 fw-bold shadow-sm">
+                <i class="bi bi-cloud-upload"></i> <span>New Collection</span>
+            </a>
+        </div>
+    </div>
+
+    <!-- Quick Access Navigation -->
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body p-2 d-flex flex-wrap gap-2 align-items-center">
+            <span class="text-body opacity-75 small fw-bold text-uppercase ms-2 me-2">Commerce</span>
+            <div class="btn-group" role="group">
+                <a href="/admin/sales" class="btn btn-outline-secondary border-0 btn-sm d-flex align-items-center gap-2 text-body">
+                    <i class="bi bi-currency-dollar"></i> Sales
+                </a>
+                 <a href="/admin/promo-codes" class="btn btn-outline-secondary border-0 btn-sm d-flex align-items-center gap-2 text-body">
+                    <i class="bi bi-ticket-perforated"></i> Promo Codes
+                </a>
+            </div>
+
+            <div class="vr mx-2 bg-secondary opacity-25"></div>
+
+            <span class="text-body opacity-75 small fw-bold text-uppercase me-2">System</span>
+             <div class="btn-group" role="group">
+                <a href="/admin/audit-logs" class="btn btn-outline-secondary border-0 btn-sm d-flex align-items-center gap-2 text-body">
+                    <i class="bi bi-journal-text"></i> Audit Logs
+                </a>
+                <a href="/admin/theme" class="btn btn-outline-secondary border-0 btn-sm d-flex align-items-center gap-2 text-body">
+                    <i class="bi bi-palette"></i> Theme
+                </a>
+                <a href="/admin/settings" class="btn btn-outline-secondary border-0 btn-sm d-flex align-items-center gap-2 text-body">
+                    <i class="bi bi-gear"></i> Settings
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Collections Table -->
+    @if (_collections == null)
+    {
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary" role="status"></div>
+            <p class="text-muted mt-3">Loading collections...</p>
+        </div>
+    }
+    else if (!FilteredCollections.Any())
+    {
+        <div class="text-center py-5 card border-0 shadow-sm">
+            <div class="card-body">
+                <i class="bi bi-filter display-4 text-muted mb-3 d-block"></i>
+                <h3 class="h5 text-body">No collections found</h3>
+                <p class="text-secondary mb-0">Try adjusting your search filters.</p>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="card border-0 shadow-sm overflow-hidden">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="bg-light">
+                        <tr>
+                            <th class="ps-4 text-uppercase text-body small fw-bold" style="width: 15%;">Date</th>
+                            <th class="text-uppercase text-body small fw-bold" style="width: 30%;">Collection Name</th>
+                            <th class="text-uppercase text-body small fw-bold d-none d-md-table-cell" style="width: 20%;">Location</th>
+                            <th class="text-uppercase text-body small fw-bold d-none d-md-table-cell" style="width: 20%;">Stats</th>
+                            <th class="text-end pe-4 text-uppercase text-body small fw-bold" style="width: 15%;">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var coll in FilteredCollections)
+                        {
+                            <tr>
+                                <td class="ps-4">
+                                    <div class="d-flex flex-column">
+                                        <span class="fw-bold text-body">@coll.Date.ToString("MMM dd, yyyy")</span>
+                                        <span class="small text-secondary">@coll.Date.ToString("dddd")</span>
+                                    </div>
+                                </td>
+                                <td>
+                                    <div class="fw-bold text-body text-truncate" style="max-width: 300px;" title="@coll.Name">@coll.Name</div>
+                                    <div class="small text-secondary text-truncate" style="max-width: 300px;">ID: @coll.Id</div>
+                                </td>
+                                <td class="d-none d-md-table-cell">
+                                    @if (!string.IsNullOrEmpty(coll.Location))
+                                    {
+                                        <span class="text-secondary"><i class="bi bi-geo-alt me-1"></i>@coll.Location</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted opacity-50 fst-italic">No location</span>
+                                    }
+                                </td>
+                                <td class="d-none d-md-table-cell">
+                                    <div class="d-flex gap-3">
+                                        <div class="d-flex align-items-center gap-1" title="Video Clips">
+                                            <i class="bi bi-film text-secondary"></i>
+                                            <span class="fw-bold text-body">@coll.Clips.Count</span>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td class="text-end pe-4">
+                                    <div class="d-flex justify-content-end gap-2">
+                                        <a href="/collections/@coll.Id" class="btn btn-sm btn-outline-secondary border-0" title="View Public Page">
+                                            <i class="bi bi-box-arrow-up-right"></i>
+                                        </a>
+                                        <button class="btn btn-sm btn-outline-primary border-0 fw-bold" @onclick="() => OpenEditModal(coll)">
+                                            Edit
+                                        </button>
+
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    }
+</div>
+
+@if (_isEditing && _collectionToEdit != null)
+{
+    <div class="modal fade show d-block" style="background: rgba(0,0,0,0.5); backdrop-filter: blur(5px);">
+        <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+            <div class="modal-content shadow-lg">
+                <div class="modal-header">
+                    <div>
+                        <h5 class="modal-title fw-bold">Edit Collection</h5>
+                        <div class="text-muted small">ID: @_collectionToEdit.Id</div>
+                    </div>
+                    <button type="button" class="btn-close" @onclick="CancelEdit"></button>
+                </div>
+                <div class="modal-body p-0">
+                    <div class="row g-0">
+                        <!-- Left Column: Collection Details -->
+                        <div class="col-12 p-4">
+                            <h6 class="text-uppercase text-secondary fw-bold small mb-4">Collection Details</h6>
+
+                            <div class="mb-3">
+                                <label class="form-label">Collection Name</label>
+                                <input class="form-control" @bind="_collectionToEdit.Name" />
+                            </div>
+
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Date</label>
+                                    <input class="form-control" type="date" @bind="_collectionToEdit.Date" />
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Location</label>
+                                    <input class="form-control" placeholder="e.g. Los Angeles, CA" @bind="_collectionToEdit.Location" />
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Summary</label>
+                                <textarea class="form-control" rows="5" @bind="_collectionToEdit.Summary" placeholder="Describe the collection..."></textarea>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Bottom Section: Clip Prices -->
+                    <div class="p-4 border-top">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                             <h6 class="text-uppercase text-secondary fw-bold small mb-0">Clip Prices</h6>
+                             <div class="text-muted small"><i class="bi bi-star-fill text-warning me-1"></i> Star a clip to use it as the collection thumbnail.</div>
+                        </div>
+
+                        @if (_collectionToEdit.Clips == null || !_collectionToEdit.Clips.Any())
+                        {
+                            <div class="text-center py-4 border border-dashed rounded">
+                                <p class="text-muted mb-0">No clips found for this collection.</p>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="table-responsive rounded border" style="max-height: 400px; overflow-y: auto;">
+                                <table class="table table-sm align-middle mb-0">
+                                    <thead class="bg-light sticky-top">
+                                        <tr>
+                                            <th class="ps-3 py-2" style="width: 30%;">Clip Title</th>
+                                            <th class="py-2 text-center" style="width: 10%;">Hero</th>
+                                            <th class="py-2" style="width: 20%;">Personal Price ($)</th>
+                                            <th class="py-2" style="width: 20%;">Commercial Price ($)</th>
+                                            <th class="py-2" style="width: 20%;">GIF Price ($)</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach (var clip in _collectionToEdit.Clips)
+                                        {
+                                            <tr>
+                                                <td class="ps-3 fw-bold small">@clip.Title</td>
+                                                <td class="text-center">
+                                                    <button class="btn btn-sm border-0 p-0 fs-5" @onclick="() => ToggleHeroClip(clip.Id)" title="Set as Collection Thumbnail">
+                                                        @if (_collectionToEdit.HeroClipId == clip.Id)
+                                                        {
+                                                            <i class="bi bi-star-fill text-warning"></i>
+                                                        }
+                                                        else
+                                                        {
+                                                            <i class="bi bi-star text-muted opacity-25"></i>
+                                                        }
+                                                    </button>
+                                                </td>
+                                                <td>
+                                                    <div class="input-group input-group-sm">
+                                                        <span class="input-group-text">$</span>
+                                                        <input type="number" class="form-control"
+                                                               value="@(clip.PriceCents / 100.0)"
+                                                               @onchange="@(e => { if (double.TryParse(e.Value?.ToString(), out var val)) clip.PriceCents = (int)(val * 100); })"
+                                                               step="0.01" />
+                                                    </div>
+                                                </td>
+                                                <td>
+                                                    <div class="input-group input-group-sm">
+                                                        <span class="input-group-text">$</span>
+                                                        <input type="number" class="form-control"
+                                                               value="@(clip.PriceCommercialCents / 100.0)"
+                                                               @onchange="@(e => { if (double.TryParse(e.Value?.ToString(), out var val)) clip.PriceCommercialCents = (int)(val * 100); })"
+                                                               step="0.01" />
+                                                    </div>
+                                                </td>
+                                                <td>
+                                                    <div class="input-group input-group-sm">
+                                                        <span class="input-group-text">$</span>
+                                                        <input type="number" class="form-control"
+                                                               value="@(clip.GifPriceCents / 100.0)"
+                                                               @onchange="@(e => { if (double.TryParse(e.Value?.ToString(), out var val)) clip.GifPriceCents = (int)(val * 100); })"
+                                                               step="0.01" />
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                        }
+                    </div>
+                </div>
+                <div class="modal-footer justify-content-between">
+                    <div>
+                         <button class="btn btn-outline-danger px-3" @onclick="() => InitiateDeleteFromEdit(_collectionToEdit)">
+                            <i class="bi bi-trash me-2"></i>Delete Collection
+                         </button>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-outline-secondary" @onclick="CancelEdit" disabled="@_isProcessing">Cancel</button>
+                        <button class="btn btn-primary px-4" @onclick="SaveEditAsync" disabled="@_isProcessing">
+                            @(_isProcessing ? "Saving..." : "Save Changes")
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@if (_isDeleting)
+{
+    <div class="modal fade show d-block" style="background: rgba(0,0,0,0.5); backdrop-filter: blur(5px);">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content shadow-lg">
+                <div class="modal-header border-danger">
+                    <h5 class="modal-title text-danger fw-bold"><i class="bi bi-exclamation-triangle-fill me-2"></i>Delete Collection?</h5>
+                    <button type="button" class="btn-close" @onclick="() => _isDeleting = false"></button>
+                </div>
+                <div class="modal-body text-center py-4">
+                    <p class="text-body lead mb-1">Are you sure you want to delete <strong>@_collectionToDelete?.Name</strong>?</p>
+                    <p class="text-muted small">This will permanently remove <strong>@_collectionToDelete?.Clips.Count</strong> videos from Mux/Storage. This action cannot be undone.</p>
+                </div>
+                <div class="modal-footer justify-content-center border-0 pb-4">
+                    <button class="btn btn-outline-secondary px-4" @onclick="() => _isDeleting = false" disabled="@_isProcessing">Cancel</button>
+                    <button class="btn btn-danger px-4" @onclick="DeleteAsync" disabled="@_isProcessing">
+                        @(_isProcessing ? "Deleting..." : "Yes, Delete Everything")
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<style>
+    /* Minimal table overrides for dark mode feel inside standard structure */
+    .table-hover tbody tr:hover {
+        background-color: rgba(var(--bs-primary-rgb), 0.05) !important;
+    }
+</style>
+
+@code {
+    private List<Collection>? _collections;
+    public string SearchTerm { get; set; } = "";
+    private bool _isDeleting = false;
+    private bool _isEditing = false;
+    private bool _isProcessing = false;
+    private Collection? _collectionToDelete;
+    private Collection? _collectionToEdit;
+
+    private IEnumerable<Collection> FilteredCollections =>
+        string.IsNullOrWhiteSpace(SearchTerm)
+            ? _collections ?? Enumerable.Empty<Collection>()
+            : _collections?.Where(e => e.Name.Contains(SearchTerm, StringComparison.OrdinalIgnoreCase) ||
+                                  (e.Location?.Contains(SearchTerm, StringComparison.OrdinalIgnoreCase) ?? false))
+                    ?? Enumerable.Empty<Collection>();
+
+    [CascadingParameter]
+    private Task<AuthenticationState> AuthenticationStateTask { get; set; } = null!;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadCollectionsAsync();
+    }
+
+    private async Task LoadCollectionsAsync()
+    {
+        _collections = (await CollectionRepository.ListAsync()).OrderByDescending(e => e.Date).ToList();
+    }
+
+    private void OpenEditModal(Collection coll)
+    {
+        // Clone to avoid editing the list item directly before saving
+        _collectionToEdit = new Collection
+        {
+            Id = coll.Id,
+            Name = coll.Name,
+            Date = coll.Date,
+            Location = coll.Location,
+            Summary = coll.Summary,
+            CreatedAt = coll.CreatedAt,
+            HeroClipId = coll.HeroClipId,
+            // Deep clone clips so we can cancel changes
+            Clips = coll.Clips.Select(c => new Clip
+            {
+                Id = c.Id,
+                Title = c.Title,
+                PriceCents = c.PriceCents,
+                PriceCommercialCents = c.PriceCommercialCents,
+                CollectionId = c.CollectionId,
+                MuxAssetId = c.MuxAssetId,
+                MuxUploadId = c.MuxUploadId,
+                PlaybackIdTeaser = c.PlaybackIdTeaser,
+                PlaybackIdSigned = c.PlaybackIdSigned,
+                ThumbnailFileName = c.ThumbnailFileName,
+                MasterFileName = c.MasterFileName,
+                DurationSec = c.DurationSec,
+                Width = c.Width,
+                Height = c.Height,
+                TagsJson = c.TagsJson,
+                PublishedAt = c.PublishedAt,
+                RecordingStartedAt = c.RecordingStartedAt,
+                GifPriceCents = c.GifPriceCents,
+                AllowGifSale = c.AllowGifSale
+            }).ToList()
+        };
+
+        _isEditing = true;
+    }
+
+    private void CancelEdit()
+    {
+        _isEditing = false;
+        _collectionToEdit = null;
+    }
+
+    private async Task SaveEditAsync()
+    {
+        if (_collectionToEdit == null) return;
+
+        _isProcessing = true;
+        try
+        {
+            await CollectionRepository.UpdateAsync(_collectionToEdit);
+
+             // Log the action
+            var authState = await AuthenticationStateTask;
+            var user = authState.User;
+            var userId = user.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            var userEmail = user.Identity?.Name;
+
+            await AuditService.LogActionAsync(
+                userId,
+                userEmail,
+                "Update Collection",
+                "Collection",
+                _collectionToEdit.Id,
+                $"Collection updated: {_collectionToEdit.Name}");
+
+
+            await LoadCollectionsAsync();
+            _isEditing = false;
+            _collectionToEdit = null;
+        }
+        catch (Exception ex)
+        {
+            await JS.InvokeVoidAsync("alert", $"Error saving collection: {ex.Message}");
+        }
+        finally
+        {
+            _isProcessing = false;
+        }
+    }
+
+    private void InitiateDeleteFromEdit(Collection coll)
+    {
+        // Close the edit modal
+        _isEditing = false;
+
+        ConfirmDelete(coll);
+    }
+
+    private void ConfirmDelete(Collection coll)
+    {
+        _collectionToDelete = coll;
+        _isDeleting = true;
+    }
+
+    private async Task DeleteAsync()
+    {
+        if (_collectionToDelete == null) return;
+
+        _isProcessing = true;
+        try
+        {
+            // 1. Delete Mux Assets
+            foreach (var clip in _collectionToDelete.Clips)
+            {
+                var assetId = clip.MuxAssetId;
+
+                // If AssetId is missing but we have UploadId, try to resolve it
+                if (string.IsNullOrEmpty(assetId) && !string.IsNullOrEmpty(clip.MuxUploadId))
+                {
+                    assetId = await VideoService.GetAssetIdFromUploadAsync(clip.MuxUploadId);
+                }
+
+                if (!string.IsNullOrEmpty(assetId))
+                {
+                    await VideoService.DeleteAssetAsync(assetId);
+                }
+
+                // 2. Delete Thumbnail from Storage
+                if (!string.IsNullOrEmpty(clip.ThumbnailFileName) && !clip.ThumbnailFileName.StartsWith("http"))
+                {
+                    var storageKey = clip.ThumbnailFileName.Contains("/")
+                        ? clip.ThumbnailFileName
+                        : $"thumbnails/{clip.ThumbnailFileName}";
+                    await StorageService.DeleteAsync(storageKey);
+                }
+            }
+
+            // 3. Delete from DB
+            await CollectionRepository.DeleteAsync(_collectionToDelete.Id);
+
+             // Log the action
+            var authState = await AuthenticationStateTask;
+            var user = authState.User;
+            var userId = user.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            var userEmail = user.Identity?.Name;
+
+            await AuditService.LogActionAsync(
+                userId,
+                userEmail,
+                "Delete Collection",
+                "Collection",
+                _collectionToDelete.Id,
+                $"Collection deleted: {_collectionToDelete.Name} with {_collectionToDelete.Clips.Count} clips");
+
+
+            // 3. Refresh
+            await LoadCollectionsAsync();
+            _isDeleting = false;
+        }
+        catch (Exception ex)
+        {
+            await JS.InvokeVoidAsync("alert", $"Error during deletion: {ex.Message}");
+        }
+        finally
+        {
+            _isProcessing = false;
+            _collectionToDelete = null;
+        }
+    }
+
+    private void ToggleHeroClip(string clipId)
+    {
+        if (_collectionToEdit == null) return;
+
+        if (_collectionToEdit.HeroClipId == clipId)
+        {
+            // Toggle off if already selected (optional, but good UX)
+            _collectionToEdit.HeroClipId = null;
+        }
+        else
+        {
+            _collectionToEdit.HeroClipId = clipId;
+        }
+    }
+
+    private string GetThumbnailUrl(string urlOrKey)
+    {
+        if (string.IsNullOrEmpty(urlOrKey)) return "";
+        if (urlOrKey.StartsWith("http")) return urlOrKey;
+        // Use presigned url for images
+        return StorageService.GetPresignedDownloadUrl(urlOrKey);
+    }
+}

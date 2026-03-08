@@ -1,0 +1,77 @@
+@page
+@model ClipCore.Web.Pages.Account.AccessDeniedModel
+@using ClipCore.Core.Interfaces
+@inject ISettingsRepository SettingsRepository
+@{
+    Layout = null; // Standalone page like Login/Register
+    var storeName = await SettingsRepository.GetValueAsync("StoreName") ?? "ClipCore Studios";
+    ViewData["Title"] = "Access Denied";
+}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Access Denied - @storeName</title>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+    <style>
+        body {
+            background-color: #0f172a; /* bg-dark-900 */
+            color: white;
+            font-family: 'Inter', sans-serif;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            text-align: center;
+        }
+
+        .container {
+            max-width: 500px;
+            padding: 2rem;
+            background: rgba(15, 17, 41, 0.6);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(236, 72, 153, 0.2); /* Red/Pink accent for error */
+            border-radius: 24px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+        }
+
+        h1 {
+            color: #f472b6; /* accent-pink */
+            font-size: 2rem;
+            margin-bottom: 1rem;
+        }
+
+        p {
+            color: #94a3b8; /* text-muted */
+            margin-bottom: 2rem;
+            line-height: 1.6;
+        }
+
+        .btn {
+            display: inline-block;
+            background: #06b6d4; /* accent-cyan */
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border-radius: 9999px;
+            text-decoration: none;
+            font-weight: 600;
+            transition: opacity 0.2s;
+        }
+
+        .btn:hover {
+            opacity: 0.9;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Access Denied</h1>
+        <p>You do not have permission to view this resource.</p>
+        <p>If you believe this is an error, please contact support or sign in with a different account.</p>
+        <a href="/" class="btn">Return Home</a>
+    </div>
+</body>
+</html>

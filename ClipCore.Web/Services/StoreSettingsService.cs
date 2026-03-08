@@ -1,0 +1,83 @@
+using ClipCore.Core.Interfaces;
+
+namespace ClipCore.Web.Services;
+
+public class StoreSettingsService : IDisposable
+{
+    private readonly ISettingsRepository _settingsRepository;
+    private readonly GlobalSettingsNotifier _globalNotifier;
+    private readonly ILogger<StoreSettingsService> _logger;
+    private string? _storeName;
+    private string? _brandLogoUrl;
+    private string? _gifWatermarkUrl;
+
+    public event Action? OnChange;
+
+    public StoreSettingsService(ISettingsRepository settingsRepository, GlobalSettingsNotifier globalNotifier, ILogger<StoreSettingsService> logger)
+    {
+        _settingsRepository = settingsRepository;
+        _globalNotifier = globalNotifier;
+        _logger = logger;
+        _globalNotifier.OnSettingsChanged += HandleGlobalUpdate;
+    }
+
+    public async Task<string> GetStoreNameAsync()
+    {
+        if (_storeName == null)
+        {
+            _storeName = await _settingsRepository.GetValueAsync("StoreName") ?? "ClipCore Studios";
+        }
+        return _storeName;
+    }
+
+    public async Task<string?> GetBrandLogoUrlAsync()
+    {
+        if (_brandLogoUrl == null)
+        {
+            _brandLogoUrl = await _settingsRepository.GetValueAsync("BrandLogoUrl");
+        }
+        return _brandLogoUrl;
+    }
+
+    public async Task<string?> GetGifWatermarkUrlAsync()
+    {
+        if (_gifWatermarkUrl == null)
+        {
+            _gifWatermarkUrl = await _settingsRepository.GetValueAsync("GifWatermarkUrl");
+        }
+        return _gifWatermarkUrl;
+    }
+
+    private void HandleGlobalUpdate(string key, string value)
+    {
+        if (key == "StoreName")
+        {
+            _logger.LogInformation($"[StoreSettings] StoreName updated to '{value}'");
+            _storeName = value;
+        }
+        else if (key == "BrandLogoUrl")
+        {
+            _brandLogoUrl = value;
+        }
+        else if (key == "GifWatermarkUrl")
+        {
+            _gifWatermarkUrl = value;
+        }
+
+        // We notify for ANY key so that DynamicTheme.razor (and others) can reload if needed
+        NotifyStateChanged();
+    }
+
+    public void NotifySettingChanged(string key, string value)
+    {
+        // This notifies the global bridge, which then circles back to all StoreSettingsService instances
+        _globalNotifier.NotifyUpdate(key, value);
+    }
+
+    private void NotifyStateChanged() => OnChange?.Invoke();
+
+    public void Dispose()
+    {
+        _globalNotifier.OnSettingsChanged -= HandleGlobalUpdate;
+    }
+}

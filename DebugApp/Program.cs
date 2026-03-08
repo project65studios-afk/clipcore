@@ -1,4 +1,4 @@
-﻿using Project65.Infrastructure.Data;
+﻿using ClipCore.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using System;
@@ -6,7 +6,7 @@ using System.Linq;
 
 // Configure SQLite Connection
 // Use absolute path to avoid confusion
-var dbPath = "/Users/carlosr/.gemini/antigravity/scratch/Project65/Project65.Web/project65.db";
+var dbPath = "/Users/carlosr/.gemini/antigravity/scratch/ClipCore/ClipCore.Web/project65.db";
 var connectionString = $"Data Source={dbPath}";
 
 var services = new ServiceCollection();
@@ -22,7 +22,7 @@ Console.WriteLine($"Database Path: {dbPath}");
 
 try 
 {
-    var events = await context.Events.OrderByDescending(e => e.Date).Take(10).ToListAsync();
+    var events = await context.Collections.OrderByDescending(e => e.Date).Take(10).ToListAsync();
 
     Console.WriteLine("--- LAST 10 EVENTS ---");
     foreach (var evt in events)
