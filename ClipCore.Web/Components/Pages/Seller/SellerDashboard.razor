@@ -2,10 +2,193 @@
 @rendermode RenderMode.InteractiveServer
 @using Microsoft.AspNetCore.Authorization
 @attribute [Authorize(Roles = "Seller")]
+@inject ISellerRepository SellerRepository
+@inject ICollectionRepository CollectionRepository
+@inject IClipRepository ClipRepository
+@inject IPurchaseRepository PurchaseRepository
+@inject NavigationManager Navigation
 
 <PageTitle>Seller Dashboard — ClipCore</PageTitle>
 
-<div class="container py-5" style="max-width: 1000px;">
-    <h1 class="h3 fw-bold mb-1">Seller Dashboard</h1>
-    <p class="text-secondary">Coming in Milestone 4.</p>
+<div class="container py-4" style="max-width: 1100px;">
+    @if (_seller == null)
+    {
+        <div class="d-flex justify-content-center align-items-center" style="height: 200px;">
+            <div class="spinner-border" role="status"><span class="visually-hidden">Loading...</span></div>
+        </div>
+    }
+    else
+    {
+        <!-- Header -->
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h1 class="h3 fw-bold mb-1" style="color: var(--text-main);">Seller Dashboard</h1>
+                <p class="mb-0 small" style="color: var(--text-main); opacity: 0.6;">Welcome back. Here's your store at a glance.</p>
+            </div>
+            <div class="d-flex gap-2">
+                <a href="/seller/upload" class="btn btn-sm btn-primary" style="background: var(--accent-primary); border-color: var(--accent-primary);">
+                    <i class="bi bi-cloud-upload me-1"></i> Upload Clips
+                </a>
+            </div>
+        </div>
+
+        <!-- Seller Nav -->
+        <div class="mb-4">
+            <nav class="d-flex gap-2 flex-wrap">
+                <a href="/seller/dashboard" class="btn btn-sm btn-outline-secondary active">Dashboard</a>
+                <a href="/seller/collections" class="btn btn-sm btn-outline-secondary">Collections</a>
+                <a href="/seller/upload" class="btn btn-sm btn-outline-secondary">Upload</a>
+                <a href="/seller/storefront" class="btn btn-sm btn-outline-secondary">Storefront</a>
+                <a href="/seller/sales" class="btn btn-sm btn-outline-secondary">Sales</a>
+            </nav>
+        </div>
+
+        <!-- Stats Cards -->
+        <div class="row g-3 mb-4">
+            <div class="col-6 col-md-3">
+                <div class="card h-100 border-0" style="background: var(--bg-surface); border-radius: var(--radius-lg);">
+                    <div class="card-body text-center py-4">
+                        <div class="fs-2 fw-bold" style="color: var(--accent-primary);">@_clips.Count</div>
+                        <div class="small mt-1" style="color: var(--text-main); opacity: 0.7;">Total Clips</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="card h-100 border-0" style="background: var(--bg-surface); border-radius: var(--radius-lg);">
+                    <div class="card-body text-center py-4">
+                        <div class="fs-2 fw-bold" style="color: var(--accent-primary);">@_collections.Count</div>
+                        <div class="small mt-1" style="color: var(--text-main); opacity: 0.7;">Collections</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="card h-100 border-0" style="background: var(--bg-surface); border-radius: var(--radius-lg);">
+                    <div class="card-body text-center py-4">
+                        <div class="fs-2 fw-bold" style="color: var(--accent-primary);">@_purchases.Count</div>
+                        <div class="small mt-1" style="color: var(--text-main); opacity: 0.7;">Total Sales</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="card h-100 border-0" style="background: var(--bg-surface); border-radius: var(--radius-lg);">
+                    <div class="card-body text-center py-4">
+                        <div class="fs-2 fw-bold" style="color: var(--accent-primary);">@($"${_purchases.Sum(p => p.SellerPayoutCents) / 100.0:F2}")</div>
+                        <div class="small mt-1" style="color: var(--text-main); opacity: 0.7;">Total Earnings</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="card mb-4 border-0" style="background: var(--bg-surface); border-radius: var(--radius-lg);">
+            <div class="card-header bg-transparent border-bottom border-secondary">
+                <h5 class="mb-0 fw-semibold" style="color: var(--text-main);">Quick Actions</h5>
+            </div>
+            <div class="card-body d-flex flex-wrap gap-3">
+                <a href="/seller/upload" class="btn btn-outline-primary">
+                    <i class="bi bi-cloud-upload me-2"></i>Upload Clips
+                </a>
+                <a href="/seller/collections" class="btn btn-outline-secondary">
+                    <i class="bi bi-collection me-2"></i>Manage Collections
+                </a>
+                <a href="/seller/storefront" class="btn btn-outline-secondary">
+                    <i class="bi bi-shop me-2"></i>Storefront Settings
+                </a>
+                <a href="/seller/sales" class="btn btn-outline-secondary">
+                    <i class="bi bi-receipt me-2"></i>View Sales
+                </a>
+            </div>
+        </div>
+
+        <!-- Recent Sales -->
+        <div class="card border-0" style="background: var(--bg-surface); border-radius: var(--radius-lg);">
+            <div class="card-header bg-transparent border-bottom border-secondary d-flex justify-content-between align-items-center">
+                <h5 class="mb-0 fw-semibold" style="color: var(--text-main);">Recent Sales</h5>
+                <a href="/seller/sales" class="btn btn-sm btn-outline-secondary">View All</a>
+            </div>
+            <div class="card-body p-0">
+                @if (!_recentSales.Any())
+                {
+                    <div class="text-center py-5" style="color: var(--text-main); opacity: 0.5;">
+                        <i class="bi bi-bag-x fs-3 d-block mb-2"></i>
+                        No sales yet. Share your store to get started!
+                    </div>
+                }
+                else
+                {
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0" style="color: var(--text-main);">
+                            <thead>
+                                <tr style="border-color: var(--border-color);">
+                                    <th class="px-3 py-2 small fw-semibold">Clip</th>
+                                    <th class="px-3 py-2 small fw-semibold">Collection</th>
+                                    <th class="px-3 py-2 small fw-semibold">Customer</th>
+                                    <th class="px-3 py-2 small fw-semibold text-end">Paid</th>
+                                    <th class="px-3 py-2 small fw-semibold text-end">Payout</th>
+                                    <th class="px-3 py-2 small fw-semibold">Date</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var sale in _recentSales)
+                                {
+                                    <tr style="border-color: var(--border-color);">
+                                        <td class="px-3 py-2 small">@(sale.ClipTitle ?? "-")</td>
+                                        <td class="px-3 py-2 small">@(sale.CollectionName ?? "-")</td>
+                                        <td class="px-3 py-2 small">@TruncateEmail(sale.CustomerEmail)</td>
+                                        <td class="px-3 py-2 small text-end">$@(sale.PricePaidCents / 100.0:F2)</td>
+                                        <td class="px-3 py-2 small text-end" style="color: var(--accent-primary);">$@(sale.SellerPayoutCents / 100.0:F2)</td>
+                                        <td class="px-3 py-2 small">@sale.CreatedAt.ToString("MMM d, yyyy")</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            </div>
+        </div>
+    }
 </div>
+
+@code {
+    [CascadingParameter]
+    private Task<AuthenticationState> AuthenticationStateTask { get; set; } = null!;
+
+    private Seller? _seller;
+    private List<Clip> _clips = new();
+    private List<Collection> _collections = new();
+    private List<Purchase> _purchases = new();
+    private List<Purchase> _recentSales = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthenticationStateTask;
+        var userId = authState.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        if (userId != null)
+            _seller = await SellerRepository.GetByUserIdAsync(userId);
+        if (_seller == null) { Navigation.NavigateTo("/"); return; }
+
+        var (clips, collections, purchases) = await LoadDataAsync(_seller.Id);
+        _clips = clips;
+        _collections = collections;
+        _purchases = purchases;
+        _recentSales = _purchases.OrderByDescending(p => p.CreatedAt).Take(10).ToList();
+    }
+
+    private async Task<(List<Clip>, List<Collection>, List<Purchase>)> LoadDataAsync(int sellerId)
+    {
+        var clipsTask = ClipRepository.ListBySellerAsync(sellerId);
+        var collectionsTask = CollectionRepository.ListBySellerAsync(sellerId);
+        var purchasesTask = PurchaseRepository.ListBySellerAsync(sellerId);
+        await Task.WhenAll(clipsTask, collectionsTask, purchasesTask);
+        return (clipsTask.Result, collectionsTask.Result, purchasesTask.Result);
+    }
+
+    private string TruncateEmail(string? email)
+    {
+        if (string.IsNullOrEmpty(email)) return "-";
+        if (email.Length <= 20) return email;
+        var atIdx = email.IndexOf('@');
+        if (atIdx > 6) return email[..6] + "…" + email[atIdx..];
+        return email[..20] + "…";
+    }
+}

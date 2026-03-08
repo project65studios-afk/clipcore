@@ -17,7 +17,7 @@ public class ClipRepository : IClipRepository
     {
         using var context = await _contextFactory.CreateDbContextAsync();
         return await context.Clips
-            .Include(c => c.Event)
+            .Include(c => c.Collection)
             .FirstOrDefaultAsync(c => c.Id == id);
     }
 
@@ -26,7 +26,7 @@ public class ClipRepository : IClipRepository
         using var context = await _contextFactory.CreateDbContextAsync();
         return await context.Clips
             .AsNoTracking()
-            .Include(c => c.Event)
+            .Include(c => c.Collection)
             .Where(c => c.Title.ToLower().Contains(query.ToLower()) || c.TagsJson.ToLower().Contains(query.ToLower()))
             .OrderByDescending(c => c.RecordingStartedAt)
             .ToListAsync();
@@ -87,6 +87,28 @@ public class ClipRepository : IClipRepository
         using var context = await _contextFactory.CreateDbContextAsync();
         context.Entry(clip).State = EntityState.Modified;
         await context.SaveChangesAsync();
+    }
+
+    public async Task<List<Clip>> ListBySellerAsync(int sellerId)
+    {
+        using var context = await _contextFactory.CreateDbContextAsync();
+        return await context.Clips
+            .AsNoTracking()
+            .Include(c => c.Collection)
+            .Where(c => c.SellerId == sellerId)
+            .OrderByDescending(c => c.PublishedAt)
+            .ToListAsync();
+    }
+
+    public async Task DeleteAsync(string id)
+    {
+        using var context = await _contextFactory.CreateDbContextAsync();
+        var clip = await context.Clips.FindAsync(id);
+        if (clip != null)
+        {
+            context.Clips.Remove(clip);
+            await context.SaveChangesAsync();
+        }
     }
 
     public async Task UpdateBatchSettingsAsync(string eventId, int priceCents, int priceCommercialCents, bool allowGif, int gifPriceCents)

@@ -91,6 +91,11 @@
                             <a href="/admin" class="btn-secondary" style="padding: 0.5rem 1rem; font-size: 0.9rem;">Admin</a>
                         </Authorized>
                     </AuthorizeView>
+                    <AuthorizeView Roles="Seller" Context="sellerContext">
+                        <Authorized>
+                            <a href="/seller/dashboard" class="btn-secondary" style="padding: 0.5rem 1rem; font-size: 0.9rem; white-space: nowrap;">Dashboard</a>
+                        </Authorized>
+                    </AuthorizeView>
                     <a href="/my-purchases" class="btn-secondary" style="padding: 0.5rem 1rem; font-size: 0.9rem; white-space: nowrap;">My Purchases</a>
                     <a href="/Identity/Account/Manage" class="btn-secondary" style="padding: 0.5rem 1rem; font-size: 0.9rem; white-space: nowrap;">Manage Account</a>
                     <form action="/Account/Logout" method="post" style="display:inline; width: 100%;">

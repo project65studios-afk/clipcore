@@ -1,0 +1,526 @@
+@page "/seller/upload"
+@rendermode RenderMode.InteractiveServer
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize(Roles = "Seller")]
+@inject ISellerRepository SellerRepository
+@inject IVideoService VideoService
+@inject ICollectionRepository CollectionRepository
+@inject IClipRepository ClipRepository
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+@inject IAuditService AuditService
+@using Microsoft.AspNetCore.SignalR
+@inject IHubContext<ClipCore.Web.Hubs.ProcessingHub> HubContext
+@implements IDisposable
+
+<PageTitle>Upload Clips — ClipCore</PageTitle>
+
+<div style="max-width: 900px;">
+    <!-- Nav -->
+    <div class="mb-4">
+        <nav class="d-flex gap-2 flex-wrap">
+            <a href="/seller/dashboard" class="btn btn-sm btn-outline-secondary">Dashboard</a>
+            <a href="/seller/collections" class="btn btn-sm btn-outline-secondary">Collections</a>
+            <a href="/seller/upload" class="btn btn-sm btn-outline-secondary active">Upload</a>
+            <a href="/seller/storefront" class="btn btn-sm btn-outline-secondary">Storefront</a>
+            <a href="/seller/sales" class="btn btn-sm btn-outline-secondary">Sales</a>
+        </nav>
+    </div>
+
+    <h1 style="color: var(--text-main);">Upload Clips</h1>
+
+    @if (!string.IsNullOrEmpty(_errorMessage))
+    {
+        <div class="alert alert-danger">@_errorMessage</div>
+    }
+
+    @if (_seller == null)
+    {
+        <div class="d-flex justify-content-center align-items-center" style="height: 200px;">
+            <div class="spinner-border" role="status"><span class="visually-hidden">Loading...</span></div>
+        </div>
+    }
+    else
+    {
+        <!-- 1. Collection Selection / Creation -->
+        <div class="card mb-4" style="background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: var(--radius-lg);">
+            <div class="card-header bg-transparent border-bottom border-secondary">
+                <h5 class="mb-0" style="color: var(--text-main);"><i class="bi bi-collection me-2"></i>1. Collection Selection</h5>
+            </div>
+            <div class="card-body">
+                @if (_isCreatingCollection)
+                {
+                    <div class="p-3 rounded border border-secondary mb-3" style="background: var(--bg-subtle);">
+                        <h6 class="mb-3" style="color: var(--accent-primary);">Create New Collection</h6>
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label small" style="color: var(--text-main); opacity: 0.8;">Collection Name</label>
+                                <input class="form-control" placeholder="e.g. Midnight Run 2025" @bind="_newCollection.Name" style="background: var(--bg-main); color: var(--text-main); border-color: var(--border-color);" />
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small" style="color: var(--text-main); opacity: 0.8;">Date</label>
+                                <input class="form-control" type="date" @bind="_newCollection.Date" style="background: var(--bg-main); color: var(--text-main); border-color: var(--border-color);" />
+                            </div>
+                            <div class="col-md-12">
+                                <label class="form-label small" style="color: var(--text-main); opacity: 0.8;">Location</label>
+                                <input class="form-control" placeholder="e.g. Los Angeles, CA" @bind="_newCollection.Location" style="background: var(--bg-main); color: var(--text-main); border-color: var(--border-color);" />
+                            </div>
+                            <div class="col-md-12">
+                                <label class="form-label small" style="color: var(--text-main); opacity: 0.8;">Summary</label>
+                                <textarea class="form-control" placeholder="Brief description..." @bind="_newCollection.Summary" rows="2" style="background: var(--bg-main); color: var(--text-main); border-color: var(--border-color);"></textarea>
+                            </div>
+                        </div>
+                        <div class="d-flex gap-2 mt-3 justify-content-end">
+                            <button class="btn btn-secondary btn-sm" @onclick="@(() => _isCreatingCollection = false)">Cancel</button>
+                            <button class="btn btn-info btn-sm" @onclick="SaveNewCollectionAsync" style="background: var(--accent-primary); border: none; color: #fff;">Create & Select</button>
+                        </div>
+                    </div>
+                }
+                else
+                {
+                    <div class="d-flex gap-2">
+                        <select class="form-control" value="@_selectedCollectionId" @onchange="OnCollectionSelected" style="background: var(--bg-main); color: var(--text-main); border-color: var(--border-color);">
+                            <option value="">-- Select Collection --</option>
+                            @if (_collections != null)
+                            {
+                                foreach (var coll in _collections)
+                                {
+                                    <option value="@coll.Id">@coll.Name (@coll.Date)</option>
+                                }
+                            }
+                        </select>
+                        <button class="btn btn-outline-info" @onclick="CreateNewCollection" style="color: var(--accent-primary); border-color: var(--accent-primary);">
+                            <i class="bi bi-plus-lg"></i> New Collection
+                        </button>
+                    </div>
+                }
+            </div>
+        </div>
+
+        <!-- 2. Collection Defaults & Settings (Only visible when collection selected) -->
+        @if (!string.IsNullOrEmpty(_selectedCollectionId))
+        {
+            <div class="card mb-4" style="background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: var(--radius-lg);">
+                <div class="card-header bg-transparent border-bottom border-secondary d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0" style="color: var(--text-main);"><i class="bi bi-sliders me-2"></i>2. Collection Settings & Defaults</h5>
+                    <span class="badge bg-secondary">@(_existingClipCount) existing clips</span>
+                </div>
+                <div class="card-body">
+                    <p class="small mb-3" style="color: var(--text-main); opacity: 0.7;">
+                        Configure pricing for this collection. These settings will be applied to <strong>new uploads</strong> automatically.
+                    </p>
+
+                    <div class="row g-4">
+                        <div class="col-md-4">
+                            <label class="form-label small fw-bold" style="color: var(--accent-primary);">Personal License Price</label>
+                            <div class="input-group">
+                                <span class="input-group-text border-secondary" style="background: var(--bg-subtle); color: var(--text-main);">$</span>
+                                <input class="form-control" type="number" @bind="_priceDollars" step="0.01" style="background: var(--bg-main); color: var(--text-main); border-color: var(--border-color);" />
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-bold" style="color: var(--accent-primary);">Commercial License Price</label>
+                            <div class="input-group">
+                                <span class="input-group-text border-secondary" style="background: var(--bg-subtle); color: var(--text-main);">$</span>
+                                <input class="form-control" type="number" @bind="_priceCommercialDollars" step="0.01" style="background: var(--bg-main); color: var(--text-main); border-color: var(--border-color);" />
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-bold" style="color: var(--accent-primary);">GIF Sales</label>
+                            <div class="card border-secondary p-2" style="background: var(--bg-subtle);">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="allowGif" @bind="_allowGifSale">
+                                    <label class="form-check-label" for="allowGif" style="color: var(--text-main);">Enable GIFs</label>
+                                </div>
+                                @if (_allowGifSale)
+                                {
+                                    <div class="input-group input-group-sm mt-2">
+                                        <span class="input-group-text border-secondary" style="background: var(--bg-main); color: var(--text-main);">$</span>
+                                        <input class="form-control" type="number" @bind="_gifPriceDollars" step="0.01" style="background: var(--bg-main); color: var(--text-main); border-color: var(--border-color);" />
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mt-4 pt-3 border-top border-secondary d-flex justify-content-end align-items-center gap-3">
+                        @if (_hasUnsavedChanges)
+                        {
+                            <span class="small" style="color: var(--status-warning);"><i class="bi bi-exclamation-circle me-1"></i> Unsaved changes</span>
+                        }
+                        <button class="btn btn-primary" @onclick="CheckForSave" style="background: var(--accent-primary); border-color: var(--accent-primary);">
+                            <i class="bi bi-floppy me-2"></i> Save Collection Settings
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 3. Uppy Uploader -->
+            <div class="mb-4">
+                <h5 class="mb-3" style="color: var(--text-main);"><i class="bi bi-cloud-upload me-2"></i>3. Upload Videos</h5>
+                <div id="uppy-dashboard" style="border-radius: 8px; overflow: hidden; border: 1px solid var(--border-color); box-shadow: 0 4px 12px var(--glass-shadow);"></div>
+            </div>
+
+            <div class="mt-4 text-end">
+                <button class="btn btn-outline-light" @onclick="NavigateToCollection">
+                    Done (Go to Collection Page) <i class="bi bi-arrow-right ms-2"></i>
+                </button>
+            </div>
+        }
+    }
+</div>
+
+<!-- Overwrite Confirmation Modal -->
+@if (_showOverwriteModal)
+{
+    <div class="modal fade show" style="display: block; background: rgba(0,0,0,0.8);" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content bg-dark border-secondary text-white">
+                <div class="modal-header border-secondary">
+                    <h5 class="modal-title text-warning"><i class="bi bi-exclamation-triangle-fill me-2"></i>Update Existing Clips?</h5>
+                    <button type="button" class="btn-close btn-close-white" @onclick="@(() => _showOverwriteModal = false)"></button>
+                </div>
+                <div class="modal-body">
+                    <p>This collection has <strong>@_existingClipCount</strong> existing clips.</p>
+                    <p>Do you want to update <strong>ALL</strong> existing clips with these new prices and settings?</p>
+                    <ul class="small text-muted">
+                        <li>Personal Price: $@_priceDollars</li>
+                        <li>Commercial Price: $@_priceCommercialDollars</li>
+                        <li>GIF Sale: @(_allowGifSale ? "Enabled" : "Disabled") @(_allowGifSale ? $"(${_gifPriceDollars})" : "")</li>
+                    </ul>
+                    <p class="text-danger small mt-2"><strong>This cannot be undone.</strong></p>
+                </div>
+                <div class="modal-footer border-secondary">
+                    <button type="button" class="btn btn-outline-secondary" @onclick="@(() => ConfirmSave(false))">No, Save for Future Uploads Only</button>
+                    <button type="button" class="btn btn-warning" @onclick="@(() => ConfirmSave(true))">Yes, Overwrite All Clips</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter]
+    [SupplyParameterFromQuery]
+    public string? CollectionId { get; set; }
+
+    [CascadingParameter]
+    private Task<AuthenticationState> AuthenticationStateTask { get; set; } = null!;
+
+    private Seller? _seller;
+    private List<Collection>? _collections;
+    private string _selectedCollectionId = "";
+    private Collection? _selectedCollection;
+    private Collection _newCollection = new() { Id = Guid.NewGuid().ToString(), Date = DateOnly.FromDateTime(DateTime.Now) };
+
+    private double _priceDollars = 10.00;
+    private double _priceCommercialDollars = 49.00;
+    private bool _allowGifSale = false;
+    private double _gifPriceDollars = 1.99;
+
+    private bool _isCreatingCollection = false;
+    private bool _hasUnsavedChanges => CheckIfDirty();
+    private bool _showOverwriteModal = false;
+    private int _existingClipCount = 0;
+    private string _errorMessage = "";
+
+    private DotNetObjectReference<SellerUpload>? _dotNetHelper;
+    private string? _userId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthenticationStateTask;
+        var userId = authState.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        if (userId != null)
+        {
+            _userId = userId;
+            _seller = await SellerRepository.GetByUserIdAsync(userId);
+        }
+        if (_seller == null) { Navigation.NavigateTo("/"); return; }
+
+        _collections = await CollectionRepository.ListBySellerAsync(_seller.Id);
+        _dotNetHelper = DotNetObjectReference.Create(this);
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            // Pre-select collection from query param
+            if (!string.IsNullOrEmpty(CollectionId) && string.IsNullOrEmpty(_selectedCollectionId))
+            {
+                await OnCollectionSelected(new ChangeEventArgs { Value = CollectionId });
+                StateHasChanged();
+            }
+            else if (!string.IsNullOrEmpty(_selectedCollectionId))
+            {
+                await InitializeUppy();
+            }
+        }
+    }
+
+    private async Task InitializeUppy()
+    {
+        await JS.InvokeVoidAsync("muxUpload.initUppy", _dotNetHelper, "uppy-dashboard", _userId);
+    }
+
+    private async Task OnCollectionSelected(ChangeEventArgs e)
+    {
+        var id = e.Value?.ToString() ?? "";
+        _selectedCollectionId = id;
+
+        if (!string.IsNullOrEmpty(id))
+        {
+            await LoadCollectionData(id);
+            StateHasChanged();
+            await Task.Delay(100);
+            await InitializeUppy();
+        }
+    }
+
+    private async Task LoadCollectionData(string collectionId)
+    {
+        _selectedCollection = _collections?.FirstOrDefault(e => e.Id == collectionId);
+
+        if (_selectedCollection != null)
+        {
+            _allowGifSale = _selectedCollection.DefaultAllowGifSale;
+            _gifPriceDollars = _selectedCollection.DefaultGifPriceCents / 100.00;
+            _priceDollars = _selectedCollection.DefaultPriceCents / 100.00;
+            _priceCommercialDollars = _selectedCollection.DefaultPriceCommercialCents / 100.00;
+            _existingClipCount = _selectedCollection.Clips.Count;
+        }
+
+        await Task.CompletedTask;
+    }
+
+    private bool CheckIfDirty()
+    {
+        if (_selectedCollection == null) return false;
+        return _selectedCollection.DefaultAllowGifSale != _allowGifSale ||
+               _selectedCollection.DefaultGifPriceCents != (int)(_gifPriceDollars * 100) ||
+               _selectedCollection.DefaultPriceCents != (int)(_priceDollars * 100) ||
+               _selectedCollection.DefaultPriceCommercialCents != (int)(_priceCommercialDollars * 100);
+    }
+
+    private void CheckForSave()
+    {
+        if (_existingClipCount > 0)
+        {
+            _showOverwriteModal = true;
+        }
+        else
+        {
+            _ = ConfirmSave(true);
+        }
+    }
+
+    private async Task ConfirmSave(bool updateExisting)
+    {
+        _showOverwriteModal = false;
+        if (_selectedCollection == null) return;
+
+        try
+        {
+            _selectedCollection.DefaultAllowGifSale = _allowGifSale;
+            _selectedCollection.DefaultGifPriceCents = (int)(_gifPriceDollars * 100);
+            _selectedCollection.DefaultPriceCents = (int)(_priceDollars * 100);
+            _selectedCollection.DefaultPriceCommercialCents = (int)(_priceCommercialDollars * 100);
+
+            await CollectionRepository.UpdateAsync(_selectedCollection);
+
+            if (updateExisting && _existingClipCount > 0)
+            {
+                await ClipRepository.UpdateBatchSettingsAsync(
+                    _selectedCollection.Id,
+                    _selectedCollection.DefaultPriceCents,
+                    _selectedCollection.DefaultPriceCommercialCents,
+                    _selectedCollection.DefaultAllowGifSale,
+                    _selectedCollection.DefaultGifPriceCents
+                );
+                await AuditService.LogActionAsync(_userId, "Seller", "Update Collection & Clips", "Collection", _selectedCollection.Id, "Seller updated defaults & batch updated clips");
+            }
+            else
+            {
+                await AuditService.LogActionAsync(_userId, "Seller", "Update Collection Defaults", "Collection", _selectedCollection.Id, "Seller updated defaults (future only)");
+            }
+
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = "Error saving settings: " + ex.Message;
+        }
+    }
+
+    private async Task SaveNewCollectionAsync()
+    {
+        _errorMessage = "";
+        try
+        {
+            if (string.IsNullOrEmpty(_newCollection.Id)) _newCollection.Id = Guid.NewGuid().ToString();
+
+            _newCollection.SellerId = _seller!.Id;
+            _newCollection.DefaultPriceCents = 1000;
+            _newCollection.DefaultPriceCommercialCents = 4900;
+            _newCollection.DefaultAllowGifSale = true;
+            _newCollection.DefaultGifPriceCents = 199;
+
+            await CollectionRepository.AddAsync(_newCollection);
+
+            _collections = await CollectionRepository.ListBySellerAsync(_seller!.Id);
+
+            _selectedCollectionId = _newCollection.Id;
+            _isCreatingCollection = false;
+            await OnCollectionSelected(new ChangeEventArgs { Value = _newCollection.Id });
+
+            _newCollection = new() { Id = Guid.NewGuid().ToString(), Date = DateOnly.FromDateTime(DateTime.Now) };
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = $"Error saving collection: {ex.Message}";
+        }
+    }
+
+    private void CreateNewCollection()
+    {
+        _isCreatingCollection = true;
+        _selectedCollectionId = "";
+        StateHasChanged();
+    }
+
+    private async Task NavigateToCollection()
+    {
+        var targetId = _selectedCollectionId;
+        if (!string.IsNullOrEmpty(targetId)) Navigation.NavigateTo($"/collections/{targetId}", forceLoad: true);
+        else Navigation.NavigateTo("/", forceLoad: true);
+    }
+
+    // --- Uppy JSInvokable Methods ---
+
+    public class MuxUploadRequest
+    {
+        public string FileName { get; set; } = "";
+        public long FileSize { get; set; }
+        public string MasterFileName { get; set; } = "";
+    }
+
+    public class MuxUploadResult
+    {
+        public string Url { get; set; } = "";
+        public string UploadId { get; set; } = "";
+        public string ClipId { get; set; } = "";
+    }
+
+    [JSInvokable]
+    public Task<UploadInfo> GetUploadInfo()
+    {
+        return Task.FromResult(new UploadInfo
+        {
+            CollectionId = _selectedCollectionId,
+            PriceCents = (int)(_priceDollars * 100),
+            PriceCommercialCents = (int)(_priceCommercialDollars * 100),
+            UserId = _userId ?? "",
+            SellerId = _seller?.Id ?? 0
+        });
+    }
+
+    public class UploadInfo
+    {
+        public string CollectionId { get; set; } = "";
+        public int PriceCents { get; set; }
+        public int PriceCommercialCents { get; set; }
+        public string UserId { get; set; } = "";
+        public int SellerId { get; set; }
+    }
+
+    [JSInvokable]
+    public async Task<MuxUploadResult> GetMuxUploadUrl(MuxUploadRequest request)
+    {
+        if (string.IsNullOrEmpty(_selectedCollectionId)) throw new Exception("Please select a collection first.");
+
+        var clipId = Guid.NewGuid().ToString();
+        var (url, uploadId) = await VideoService.CreateUploadUrlAsync(clipId: clipId, title: request.FileName, creatorId: _userId);
+
+        return new MuxUploadResult { Url = url, UploadId = uploadId, ClipId = clipId };
+    }
+
+    public class UploadSuccessData
+    {
+        public string FileName { get; set; } = "";
+        public string MuxUploadId { get; set; } = "";
+        public string ClipId { get; set; } = "";
+        public string RecordingDate { get; set; } = "";
+        public string MasterFileName { get; set; } = "";
+    }
+
+    [JSInvokable]
+    public async Task OnUppyUploadSuccess(UploadSuccessData data)
+    {
+        var clip = new Clip
+        {
+            Id = data.ClipId,
+            CollectionId = _selectedCollectionId,
+            SellerId = _seller!.Id,
+            Title = data.FileName,
+            PriceCents = (int)(_priceDollars * 100),
+            PriceCommercialCents = (int)(_priceCommercialDollars * 100),
+            AllowGifSale = _allowGifSale,
+            GifPriceCents = (int)(_gifPriceDollars * 100),
+            MuxUploadId = data.MuxUploadId,
+            MasterFileName = data.MasterFileName,
+            RecordingStartedAt = DateTime.TryParse(data.RecordingDate, out var dt) ? dt : null
+        };
+
+        await ClipRepository.AddAsync(clip);
+
+        await AuditService.LogActionAsync(
+            _userId,
+            _userId,
+            "Upload Clip",
+            "Clip",
+            clip.Id,
+            $"Seller uploaded clip: {clip.Title}");
+
+        _ = ResolveMuxDetailsAsync(clip);
+    }
+
+    private async Task ResolveMuxDetailsAsync(Clip clip)
+    {
+        if (string.IsNullOrEmpty(clip.MuxUploadId)) return;
+
+        string? assetId = null;
+        for (int i = 0; i < 15; i++)
+        {
+            await Task.Delay(2000);
+            assetId = await VideoService.GetAssetIdFromUploadAsync(clip.MuxUploadId);
+            if (!string.IsNullOrEmpty(assetId)) break;
+        }
+
+        if (string.IsNullOrEmpty(assetId)) return;
+
+        clip.MuxAssetId = assetId;
+
+        for (int i = 0; i < 20; i++)
+        {
+            var (duration, startedAt) = await VideoService.GetAssetDetailsAsync(assetId);
+
+            if (duration.HasValue && duration.Value > 0)
+            {
+                clip.DurationSec = duration;
+                if (startedAt.HasValue && !clip.RecordingStartedAt.HasValue) clip.RecordingStartedAt = startedAt;
+
+                var playbackId = await VideoService.EnsurePlaybackIdAsync(assetId);
+                if (!string.IsNullOrEmpty(playbackId)) clip.PlaybackIdSigned = playbackId;
+
+                await ClipRepository.UpdateAsync(clip);
+                await HubContext.Clients.All.SendAsync("ClipStatusUpdated", clip.Id, "Ready");
+                return;
+            }
+            await Task.Delay(3000);
+        }
+        await ClipRepository.UpdateAsync(clip);
+    }
+
+    public void Dispose() => _dotNetHelper?.Dispose();
+}

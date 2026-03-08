@@ -1,0 +1,200 @@
+@page "/seller/sales"
+@rendermode RenderMode.InteractiveServer
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize(Roles = "Seller")]
+@inject ISellerRepository SellerRepository
+@inject IPurchaseRepository PurchaseRepository
+@inject NavigationManager Navigation
+
+<PageTitle>My Sales — ClipCore</PageTitle>
+
+<div class="container py-4" style="max-width: 1200px;">
+    <!-- Header -->
+    <div class="mb-4">
+        <h1 class="h3 fw-bold mb-1" style="color: var(--text-main);">My Sales</h1>
+        <p class="small mb-0" style="color: var(--text-main); opacity: 0.6;">All purchases of your clips.</p>
+    </div>
+
+    <!-- Nav -->
+    <div class="mb-4">
+        <nav class="d-flex gap-2 flex-wrap">
+            <a href="/seller/dashboard" class="btn btn-sm btn-outline-secondary">Dashboard</a>
+            <a href="/seller/collections" class="btn btn-sm btn-outline-secondary">Collections</a>
+            <a href="/seller/upload" class="btn btn-sm btn-outline-secondary">Upload</a>
+            <a href="/seller/storefront" class="btn btn-sm btn-outline-secondary">Storefront</a>
+            <a href="/seller/sales" class="btn btn-sm btn-outline-secondary active">Sales</a>
+        </nav>
+    </div>
+
+    @if (_seller == null)
+    {
+        <div class="d-flex justify-content-center align-items-center" style="height: 200px;">
+            <div class="spinner-border" role="status"><span class="visually-hidden">Loading...</span></div>
+        </div>
+    }
+    else
+    {
+        <!-- Summary Cards -->
+        <div class="row g-3 mb-4">
+            <div class="col-6 col-md-3">
+                <div class="card border-0 h-100" style="background: var(--bg-surface); border-radius: var(--radius-lg);">
+                    <div class="card-body text-center py-4">
+                        <div class="fs-2 fw-bold" style="color: var(--accent-primary);">@_purchases.Count</div>
+                        <div class="small mt-1" style="color: var(--text-main); opacity: 0.7;">Total Sales</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="card border-0 h-100" style="background: var(--bg-surface); border-radius: var(--radius-lg);">
+                    <div class="card-body text-center py-4">
+                        <div class="fs-2 fw-bold" style="color: var(--accent-primary);">$@(_purchases.Sum(p => p.SellerPayoutCents) / 100.0:F2)</div>
+                        <div class="small mt-1" style="color: var(--text-main); opacity: 0.7;">Total Earnings</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="card border-0 h-100" style="background: var(--bg-surface); border-radius: var(--radius-lg);">
+                    <div class="card-body text-center py-4">
+                        <div class="fs-2 fw-bold" style="color: var(--accent-primary);">$@(_purchases.Sum(p => p.PricePaidCents) / 100.0:F2)</div>
+                        <div class="small mt-1" style="color: var(--text-main); opacity: 0.7;">Gross Revenue</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="card border-0 h-100" style="background: var(--bg-surface); border-radius: var(--radius-lg);">
+                    <div class="card-body text-center py-4">
+                        <div class="fs-2 fw-bold" style="color: var(--accent-primary);">@_purchases.Count(p => p.FulfillmentStatus == FulfillmentStatus.Pending)</div>
+                        <div class="small mt-1" style="color: var(--text-main); opacity: 0.7;">Pending Fulfillment</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Search / Filter -->
+        <div class="card border-0 mb-4" style="background: var(--bg-surface); border-radius: var(--radius-lg);">
+            <div class="card-body">
+                <div class="input-group">
+                    <span class="input-group-text border-secondary" style="background: var(--bg-subtle); color: var(--text-main);">
+                        <i class="bi bi-search"></i>
+                    </span>
+                    <input type="text" class="form-control" placeholder="Search by clip title or customer email…"
+                           @bind="_searchQuery" @bind:event="oninput"
+                           style="background: var(--bg-main); color: var(--text-main); border-color: var(--border-color);" />
+                    @if (!string.IsNullOrEmpty(_searchQuery))
+                    {
+                        <button class="btn btn-outline-secondary" @onclick="@(() => _searchQuery = "")">
+                            <i class="bi bi-x-lg"></i>
+                        </button>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <!-- Sales Table -->
+        <div class="card border-0" style="background: var(--bg-surface); border-radius: var(--radius-lg);">
+            <div class="card-body p-0">
+                @{
+                    var filtered = FilteredPurchases();
+                }
+                @if (!filtered.Any())
+                {
+                    <div class="text-center py-5" style="color: var(--text-main); opacity: 0.5;">
+                        <i class="bi bi-bag-x fs-3 d-block mb-2"></i>
+                        @if (string.IsNullOrEmpty(_searchQuery))
+                        {
+                            <span>No sales yet. Share your store to get started!</span>
+                        }
+                        else
+                        {
+                            <span>No results for "@_searchQuery".</span>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0" style="color: var(--text-main);">
+                            <thead>
+                                <tr style="border-color: var(--border-color);">
+                                    <th class="px-3 py-2 small fw-semibold">Date</th>
+                                    <th class="px-3 py-2 small fw-semibold">Clip Title</th>
+                                    <th class="px-3 py-2 small fw-semibold">Collection</th>
+                                    <th class="px-3 py-2 small fw-semibold">Customer</th>
+                                    <th class="px-3 py-2 small fw-semibold">License</th>
+                                    <th class="px-3 py-2 small fw-semibold text-end">Price Paid</th>
+                                    <th class="px-3 py-2 small fw-semibold text-end">Your Payout</th>
+                                    <th class="px-3 py-2 small fw-semibold">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var p in filtered)
+                                {
+                                    <tr style="border-color: var(--border-color);">
+                                        <td class="px-3 py-2 small">@p.CreatedAt.ToString("MMM d, yyyy")</td>
+                                        <td class="px-3 py-2 small">@(p.ClipTitle ?? "-")</td>
+                                        <td class="px-3 py-2 small">@(p.CollectionName ?? "-")</td>
+                                        <td class="px-3 py-2 small">@(p.CustomerEmail ?? "-")</td>
+                                        <td class="px-3 py-2 small">
+                                            <span class="badge @LicenseBadgeClass(p.LicenseType)">@p.LicenseType</span>
+                                        </td>
+                                        <td class="px-3 py-2 small text-end">$@(p.PricePaidCents / 100.0:F2)</td>
+                                        <td class="px-3 py-2 small text-end fw-semibold" style="color: var(--accent-primary);">$@(p.SellerPayoutCents / 100.0:F2)</td>
+                                        <td class="px-3 py-2 small">
+                                            <span class="badge @StatusBadgeClass(p.FulfillmentStatus)">@p.FulfillmentStatus</span>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="px-3 py-2 border-top border-secondary small" style="color: var(--text-main); opacity: 0.6;">
+                        Showing @filtered.Count of @_purchases.Count sales
+                    </div>
+                }
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    [CascadingParameter]
+    private Task<AuthenticationState> AuthenticationStateTask { get; set; } = null!;
+
+    private Seller? _seller;
+    private List<Purchase> _purchases = new();
+    private string _searchQuery = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthenticationStateTask;
+        var userId = authState.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        if (userId != null)
+            _seller = await SellerRepository.GetByUserIdAsync(userId);
+        if (_seller == null) { Navigation.NavigateTo("/"); return; }
+
+        _purchases = await PurchaseRepository.ListBySellerAsync(_seller.Id);
+    }
+
+    private List<Purchase> FilteredPurchases()
+    {
+        if (string.IsNullOrWhiteSpace(_searchQuery)) return _purchases;
+        var q = _searchQuery.Trim().ToLower();
+        return _purchases.Where(p =>
+            (p.ClipTitle != null && p.ClipTitle.ToLower().Contains(q)) ||
+            (p.CustomerEmail != null && p.CustomerEmail.ToLower().Contains(q))
+        ).ToList();
+    }
+
+    private static string LicenseBadgeClass(LicenseType lt) => lt switch
+    {
+        LicenseType.Commercial => "bg-warning text-dark",
+        LicenseType.Gif => "bg-info text-dark",
+        _ => "bg-secondary"
+    };
+
+    private static string StatusBadgeClass(FulfillmentStatus s) => s switch
+    {
+        FulfillmentStatus.Fulfilled => "bg-success",
+        _ => "bg-warning text-dark"
+    };
+}

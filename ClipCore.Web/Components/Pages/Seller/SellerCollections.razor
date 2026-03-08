@@ -1,0 +1,361 @@
+@page "/seller/collections"
+@rendermode RenderMode.InteractiveServer
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize(Roles = "Seller")]
+@inject ISellerRepository SellerRepository
+@inject ICollectionRepository CollectionRepository
+@inject IClipRepository ClipRepository
+@inject NavigationManager Navigation
+
+<PageTitle>My Collections — ClipCore</PageTitle>
+
+<div class="container py-4" style="max-width: 1100px;">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 fw-bold mb-1" style="color: var(--text-main);">My Collections</h1>
+            <p class="small mb-0" style="color: var(--text-main); opacity: 0.6;">Organise clips into events or shoots.</p>
+        </div>
+        <button class="btn btn-primary btn-sm" @onclick="OpenCreateModal"
+                style="background: var(--accent-primary); border-color: var(--accent-primary);">
+            <i class="bi bi-plus-lg me-1"></i> New Collection
+        </button>
+    </div>
+
+    <!-- Nav -->
+    <div class="mb-4">
+        <nav class="d-flex gap-2 flex-wrap">
+            <a href="/seller/dashboard" class="btn btn-sm btn-outline-secondary">Dashboard</a>
+            <a href="/seller/collections" class="btn btn-sm btn-outline-secondary active">Collections</a>
+            <a href="/seller/upload" class="btn btn-sm btn-outline-secondary">Upload</a>
+            <a href="/seller/storefront" class="btn btn-sm btn-outline-secondary">Storefront</a>
+            <a href="/seller/sales" class="btn btn-sm btn-outline-secondary">Sales</a>
+        </nav>
+    </div>
+
+    @if (!string.IsNullOrEmpty(_errorMessage))
+    {
+        <div class="alert alert-danger alert-dismissible">
+            @_errorMessage
+            <button type="button" class="btn-close" @onclick="@(() => _errorMessage = "")"></button>
+        </div>
+    }
+    @if (!string.IsNullOrEmpty(_successMessage))
+    {
+        <div class="alert alert-success alert-dismissible">
+            @_successMessage
+            <button type="button" class="btn-close" @onclick="@(() => _successMessage = "")"></button>
+        </div>
+    }
+
+    @if (_seller == null)
+    {
+        <div class="d-flex justify-content-center align-items-center" style="height: 200px;">
+            <div class="spinner-border" role="status"></div>
+        </div>
+    }
+    else
+    {
+        <div class="card border-0" style="background: var(--bg-surface); border-radius: var(--radius-lg);">
+            <div class="card-body p-0">
+                @if (!_collections.Any())
+                {
+                    <div class="text-center py-5" style="color: var(--text-main); opacity: 0.5;">
+                        <i class="bi bi-collection fs-3 d-block mb-2"></i>
+                        No collections yet. Create your first one!
+                    </div>
+                }
+                else
+                {
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0" style="color: var(--text-main);">
+                            <thead>
+                                <tr style="border-color: var(--border-color);">
+                                    <th class="px-3 py-2 small fw-semibold">Name</th>
+                                    <th class="px-3 py-2 small fw-semibold">Date</th>
+                                    <th class="px-3 py-2 small fw-semibold">Location</th>
+                                    <th class="px-3 py-2 small fw-semibold text-center">Clips</th>
+                                    <th class="px-3 py-2 small fw-semibold text-end">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var coll in _collections)
+                                {
+                                    <tr style="border-color: var(--border-color);">
+                                        <td class="px-3 py-2">
+                                            <a href="/collections/@coll.Id" class="fw-semibold text-decoration-none" style="color: var(--accent-primary);">@coll.Name</a>
+                                        </td>
+                                        <td class="px-3 py-2 small">@coll.Date.ToString("MMM d, yyyy")</td>
+                                        <td class="px-3 py-2 small">@(coll.Location ?? "-")</td>
+                                        <td class="px-3 py-2 small text-center">
+                                            <span class="badge bg-secondary">@coll.Clips.Count</span>
+                                        </td>
+                                        <td class="px-3 py-2 text-end">
+                                            <div class="d-flex gap-1 justify-content-end">
+                                                <a href="/seller/upload?collectionId=@coll.Id" class="btn btn-sm btn-outline-primary" title="Upload Clips">
+                                                    <i class="bi bi-cloud-upload"></i>
+                                                </a>
+                                                <button class="btn btn-sm btn-outline-secondary" @onclick="@(() => OpenEditModal(coll))" title="Edit">
+                                                    <i class="bi bi-pencil"></i>
+                                                </button>
+                                                <button class="btn btn-sm btn-outline-danger" @onclick="@(() => OpenDeleteModal(coll))" title="Delete">
+                                                    <i class="bi bi-trash"></i>
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            </div>
+        </div>
+    }
+</div>
+
+<!-- Create/Edit Modal -->
+@if (_showFormModal)
+{
+    <div class="modal fade show" style="display: block; background: rgba(0,0,0,0.75);" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-secondary" style="background: var(--bg-surface); color: var(--text-main);">
+                <div class="modal-header border-secondary">
+                    <h5 class="modal-title">@(_editingCollection == null ? "New Collection" : "Edit Collection")</h5>
+                    <button type="button" class="btn-close btn-close-white" @onclick="CloseModal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <div class="col-12">
+                            <label class="form-label small fw-bold">Name <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" @bind="_formName"
+                                   style="background: var(--bg-main); color: var(--text-main); border-color: var(--border-color);" />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold">Date</label>
+                            <input type="date" class="form-control" @bind="_formDate"
+                                   style="background: var(--bg-main); color: var(--text-main); border-color: var(--border-color);" />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold">Location</label>
+                            <input type="text" class="form-control" @bind="_formLocation" placeholder="e.g. London, UK"
+                                   style="background: var(--bg-main); color: var(--text-main); border-color: var(--border-color);" />
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label small fw-bold">Summary</label>
+                            <textarea class="form-control" @bind="_formSummary" rows="2"
+                                      style="background: var(--bg-main); color: var(--text-main); border-color: var(--border-color);"></textarea>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold">Default Personal Price ($)</label>
+                            <input type="number" class="form-control" @bind="_formPriceDollars" step="0.01" min="0"
+                                   style="background: var(--bg-main); color: var(--text-main); border-color: var(--border-color);" />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold">Default Commercial Price ($)</label>
+                            <input type="number" class="form-control" @bind="_formPriceCommercialDollars" step="0.01" min="0"
+                                   style="background: var(--bg-main); color: var(--text-main); border-color: var(--border-color);" />
+                        </div>
+                    </div>
+                    @if (!string.IsNullOrEmpty(_modalError))
+                    {
+                        <div class="alert alert-danger mt-3 mb-0">@_modalError</div>
+                    }
+                </div>
+                <div class="modal-footer border-secondary">
+                    <button class="btn btn-secondary" @onclick="CloseModal">Cancel</button>
+                    <button class="btn btn-primary" @onclick="SaveCollectionAsync" disabled="@_modalSaving"
+                            style="background: var(--accent-primary); border-color: var(--accent-primary);">
+                        @if (_modalSaving) { <span class="spinner-border spinner-border-sm me-1"></span> }
+                        @(_editingCollection == null ? "Create" : "Save")
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- Delete Confirm Modal -->
+@if (_showDeleteModal && _deleteTarget != null)
+{
+    <div class="modal fade show" style="display: block; background: rgba(0,0,0,0.75);" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-secondary" style="background: var(--bg-surface); color: var(--text-main);">
+                <div class="modal-header border-secondary">
+                    <h5 class="modal-title text-danger"><i class="bi bi-exclamation-triangle me-2"></i>Delete Collection</h5>
+                    <button type="button" class="btn-close btn-close-white" @onclick="@(() => _showDeleteModal = false)"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Are you sure you want to delete <strong>@_deleteTarget.Name</strong>?</p>
+                    <p class="text-danger small">This will permanently delete the collection and all @_deleteTarget.Clips.Count clip(s) within it, including Mux assets. This cannot be undone.</p>
+                </div>
+                <div class="modal-footer border-secondary">
+                    <button class="btn btn-secondary" @onclick="@(() => _showDeleteModal = false)">Cancel</button>
+                    <button class="btn btn-danger" @onclick="ConfirmDeleteAsync" disabled="@_modalSaving">
+                        @if (_modalSaving) { <span class="spinner-border spinner-border-sm me-1"></span> }
+                        Delete
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [CascadingParameter]
+    private Task<AuthenticationState> AuthenticationStateTask { get; set; } = null!;
+
+    private Seller? _seller;
+    private List<Collection> _collections = new();
+    private string _errorMessage = "";
+    private string _successMessage = "";
+
+    // Form state
+    private bool _showFormModal = false;
+    private Collection? _editingCollection;
+    private string _formName = "";
+    private DateOnly _formDate = DateOnly.FromDateTime(DateTime.Now);
+    private string _formLocation = "";
+    private string _formSummary = "";
+    private double _formPriceDollars = 10.00;
+    private double _formPriceCommercialDollars = 49.00;
+    private string _modalError = "";
+    private bool _modalSaving = false;
+
+    // Delete state
+    private bool _showDeleteModal = false;
+    private Collection? _deleteTarget;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthenticationStateTask;
+        var userId = authState.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        if (userId != null)
+            _seller = await SellerRepository.GetByUserIdAsync(userId);
+        if (_seller == null) { Navigation.NavigateTo("/"); return; }
+
+        await LoadCollectionsAsync();
+    }
+
+    private async Task LoadCollectionsAsync()
+    {
+        _collections = await CollectionRepository.ListBySellerAsync(_seller!.Id);
+    }
+
+    private void OpenCreateModal()
+    {
+        _editingCollection = null;
+        _formName = "";
+        _formDate = DateOnly.FromDateTime(DateTime.Now);
+        _formLocation = "";
+        _formSummary = "";
+        _formPriceDollars = 10.00;
+        _formPriceCommercialDollars = 49.00;
+        _modalError = "";
+        _showFormModal = true;
+    }
+
+    private void OpenEditModal(Collection coll)
+    {
+        _editingCollection = coll;
+        _formName = coll.Name;
+        _formDate = coll.Date;
+        _formLocation = coll.Location ?? "";
+        _formSummary = coll.Summary ?? "";
+        _formPriceDollars = coll.DefaultPriceCents / 100.0;
+        _formPriceCommercialDollars = coll.DefaultPriceCommercialCents / 100.0;
+        _modalError = "";
+        _showFormModal = true;
+    }
+
+    private void OpenDeleteModal(Collection coll)
+    {
+        _deleteTarget = coll;
+        _showDeleteModal = true;
+    }
+
+    private void CloseModal()
+    {
+        _showFormModal = false;
+        _editingCollection = null;
+        _modalError = "";
+    }
+
+    private async Task SaveCollectionAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_formName))
+        {
+            _modalError = "Name is required.";
+            return;
+        }
+        _modalSaving = true;
+        _modalError = "";
+        try
+        {
+            if (_editingCollection == null)
+            {
+                // Create
+                var coll = new Collection
+                {
+                    Id = Guid.NewGuid().ToString(),
+                    SellerId = _seller!.Id,
+                    Name = _formName,
+                    Date = _formDate,
+                    Location = string.IsNullOrWhiteSpace(_formLocation) ? null : _formLocation,
+                    Summary = string.IsNullOrWhiteSpace(_formSummary) ? null : _formSummary,
+                    DefaultPriceCents = (int)(_formPriceDollars * 100),
+                    DefaultPriceCommercialCents = (int)(_formPriceCommercialDollars * 100),
+                    DefaultAllowGifSale = false,
+                    DefaultGifPriceCents = 199
+                };
+                await CollectionRepository.AddAsync(coll);
+                _successMessage = $"Collection '{coll.Name}' created.";
+            }
+            else
+            {
+                // Edit
+                _editingCollection.Name = _formName;
+                _editingCollection.Date = _formDate;
+                _editingCollection.Location = string.IsNullOrWhiteSpace(_formLocation) ? null : _formLocation;
+                _editingCollection.Summary = string.IsNullOrWhiteSpace(_formSummary) ? null : _formSummary;
+                _editingCollection.DefaultPriceCents = (int)(_formPriceDollars * 100);
+                _editingCollection.DefaultPriceCommercialCents = (int)(_formPriceCommercialDollars * 100);
+                await CollectionRepository.UpdateAsync(_editingCollection);
+                _successMessage = $"Collection '{_editingCollection.Name}' updated.";
+            }
+            CloseModal();
+            await LoadCollectionsAsync();
+        }
+        catch (Exception ex)
+        {
+            _modalError = "Error: " + ex.Message;
+        }
+        finally
+        {
+            _modalSaving = false;
+        }
+    }
+
+    private async Task ConfirmDeleteAsync()
+    {
+        if (_deleteTarget == null) return;
+        _modalSaving = true;
+        try
+        {
+            await CollectionRepository.DeleteAsync(_deleteTarget.Id);
+            _successMessage = $"Collection '{_deleteTarget.Name}' deleted.";
+            _showDeleteModal = false;
+            _deleteTarget = null;
+            await LoadCollectionsAsync();
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = "Delete failed: " + ex.Message;
+            _showDeleteModal = false;
+        }
+        finally
+        {
+            _modalSaving = false;
+        }
+    }
+}

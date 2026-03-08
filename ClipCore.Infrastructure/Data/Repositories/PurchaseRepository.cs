@@ -56,7 +56,7 @@ public class PurchaseRepository : IPurchaseRepository
         return await context.Purchases
             .AsNoTracking()
             .Include(p => p.Clip)
-            .ThenInclude(c => c!.Event)
+            .ThenInclude(c => c!.Collection)
             .Where(p => p.UserId == userId)
             .OrderByDescending(p => p.CreatedAt)
             .ToListAsync();
@@ -68,7 +68,7 @@ public class PurchaseRepository : IPurchaseRepository
         return await context.Purchases
             .AsNoTracking()
             .Include(p => p.Clip)
-            .ThenInclude(c => c!.Event)
+            .ThenInclude(c => c!.Collection)
             .Where(p => p.CustomerEmail != null && p.CustomerEmail.ToLower() == email.ToLower())
             .OrderByDescending(p => p.CreatedAt)
             .ToListAsync();
@@ -80,7 +80,7 @@ public class PurchaseRepository : IPurchaseRepository
         return await context.Purchases
             .AsNoTracking()
             .Include(p => p.Clip)
-            .ThenInclude(c => c!.Event)
+            .ThenInclude(c => c!.Collection)
             .Where(p => 
                 (p.CustomerEmail != null && p.CustomerEmail.ToLower() == email.ToLower()) &&
                 p.StripeSessionId.EndsWith(partialOrderId)
@@ -94,8 +94,18 @@ public class PurchaseRepository : IPurchaseRepository
         using var context = await _contextFactory.CreateDbContextAsync();
         return await context.Purchases
             .Include(p => p.Clip)
-            .ThenInclude(c => c!.Event)
+            .ThenInclude(c => c!.Collection)
             .Where(p => p.StripeSessionId == sessionId)
+            .ToListAsync();
+    }
+
+    public async Task<List<Purchase>> ListBySellerAsync(int sellerId)
+    {
+        using var context = await _contextFactory.CreateDbContextAsync();
+        return await context.Purchases
+            .AsNoTracking()
+            .Where(p => p.SellerId == sellerId)
+            .OrderByDescending(p => p.CreatedAt)
             .ToListAsync();
     }
 
@@ -105,7 +115,7 @@ public class PurchaseRepository : IPurchaseRepository
         return await context.Purchases
             .AsNoTracking()
             .Include(p => p.Clip)
-            .ThenInclude(c => c!.Event)
+            .ThenInclude(c => c!.Collection)
             .OrderByDescending(p => p.CreatedAt)
             .ToListAsync();
     }
@@ -116,7 +126,7 @@ public class PurchaseRepository : IPurchaseRepository
         var query = context.Purchases
             .AsNoTracking()
             .Include(p => p.Clip)
-            .ThenInclude(c => c!.Event)
+            .ThenInclude(c => c!.Collection)
             .AsQueryable();
 
         if (status.HasValue)

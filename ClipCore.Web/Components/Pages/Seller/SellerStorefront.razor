@@ -1,0 +1,264 @@
+@page "/seller/storefront"
+@rendermode RenderMode.InteractiveServer
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize(Roles = "Seller")]
+@inject ISellerRepository SellerRepository
+@inject IStorefrontRepository StorefrontRepository
+@inject IStorageService StorageService
+@inject NavigationManager Navigation
+
+<PageTitle>Storefront Settings — ClipCore</PageTitle>
+
+<div class="container py-4" style="max-width: 800px;">
+    <!-- Header -->
+    <div class="mb-4">
+        <h1 class="h3 fw-bold mb-1" style="color: var(--text-main);">Storefront Settings</h1>
+        <p class="small mb-0" style="color: var(--text-main); opacity: 0.6;">Customize how buyers see your store.</p>
+    </div>
+
+    <!-- Nav -->
+    <div class="mb-4">
+        <nav class="d-flex gap-2 flex-wrap">
+            <a href="/seller/dashboard" class="btn btn-sm btn-outline-secondary">Dashboard</a>
+            <a href="/seller/collections" class="btn btn-sm btn-outline-secondary">Collections</a>
+            <a href="/seller/upload" class="btn btn-sm btn-outline-secondary">Upload</a>
+            <a href="/seller/storefront" class="btn btn-sm btn-outline-secondary active">Storefront</a>
+            <a href="/seller/sales" class="btn btn-sm btn-outline-secondary">Sales</a>
+        </nav>
+    </div>
+
+    @if (_seller == null)
+    {
+        <div class="d-flex justify-content-center align-items-center" style="height: 200px;">
+            <div class="spinner-border" role="status"><span class="visually-hidden">Loading...</span></div>
+        </div>
+    }
+    else if (_storefront == null)
+    {
+        <div class="alert alert-warning">No storefront found for your account. Please contact support.</div>
+    }
+    else
+    {
+        @if (!string.IsNullOrEmpty(_successMessage))
+        {
+            <div class="alert alert-success alert-dismissible fade show" role="alert">
+                <i class="bi bi-check-circle me-2"></i>@_successMessage
+                <button type="button" class="btn-close" @onclick="@(() => _successMessage = "")"></button>
+            </div>
+        }
+        @if (!string.IsNullOrEmpty(_errorMessage))
+        {
+            <div class="alert alert-danger">@_errorMessage</div>
+        }
+
+        <!-- Store URL (read-only) -->
+        <div class="card mb-4 border-0" style="background: var(--bg-surface); border-radius: var(--radius-lg);">
+            <div class="card-body">
+                <label class="form-label small fw-bold" style="color: var(--accent-primary);">Store URL (cannot be changed)</label>
+                <div class="input-group">
+                    <span class="input-group-text border-secondary" style="background: var(--bg-subtle); color: var(--text-main);">clipcore.com/store/</span>
+                    <input type="text" class="form-control" value="@_storefront.Slug" readonly
+                           style="background: var(--bg-main); color: var(--text-main); border-color: var(--border-color);" />
+                    <a href="/store/@_storefront.Slug" target="_blank" class="btn btn-outline-secondary">
+                        <i class="bi bi-box-arrow-up-right"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Edit Form -->
+        <div class="card border-0" style="background: var(--bg-surface); border-radius: var(--radius-lg);">
+            <div class="card-header bg-transparent border-bottom border-secondary">
+                <h5 class="mb-0 fw-semibold" style="color: var(--text-main);">Store Details</h5>
+            </div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <!-- Display Name -->
+                    <div class="col-12">
+                        <label class="form-label small fw-bold" style="color: var(--text-main);">Display Name <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" @bind="_storefront.DisplayName" maxlength="80"
+                               style="background: var(--bg-main); color: var(--text-main); border-color: var(--border-color);" />
+                    </div>
+
+                    <!-- Bio -->
+                    <div class="col-12">
+                        <label class="form-label small fw-bold" style="color: var(--text-main);">Bio <span class="text-muted fw-normal">(optional, max 500 chars)</span></label>
+                        <textarea class="form-control" @bind="_storefront.Bio" rows="3" maxlength="500"
+                                  style="background: var(--bg-main); color: var(--text-main); border-color: var(--border-color);"></textarea>
+                    </div>
+
+                    <!-- Accent Color -->
+                    <div class="col-md-6">
+                        <label class="form-label small fw-bold" style="color: var(--text-main);">Accent Color</label>
+                        <div class="d-flex gap-2 align-items-center">
+                            <input type="color" class="form-control form-control-color"
+                                   value="@(_storefront.AccentColor ?? "#6200ea")"
+                                   @oninput="OnAccentColorInput"
+                                   style="width: 50px; height: 38px; padding: 2px; border-color: var(--border-color);" />
+                            <input type="text" class="form-control form-control-sm" @bind="_storefront.AccentColor"
+                                   placeholder="#6200ea" style="background: var(--bg-main); color: var(--text-main); border-color: var(--border-color);" />
+                        </div>
+                    </div>
+
+                    <!-- Published Toggle -->
+                    <div class="col-md-6 d-flex align-items-end">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="isPublished" @bind="_storefront.IsPublished" />
+                            <label class="form-check-label" for="isPublished" style="color: var(--text-main);">
+                                Your store is visible to buyers
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Logo Upload -->
+                    <div class="col-md-6">
+                        <label class="form-label small fw-bold" style="color: var(--text-main);">Logo</label>
+                        @if (!string.IsNullOrEmpty(_storefront.LogoUrl))
+                        {
+                            <div class="mb-2">
+                                <img src="@StorageService.GetPresignedDownloadUrl(_storefront.LogoUrl, 10, false)"
+                                     alt="Logo" style="height: 60px; object-fit: contain; border-radius: 4px; border: 1px solid var(--border-color);" />
+                            </div>
+                        }
+                        <InputFile OnChange="OnLogoSelected" accept="image/*" class="form-control form-control-sm"
+                                   style="background: var(--bg-main); color: var(--text-main); border-color: var(--border-color);" />
+                        @if (_logoUploading)
+                        {
+                            <div class="small mt-1" style="color: var(--accent-primary);"><i class="bi bi-arrow-repeat me-1"></i>Uploading…</div>
+                        }
+                    </div>
+
+                    <!-- Banner Upload -->
+                    <div class="col-md-6">
+                        <label class="form-label small fw-bold" style="color: var(--text-main);">Banner</label>
+                        @if (!string.IsNullOrEmpty(_storefront.BannerUrl))
+                        {
+                            <div class="mb-2">
+                                <img src="@StorageService.GetPresignedDownloadUrl(_storefront.BannerUrl, 10, false)"
+                                     alt="Banner" style="width: 100%; height: 60px; object-fit: cover; border-radius: 4px; border: 1px solid var(--border-color);" />
+                            </div>
+                        }
+                        <InputFile OnChange="OnBannerSelected" accept="image/*" class="form-control form-control-sm"
+                                   style="background: var(--bg-main); color: var(--text-main); border-color: var(--border-color);" />
+                        @if (_bannerUploading)
+                        {
+                            <div class="small mt-1" style="color: var(--accent-primary);"><i class="bi bi-arrow-repeat me-1"></i>Uploading…</div>
+                        }
+                    </div>
+                </div>
+
+                <div class="mt-4 pt-3 border-top border-secondary text-end">
+                    <button class="btn btn-primary" @onclick="SaveAsync" disabled="@_saving"
+                            style="background: var(--accent-primary); border-color: var(--accent-primary);">
+                        @if (_saving)
+                        {
+                            <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                        }
+                        <i class="bi bi-floppy me-2"></i>Save Changes
+                    </button>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    [CascadingParameter]
+    private Task<AuthenticationState> AuthenticationStateTask { get; set; } = null!;
+
+    private Seller? _seller;
+    private Storefront? _storefront;
+    private string _successMessage = "";
+    private string _errorMessage = "";
+    private bool _saving = false;
+    private bool _logoUploading = false;
+    private bool _bannerUploading = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthenticationStateTask;
+        var userId = authState.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        if (userId != null)
+            _seller = await SellerRepository.GetByUserIdAsync(userId);
+        if (_seller == null) { Navigation.NavigateTo("/"); return; }
+
+        _storefront = await StorefrontRepository.GetBySellerIdAsync(_seller.Id);
+    }
+
+    private void OnAccentColorInput(ChangeEventArgs e)
+    {
+        if (_storefront != null)
+            _storefront.AccentColor = e.Value?.ToString();
+    }
+
+    private async Task OnLogoSelected(InputFileChangeEventArgs e)
+    {
+        if (_storefront == null || _seller == null) return;
+        _logoUploading = true;
+        try
+        {
+            var file = e.File;
+            var ext = Path.GetExtension(file.Name);
+            var key = $"storefronts/{_seller.Id}/logo{ext}";
+            using var stream = file.OpenReadStream(maxAllowedSize: 5 * 1024 * 1024);
+            await StorageService.UploadAsync(stream, key, file.ContentType);
+            _storefront.LogoUrl = key;
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = "Logo upload failed: " + ex.Message;
+        }
+        finally
+        {
+            _logoUploading = false;
+        }
+    }
+
+    private async Task OnBannerSelected(InputFileChangeEventArgs e)
+    {
+        if (_storefront == null || _seller == null) return;
+        _bannerUploading = true;
+        try
+        {
+            var file = e.File;
+            var ext = Path.GetExtension(file.Name);
+            var key = $"storefronts/{_seller.Id}/banner{ext}";
+            using var stream = file.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024);
+            await StorageService.UploadAsync(stream, key, file.ContentType);
+            _storefront.BannerUrl = key;
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = "Banner upload failed: " + ex.Message;
+        }
+        finally
+        {
+            _bannerUploading = false;
+        }
+    }
+
+    private async Task SaveAsync()
+    {
+        if (_storefront == null) return;
+        if (string.IsNullOrWhiteSpace(_storefront.DisplayName))
+        {
+            _errorMessage = "Display Name is required.";
+            return;
+        }
+        _saving = true;
+        _errorMessage = "";
+        try
+        {
+            await StorefrontRepository.UpdateAsync(_storefront);
+            _successMessage = "Storefront saved successfully.";
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = "Save failed: " + ex.Message;
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+}

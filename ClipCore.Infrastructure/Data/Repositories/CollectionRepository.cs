@@ -38,6 +38,17 @@ public class CollectionRepository : ICollectionRepository
             .ToListAsync();
     }
 
+    public async Task<List<Collection>> ListBySellerAsync(int sellerId)
+    {
+        using var context = await _contextFactory.CreateDbContextAsync();
+        return await context.Collections
+            .AsNoTracking()
+            .Include(c => c.Clips)
+            .Where(c => c.SellerId == sellerId)
+            .OrderByDescending(c => c.Date)
+            .ToListAsync();
+    }
+
     public async Task<List<Collection>> SearchAsync(string query)
     {
         using var context = await _contextFactory.CreateDbContextAsync();
