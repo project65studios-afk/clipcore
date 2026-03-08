@@ -5,6 +5,17 @@ using ClipCore.Core.Entities;
 
 namespace ClipCore.Core.Interfaces;
 
+public class SellerSalesSummary
+{
+    public int SellerId { get; set; }
+    public string DisplayName { get; set; } = "";
+    public string Slug { get; set; } = "";
+    public int SalesCount { get; set; }
+    public long TotalRevenueCents { get; set; }
+    public long PlatformFeeCents { get; set; }
+    public long SellerPayoutCents { get; set; }
+}
+
 public interface IPurchaseRepository
 {
     Task AddAsync(Purchase purchase);
@@ -20,9 +31,11 @@ public interface IPurchaseRepository
     Task<List<Purchase>> ListFilteredAsync(FulfillmentStatus? status = null, DateTime? since = null, string? search = null);
     Task UpdateAsync(Purchase purchase);
     Task<long> GetTotalRevenueAsync();
+    Task<long> GetTotalPlatformFeeAsync();
     Task<int> GetTotalSalesCountAsync();
     Task<List<Purchase>> GetRecentSalesAsync(int count);
     Task<Dictionary<DateOnly, long>> GetDailyRevenueAsync(int days);
+    Task<List<SellerSalesSummary>> GetSellerSalesSummaryAsync();
     Task DeleteAsync(int id);
     Task DeleteAllAsync();
     Task MigrateGifLicenseTypesAsync();

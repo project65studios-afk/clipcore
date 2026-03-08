@@ -40,6 +40,35 @@ public class CollectionRepository : ICollectionRepository
             .ToListAsync();
     }
 
+    public async Task<List<Collection>> ListMarketplaceAsync()
+    {
+        using var context = await _contextFactory.CreateDbContextAsync();
+        return await context.Collections
+            .AsNoTracking()
+            .Include(e => e.Clips)
+            .Include(e => e.Seller).ThenInclude(s => s!.Storefront)
+            .AsSplitQuery()
+            .Where(e => e.SellerId == null || e.Seller!.IsTrusted)
+            .OrderByDescending(e => e.Date)
+            .ToListAsync();
+    }
+
+    public async Task<List<Collection>> SearchMarketplaceAsync(string query)
+    {
+        using var context = await _contextFactory.CreateDbContextAsync();
+        return await context.Collections
+            .AsNoTracking()
+            .Include(e => e.Clips)
+            .Include(e => e.Seller).ThenInclude(s => s!.Storefront)
+            .AsSplitQuery()
+            .Where(e =>
+                (e.SellerId == null || e.Seller!.IsTrusted) &&
+                (e.Name.ToLower().Contains(query.ToLower()) ||
+                 (e.Summary != null && e.Summary.ToLower().Contains(query.ToLower()))))
+            .OrderByDescending(e => e.Date)
+            .ToListAsync();
+    }
+
     public async Task<List<Collection>> ListBySellerAsync(int sellerId)
     {
         using var context = await _contextFactory.CreateDbContextAsync();

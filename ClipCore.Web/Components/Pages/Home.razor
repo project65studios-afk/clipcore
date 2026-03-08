@@ -407,7 +407,7 @@ else
     protected override async Task OnInitializedAsync()
     {
         _storeName = await StoreSettingsService.GetStoreNameAsync();
-        _events = (await CollectionRepository.ListAsync()).OrderByDescending(e => e.Date).ToList();
+        _events = (await CollectionRepository.ListMarketplaceAsync()).OrderByDescending(e => e.Date).ToList();
         VideoHealingService.OnClipHealed += HandleClipHealed;
         StoreSettingsService.OnChange += HandleSettingsChange;
         

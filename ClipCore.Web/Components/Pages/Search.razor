@@ -137,7 +137,7 @@
 
         try
         {
-            var eventsTask = CollectionRepository.SearchAsync(Query);
+            var eventsTask = CollectionRepository.SearchMarketplaceAsync(Query);
             var clipsTask = SearchService.SearchAsync(Query);
 
             await Task.WhenAll(eventsTask, clipsTask);

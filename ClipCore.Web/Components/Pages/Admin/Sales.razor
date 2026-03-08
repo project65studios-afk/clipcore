@@ -29,14 +29,18 @@
             <!-- Metrics Tiles -->
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
                 <div style="background: var(--bg-surface); padding: 1.5rem; border-radius: var(--radius-lg); border: 1px solid var(--border-color); display: flex; flex-direction: column; justify-content: center;">
-                    <div style="color: var(--text-secondary); font-size: 0.8rem; margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 1px;">Total Revenue</div>
+                    <div style="color: var(--text-secondary); font-size: 0.8rem; margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 1px;">Gross Revenue</div>
                     <div style="font-size: 1.75rem; font-weight: 700; color: var(--status-success);">$@(_totalRevenue / 100.00)</div>
                 </div>
                 <div style="background: var(--bg-surface); padding: 1.5rem; border-radius: var(--radius-lg); border: 1px solid var(--border-color); display: flex; flex-direction: column; justify-content: center;">
                     <div style="color: var(--text-secondary); font-size: 0.8rem; margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 1px;">Total Orders</div>
                     <div style="font-size: 1.75rem; font-weight: 700;">@_totalSalesCount</div>
                 </div>
-                <div style="background: var(--bg-surface); padding: 1.5rem; border-radius: var(--radius-lg); border: 1px solid var(--border-color); grid-column: span 2;">
+                <div style="background: var(--bg-surface); padding: 1.5rem; border-radius: var(--radius-lg); border: 1px solid var(--border-color);">
+                    <div style="color: var(--text-secondary); font-size: 0.8rem; margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 1px;">Platform Fees (10%)</div>
+                    <div style="font-size: 1.75rem; font-weight: 700; color: var(--accent-primary);">$@(_totalPlatformFee / 100.00)</div>
+                </div>
+                <div style="background: var(--bg-surface); padding: 1.5rem; border-radius: var(--radius-lg); border: 1px solid var(--border-color);">
                     <div style="color: var(--text-secondary); font-size: 0.8rem; margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 1px;">Avg. Order Value</div>
                     <div style="font-size: 1.75rem; font-weight: 700; color: var(--accent-primary);">
                         $@(_totalSalesCount > 0 ? (_totalRevenue / 100.00 / _totalSalesCount).ToString("F2") : "0.00")
@@ -109,15 +113,56 @@
                 </div>
             </div>
         </div>
+
+        @if (_sellerSummaries.Any())
+        {
+            <!-- Per-Seller Breakdown -->
+            <div style="background: var(--bg-surface); border-radius: var(--radius-lg); border: 1px solid var(--border-color); overflow: hidden; margin-top: 2rem;">
+                <div style="padding: 1.5rem; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center;">
+                    <h3 style="margin: 0;">Seller Breakdown</h3>
+                    <a href="/admin/sellers" class="btn-secondary" style="text-decoration: none; font-size: 0.85rem;">Manage Sellers</a>
+                </div>
+                <table style="width: 100%; border-collapse: collapse;">
+                    <thead>
+                        <tr style="background: var(--bg-subtle); border-bottom: 1px solid var(--border-color);">
+                            <th style="padding: 1rem; text-align: left; color: var(--text-secondary); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.5px;">Seller</th>
+                            <th style="padding: 1rem; text-align: right; color: var(--text-secondary); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.5px;">Sales</th>
+                            <th style="padding: 1rem; text-align: right; color: var(--text-secondary); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.5px;">Gross Revenue</th>
+                            <th style="padding: 1rem; text-align: right; color: var(--text-secondary); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.5px;">Platform Fee</th>
+                            <th style="padding: 1rem; text-align: right; color: var(--text-secondary); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.5px;">Seller Payout</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var s in _sellerSummaries)
+                        {
+                            <tr style="border-bottom: 1px solid var(--border-color);">
+                                <td style="padding: 1rem;">
+                                    <div style="font-weight: 600;">@s.DisplayName</div>
+                                    <div style="font-size: 0.8rem; color: var(--text-muted);">
+                                        <a href="/store/@s.Slug" target="_blank" style="color: var(--accent-primary); text-decoration: none;">/store/@s.Slug</a>
+                                    </div>
+                                </td>
+                                <td style="padding: 1rem; text-align: right;">@s.SalesCount</td>
+                                <td style="padding: 1rem; text-align: right; font-weight: 600; color: var(--status-success);">$@(s.TotalRevenueCents / 100.00)</td>
+                                <td style="padding: 1rem; text-align: right; color: var(--accent-primary);">$@(s.PlatformFeeCents / 100.00)</td>
+                                <td style="padding: 1rem; text-align: right; font-weight: 600;">$@(s.SellerPayoutCents / 100.00)</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
     }
 </div>
 
 @code {
     private bool _isLoading = true;
     private long _totalRevenue;
+    private long _totalPlatformFee;
     private int _totalSalesCount;
     private List<Purchase> _recentPurchases = new();
     private Dictionary<DateOnly, long> _dailyRevenue = new();
+    private List<SellerSalesSummary> _sellerSummaries = new();
 
     protected override async Task OnInitializedAsync()
     {
@@ -151,9 +196,11 @@
     private async Task LoadDataAsync()
     {
         _totalRevenue = await PurchaseRepository.GetTotalRevenueAsync();
+        _totalPlatformFee = await PurchaseRepository.GetTotalPlatformFeeAsync();
         _totalSalesCount = await PurchaseRepository.GetTotalSalesCountAsync();
         _recentPurchases = await PurchaseRepository.GetRecentSalesAsync(20);
         _dailyRevenue = await PurchaseRepository.GetDailyRevenueAsync(7);
+        _sellerSummaries = await PurchaseRepository.GetSellerSalesSummaryAsync();
     }
 
     private IEnumerable<DateOnly> GetLast7Days()

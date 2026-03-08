@@ -31,6 +31,16 @@ public class SellerRepository : ISellerRepository
             .FirstOrDefaultAsync(s => s.Id == id);
     }
 
+    public async Task<List<Seller>> ListAllAsync()
+    {
+        using var context = await _contextFactory.CreateDbContextAsync();
+        return await context.Sellers
+            .AsNoTracking()
+            .Include(s => s.Storefront)
+            .OrderByDescending(s => s.CreatedAt)
+            .ToListAsync();
+    }
+
     public async Task AddAsync(Seller seller)
     {
         using var context = await _contextFactory.CreateDbContextAsync();

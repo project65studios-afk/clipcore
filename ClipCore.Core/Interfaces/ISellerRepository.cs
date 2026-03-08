@@ -6,6 +6,7 @@ public interface ISellerRepository
 {
     Task<Seller?> GetByUserIdAsync(string userId);
     Task<Seller?> GetByIdAsync(int id);
+    Task<List<Seller>> ListAllAsync();
     Task AddAsync(Seller seller);
     Task UpdateAsync(Seller seller);
 }

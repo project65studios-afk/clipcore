@@ -227,10 +227,60 @@ public class PurchaseRepository : IPurchaseRepository
         return await context.Purchases.SumAsync(p => (long)p.PricePaidCents);
     }
 
+    public async Task<long> GetTotalPlatformFeeAsync()
+    {
+        using var context = await _contextFactory.CreateDbContextAsync();
+        return await context.Purchases.SumAsync(p => (long)p.PlatformFeeCents);
+    }
+
     public async Task<int> GetTotalSalesCountAsync()
     {
         using var context = await _contextFactory.CreateDbContextAsync();
         return await context.Purchases.CountAsync();
+    }
+
+    public async Task<List<SellerSalesSummary>> GetSellerSalesSummaryAsync()
+    {
+        using var context = await _contextFactory.CreateDbContextAsync();
+
+        // Aggregate by SellerId in SQL, then enrich with Storefront display info
+        var stats = await context.Purchases
+            .Where(p => p.SellerId != null)
+            .GroupBy(p => p.SellerId!.Value)
+            .Select(g => new
+            {
+                SellerId = g.Key,
+                SalesCount = g.Count(),
+                TotalRevenueCents = g.Sum(p => (long)p.PricePaidCents),
+                PlatformFeeCents = g.Sum(p => (long)p.PlatformFeeCents),
+                SellerPayoutCents = g.Sum(p => (long)p.SellerPayoutCents)
+            })
+            .ToListAsync();
+
+        // Fetch storefronts for display names in one query
+        var sellerIds = stats.Select(s => s.SellerId).ToList();
+        var storefronts = await context.Sellers
+            .AsNoTracking()
+            .Include(s => s.Storefront)
+            .Where(s => sellerIds.Contains(s.Id))
+            .ToDictionaryAsync(s => s.Id, s => s);
+
+        return stats.Select(s =>
+        {
+            var seller = storefronts.GetValueOrDefault(s.SellerId);
+            return new SellerSalesSummary
+            {
+                SellerId = s.SellerId,
+                DisplayName = seller?.Storefront?.DisplayName ?? $"Seller #{s.SellerId}",
+                Slug = seller?.Storefront?.Slug ?? "",
+                SalesCount = s.SalesCount,
+                TotalRevenueCents = s.TotalRevenueCents,
+                PlatformFeeCents = s.PlatformFeeCents,
+                SellerPayoutCents = s.SellerPayoutCents
+            };
+        })
+        .OrderByDescending(s => s.TotalRevenueCents)
+        .ToList();
     }
 
     public async Task<List<Purchase>> GetRecentSalesAsync(int count)

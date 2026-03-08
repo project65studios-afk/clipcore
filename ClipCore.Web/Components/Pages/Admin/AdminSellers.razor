@@ -1,0 +1,201 @@
+@page "/admin/sellers"
+@using ClipCore.Core.Entities
+@using ClipCore.Core.Interfaces
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize(Roles = "Admin")]
+@inject ISellerRepository SellerRepository
+@inject IClipRepository ClipRepository
+@inject IAuditService AuditService
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@rendermode RenderMode.InteractiveServer
+
+<div class="admin-container" style="max-width: 1200px; margin: 2rem auto; padding: 0 1rem;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; flex-wrap: wrap; gap: 1rem;">
+        <h1 style="font-size: 2rem; margin: 0;">Seller Management</h1>
+        <div style="display: flex; gap: 0.75rem;">
+            <a href="/admin" class="btn-secondary" style="text-decoration: none;">Dashboard</a>
+            <a href="/admin/sales" class="btn-secondary" style="text-decoration: none;">Sales</a>
+        </div>
+    </div>
+
+    @if (!string.IsNullOrEmpty(_message))
+    {
+        <div class="alert @(_isError ? "alert-danger" : "alert-success") mb-3">@_message</div>
+    }
+
+    <!-- Filter Tabs -->
+    <div style="display: flex; gap: 0.5rem; margin-bottom: 1.5rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.75rem;">
+        @foreach (var filter in new[] { "All", "Pending", "Approved" })
+        {
+            <button class="btn btn-sm @(_activeFilter == filter ? "btn-primary" : "btn-outline-secondary")"
+                    style="@(_activeFilter == filter ? "background: var(--accent-primary); border-color: var(--accent-primary);" : "")"
+                    @onclick="() => _activeFilter = filter">
+                @filter
+                @if (filter == "Pending") { <span class="badge bg-warning text-dark ms-1">@_sellers.Count(s => !s.IsTrusted)</span> }
+                @if (filter == "Approved") { <span class="badge bg-success ms-1">@_sellers.Count(s => s.IsTrusted)</span> }
+            </button>
+        }
+    </div>
+
+    @if (_isLoading)
+    {
+        <div class="text-center py-5"><div class="spinner-border text-primary" role="status"></div></div>
+    }
+    else
+    {
+        var filtered = _activeFilter == "Pending" ? _sellers.Where(s => !s.IsTrusted).ToList()
+                     : _activeFilter == "Approved" ? _sellers.Where(s => s.IsTrusted).ToList()
+                     : _sellers;
+
+        @if (!filtered.Any())
+        {
+            <div style="text-align: center; padding: 3rem; background: var(--bg-surface); border-radius: var(--radius-lg); border: 1px dashed var(--border-color);">
+                <p style="color: var(--text-muted);">No sellers in this category.</p>
+            </div>
+        }
+        else
+        {
+            <div style="background: var(--bg-surface); border-radius: var(--radius-lg); border: 1px solid var(--border-color); overflow: hidden;">
+                <table style="width: 100%; border-collapse: collapse;">
+                    <thead>
+                        <tr style="background: var(--bg-subtle); border-bottom: 1px solid var(--border-color);">
+                            <th style="padding: 1rem; text-align: left; color: var(--text-secondary); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.5px;">Seller</th>
+                            <th style="padding: 1rem; text-align: center; color: var(--text-secondary); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.5px;">Status</th>
+                            <th style="padding: 1rem; text-align: center; color: var(--text-secondary); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.5px;">Clips</th>
+                            <th style="padding: 1rem; text-align: left; color: var(--text-secondary); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.5px;">Joined</th>
+                            <th style="padding: 1rem; text-align: right; color: var(--text-secondary); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.5px;">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var seller in filtered)
+                        {
+                            var clipCount = _clipCounts.GetValueOrDefault(seller.Id, 0);
+                            <tr style="border-bottom: 1px solid var(--border-color);">
+                                <td style="padding: 1rem;">
+                                    <div style="font-weight: 600;">@(seller.Storefront?.DisplayName ?? "Unnamed")</div>
+                                    <div style="font-size: 0.8rem; color: var(--text-muted);">
+                                        <a href="/store/@(seller.Storefront?.Slug)" target="_blank" style="color: var(--accent-primary); text-decoration: none;">
+                                            /store/@(seller.Storefront?.Slug ?? "—")
+                                        </a>
+                                    </div>
+                                </td>
+                                <td style="padding: 1rem; text-align: center;">
+                                    @if (seller.IsTrusted)
+                                    {
+                                        <span class="badge bg-success" style="font-size: 0.75rem;">Approved</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-warning text-dark" style="font-size: 0.75rem;">Pending</span>
+                                    }
+                                </td>
+                                <td style="padding: 1rem; text-align: center; font-weight: 600;">@clipCount</td>
+                                <td style="padding: 1rem; color: var(--text-muted); font-size: 0.85rem;">@seller.CreatedAt.ToString("MMM d, yyyy")</td>
+                                <td style="padding: 1rem; text-align: right;">
+                                    <div style="display: flex; gap: 0.5rem; justify-content: flex-end;">
+                                        @if (!seller.IsTrusted)
+                                        {
+                                            <button class="btn btn-success btn-sm" @onclick="() => ApproveSellerAsync(seller)" disabled="@_saving">
+                                                Approve
+                                            </button>
+                                        }
+                                        else
+                                        {
+                                            <button class="btn btn-outline-danger btn-sm" @onclick="() => RevokeSellerAsync(seller)" disabled="@_saving">
+                                                Revoke
+                                            </button>
+                                        }
+                                        <a href="/admin/sellers/@seller.Id/clips" class="btn btn-outline-secondary btn-sm">
+                                            View Clips
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    }
+</div>
+
+@code {
+    private List<Seller> _sellers = new();
+    private Dictionary<int, int> _clipCounts = new();
+    private bool _isLoading = true;
+    private bool _saving = false;
+    private string _activeFilter = "All";
+    private string _message = "";
+    private bool _isError = false;
+    private string? _adminUserId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var auth = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        _adminUserId = auth.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+
+        await LoadDataAsync();
+    }
+
+    private async Task LoadDataAsync()
+    {
+        _isLoading = true;
+        _sellers = await SellerRepository.ListAllAsync();
+
+        // Load clip counts for all sellers in one batch
+        foreach (var seller in _sellers)
+        {
+            var clips = await ClipRepository.ListBySellerAsync(seller.Id);
+            _clipCounts[seller.Id] = clips.Count;
+        }
+
+        _isLoading = false;
+    }
+
+    private async Task ApproveSellerAsync(Seller seller)
+    {
+        _saving = true;
+        _message = "";
+        try
+        {
+            seller.IsTrusted = true;
+            await SellerRepository.UpdateAsync(seller);
+            await AuditService.LogActionAsync(_adminUserId, null, "Approve Seller", "Seller", seller.Id.ToString(),
+                $"Approved seller: {seller.Storefront?.DisplayName}");
+            _message = $"✓ {seller.Storefront?.DisplayName ?? "Seller"} approved — their clips are now visible on the marketplace.";
+        }
+        catch (Exception ex)
+        {
+            _isError = true;
+            _message = $"Error: {ex.Message}";
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+
+    private async Task RevokeSellerAsync(Seller seller)
+    {
+        _saving = true;
+        _message = "";
+        try
+        {
+            seller.IsTrusted = false;
+            await SellerRepository.UpdateAsync(seller);
+            await AuditService.LogActionAsync(_adminUserId, null, "Revoke Seller", "Seller", seller.Id.ToString(),
+                $"Revoked approval for seller: {seller.Storefront?.DisplayName}");
+            _message = $"Approval revoked for {seller.Storefront?.DisplayName ?? "seller"} — clips hidden from marketplace.";
+            _isError = false;
+        }
+        catch (Exception ex)
+        {
+            _isError = true;
+            _message = $"Error: {ex.Message}";
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+}
