@@ -6,4 +6,5 @@ namespace ClipCore.Core.Entities;
 public class ApplicationUser : IdentityUser
 {
     public virtual ICollection<Purchase> Purchases { get; set; } = new List<Purchase>();
+    public virtual Seller? Seller { get; set; }
 }

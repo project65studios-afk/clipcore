@@ -39,7 +39,12 @@ public class Purchase
     public string? CustomerAddress { get; set; } // JSON or formatted string
     public string? CustomerPhone { get; set; }
     
+    public int? SellerId { get; set; }
+    public virtual Seller? Seller { get; set; }
+
     public int PricePaidCents { get; set; }
+    public int PlatformFeeCents { get; set; }
+    public int SellerPayoutCents { get; set; }
     public LicenseType LicenseType { get; set; } = LicenseType.Personal;
     
     public bool IsGif { get; set; } = false;

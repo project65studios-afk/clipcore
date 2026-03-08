@@ -19,5 +19,8 @@ public class Collection
     public int DefaultPriceCents { get; set; } = 1000; // Default $10.00
     public int DefaultPriceCommercialCents { get; set; } = 4900; // Default $49.00
 
+    public int? SellerId { get; set; }
+    public virtual Seller? Seller { get; set; }
+
     public List<Clip> Clips { get; set; } = new();
 }

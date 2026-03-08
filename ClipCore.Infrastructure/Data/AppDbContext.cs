@@ -14,6 +14,8 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
     {
     }
 
+    public DbSet<Seller> Sellers { get; set; } = null!;
+    public DbSet<Storefront> Storefronts { get; set; } = null!;
     public DbSet<Collection> Collections { get; set; } = null!;
     public DbSet<Clip> Clips { get; set; } = null!;
     public DbSet<Purchase> Purchases { get; set; } = null!;
@@ -26,28 +28,68 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
     {
         base.OnModelCreating(modelBuilder);
 
-        // User -> Purchases Relationship
+        // Seller -> ApplicationUser (one-to-one)
+        modelBuilder.Entity<Seller>()
+            .HasOne(s => s.User)
+            .WithOne(u => u.Seller)
+            .HasForeignKey<Seller>(s => s.UserId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        // Seller -> Storefront (one-to-one)
+        modelBuilder.Entity<Storefront>()
+            .HasOne(sf => sf.Seller)
+            .WithOne(s => s.Storefront)
+            .HasForeignKey<Storefront>(sf => sf.SellerId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<Storefront>()
+            .HasIndex(sf => sf.Slug)
+            .IsUnique();
+
+        // User -> Purchases
         modelBuilder.Entity<Purchase>()
             .HasOne(p => p.User)
             .WithMany(u => u.Purchases)
             .HasForeignKey(p => p.UserId)
             .OnDelete(DeleteBehavior.SetNull);
 
-        // Purchase -> Clip Relationship
+        // Purchase -> Clip
         modelBuilder.Entity<Purchase>()
             .HasOne(p => p.Clip)
             .WithMany()
             .HasForeignKey(p => p.ClipId)
             .OnDelete(DeleteBehavior.SetNull);
 
-        // Collection configuration
+        // Purchase -> Seller
+        modelBuilder.Entity<Purchase>()
+            .HasOne(p => p.Seller)
+            .WithMany()
+            .HasForeignKey(p => p.SellerId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        // Collection -> Seller
         modelBuilder.Entity<Collection>()
-            .HasKey(e => e.Id);
+            .HasOne(c => c.Seller)
+            .WithMany()
+            .HasForeignKey(c => c.SellerId)
+            .OnDelete(DeleteBehavior.SetNull);
 
         modelBuilder.Entity<Collection>()
-            .HasIndex(e => e.Date);
+            .HasKey(c => c.Id);
 
-        // Clip configuration
+        modelBuilder.Entity<Collection>()
+            .HasIndex(c => c.Date);
+
+        modelBuilder.Entity<Collection>()
+            .HasIndex(c => c.SellerId);
+
+        // Clip -> Seller
+        modelBuilder.Entity<Clip>()
+            .HasOne(c => c.Seller)
+            .WithMany()
+            .HasForeignKey(c => c.SellerId)
+            .OnDelete(DeleteBehavior.SetNull);
+
         modelBuilder.Entity<Clip>()
             .HasKey(c => c.Id);
 
@@ -59,12 +101,18 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
             .Property(c => c.PriceCommercialCents)
             .IsRequired();
 
+        modelBuilder.Entity<Clip>()
+            .HasIndex(c => c.SellerId);
+
         // Purchase configuration
         modelBuilder.Entity<Purchase>()
             .HasIndex(p => new { p.UserId, p.ClipId, p.LicenseType })
-            .IsUnique(); // Prevent double purchase of the same license
+            .IsUnique();
 
         modelBuilder.Entity<Purchase>()
-            .HasIndex(p => p.StripeSessionId); // Index for lookup, but NOT unique (multi-item orders share ID)
+            .HasIndex(p => p.StripeSessionId);
+
+        modelBuilder.Entity<Purchase>()
+            .HasIndex(p => p.SellerId);
     }
 }

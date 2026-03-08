@@ -33,5 +33,8 @@ public class Clip
     public string? ThumbnailFileName { get; set; } // Local high-res thumbnail
     public bool IsDirectUpload { get; set; } = false;
     
+    public int? SellerId { get; set; }
+    public virtual Seller? Seller { get; set; }
+
     public DateTime PublishedAt { get; set; } = DateTime.UtcNow;
 }
