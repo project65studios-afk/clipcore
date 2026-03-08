@@ -123,14 +123,14 @@
                                 
                                 <div class="purchase-info" style="flex-grow: 1;">
                                     <h4 class="purchase-title" style="margin: 0 0 0.5rem 0; font-size: 1.1rem;">@(purchase.Clip?.Title ?? purchase.ClipTitle ?? "Deleted Clip")</h4>
-                                    @if (purchase.Clip?.Event != null)
+                                    @if (purchase.Clip?.Collection != null)
                                     {
                                         <div style="font-size: 0.9rem; margin-bottom: 0.5rem;">
                                             <a href="/collections/@purchase.Clip.CollectionId" style="color: var(--accent-primary); text-decoration: none;">
-                                                @purchase.Clip.Event.Name
+                                                @purchase.Clip.Collection.Name
                                             </a>
                                             <span style="color: var(--text-muted); margin-left: 0.5rem;">
-                                                • @purchase.Clip.Event.Date.ToString("MMM dd, yyyy")
+                                                • @purchase.Clip.Collection.Date.ToString("MMM dd, yyyy")
                                             </span>
                                             
                                             @if (purchase.LicenseType == LicenseType.Gif || purchase.IsGif)

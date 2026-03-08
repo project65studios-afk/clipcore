@@ -62,13 +62,13 @@ window.muxUpload = {
                         const startTime = Date.now();
 
                         // Create FormData
-                        if (!uploadInfo || !uploadInfo.eventId) {
-                            console.error('Missing eventId in uploadInfo', uploadInfo);
+                        if (!uploadInfo || !uploadInfo.collectionId) {
+                            console.error('Missing collectionId in uploadInfo', uploadInfo);
                         }
 
                         const formData = new FormData();
                         formData.append('file', file.data);
-                        formData.append('eventId', uploadInfo.eventId);
+                        formData.append('collectionId', uploadInfo.collectionId);
                         formData.append('masterFileName', file.name);
                         formData.append('priceCents', uploadInfo.priceCents);
                         formData.append('priceCommercialCents', uploadInfo.priceCommercialCents);

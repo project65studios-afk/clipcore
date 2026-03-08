@@ -37,4 +37,9 @@ public class Clip
     public virtual Seller? Seller { get; set; }
 
     public DateTime PublishedAt { get; set; } = DateTime.UtcNow;
+
+    // Archive state — Mux asset deleted to save costs, R2 master kept
+    public bool IsArchived { get; set; } = false;
+    public DateTime? ArchivedAt { get; set; }
+    public DateTime? LastSoldAt { get; set; }
 }

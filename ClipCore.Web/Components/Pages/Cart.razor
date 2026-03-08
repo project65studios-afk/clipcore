@@ -136,7 +136,7 @@
 @code {
     private bool _isInitialized = false;
     private string? _storeName;
-    private Dictionary<string, Event> _events = new();
+    private Dictionary<string, Collection> _events = new();
     private Dictionary<string, string> _thumbnailUrls = new();
 
     protected override async Task OnInitializedAsync()

@@ -11,8 +11,8 @@ public class CartItem
     public string PlaybackId { get; set; } = string.Empty;
     public string ThumbnailUrl { get; set; } = string.Empty;
     public string CollectionId { get; set; } = string.Empty;
-    public string? EventName { get; set; }
-    public DateOnly? EventDate { get; set; }
+    public string? CollectionName { get; set; }
+    public DateOnly? CollectionDate { get; set; }
     public DateTime? ClipRecordingStartedAt { get; set; }
     public string? MasterFileName { get; set; }
     public string? ThumbnailFileName { get; set; }

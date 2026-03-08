@@ -9,8 +9,6 @@
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
 @inject IAuditService AuditService
-@using Microsoft.AspNetCore.SignalR
-@inject IHubContext<ClipCore.Web.Hubs.ProcessingHub> HubContext
 @implements IDisposable
 
 <PageTitle>Upload Clips — ClipCore</PageTitle>
@@ -261,7 +259,7 @@
 
     private async Task InitializeUppy()
     {
-        await JS.InvokeVoidAsync("muxUpload.initUppy", _dotNetHelper, "uppy-dashboard", _userId);
+        await JS.InvokeVoidAsync("sellerUpload.initUppy", _dotNetHelper, "uppy-dashboard");
     }
 
     private async Task OnCollectionSelected(ChangeEventArgs e)
@@ -482,44 +480,7 @@
             clip.Id,
             $"Seller uploaded clip: {clip.Title}");
 
-        _ = ResolveMuxDetailsAsync(clip);
-    }
-
-    private async Task ResolveMuxDetailsAsync(Clip clip)
-    {
-        if (string.IsNullOrEmpty(clip.MuxUploadId)) return;
-
-        string? assetId = null;
-        for (int i = 0; i < 15; i++)
-        {
-            await Task.Delay(2000);
-            assetId = await VideoService.GetAssetIdFromUploadAsync(clip.MuxUploadId);
-            if (!string.IsNullOrEmpty(assetId)) break;
-        }
-
-        if (string.IsNullOrEmpty(assetId)) return;
-
-        clip.MuxAssetId = assetId;
-
-        for (int i = 0; i < 20; i++)
-        {
-            var (duration, startedAt) = await VideoService.GetAssetDetailsAsync(assetId);
-
-            if (duration.HasValue && duration.Value > 0)
-            {
-                clip.DurationSec = duration;
-                if (startedAt.HasValue && !clip.RecordingStartedAt.HasValue) clip.RecordingStartedAt = startedAt;
-
-                var playbackId = await VideoService.EnsurePlaybackIdAsync(assetId);
-                if (!string.IsNullOrEmpty(playbackId)) clip.PlaybackIdSigned = playbackId;
-
-                await ClipRepository.UpdateAsync(clip);
-                await HubContext.Clients.All.SendAsync("ClipStatusUpdated", clip.Id, "Ready");
-                return;
-            }
-            await Task.Delay(3000);
-        }
-        await ClipRepository.UpdateAsync(clip);
+        // Mux webhook (video.asset.ready) handles the rest — no polling needed
     }
 
     public void Dispose() => _dotNetHelper?.Dispose();

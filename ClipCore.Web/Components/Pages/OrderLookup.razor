@@ -199,8 +199,8 @@
                         var itemVM = new ItemViewModel
                         {
                             Title = p.Clip?.Title ?? "Unknown Clip",
-                            CollectionName = p.Clip?.Event?.Name ?? "",
-                            CollectionDate = p.Clip?.Event?.Date,
+                            CollectionName = p.Clip?.Collection?.Name ?? "",
+                            CollectionDate = p.Clip?.Collection?.Date,
                             CollectionId = p.Clip?.CollectionId ?? ""
                         };
                         

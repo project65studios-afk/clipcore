@@ -122,4 +122,36 @@ public class ClipRepository : IClipRepository
                 .SetProperty(c => c.AllowGifSale, allowGif)
                 .SetProperty(c => c.GifPriceCents, gifPriceCents));
     }
+
+    /// <summary>
+    /// Returns clips that have a Mux asset, are not archived, and haven't sold in <paramref name="daysSinceLastSale"/> days.
+    /// </summary>
+    public async Task<List<Clip>> ListForArchiveAsync(int daysSinceLastSale)
+    {
+        var cutoff = DateTime.UtcNow.AddDays(-daysSinceLastSale);
+        using var context = await _contextFactory.CreateDbContextAsync();
+        return await context.Clips
+            .AsNoTracking()
+            .Where(c =>
+                !c.IsArchived &&
+                !string.IsNullOrEmpty(c.MuxAssetId) &&
+                !c.MuxAssetId.StartsWith("errored:") &&
+                (c.LastSoldAt == null ? c.PublishedAt < cutoff : c.LastSoldAt < cutoff))
+            .ToListAsync();
+    }
+
+    /// <summary>
+    /// Marks a clip as archived (Mux asset deleted, R2 master preserved).
+    /// </summary>
+    public async Task ArchiveAsync(string clipId)
+    {
+        using var context = await _contextFactory.CreateDbContextAsync();
+        await context.Clips
+            .Where(c => c.Id == clipId)
+            .ExecuteUpdateAsync(s => s
+                .SetProperty(c => c.IsArchived, true)
+                .SetProperty(c => c.ArchivedAt, DateTime.UtcNow)
+                .SetProperty(c => c.PlaybackIdSigned, (string?)null)
+                .SetProperty(c => c.MuxAssetId, (string?)null));
+    }
 }

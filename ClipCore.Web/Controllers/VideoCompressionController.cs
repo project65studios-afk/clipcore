@@ -35,7 +35,7 @@ public class VideoCompressionController : ControllerBase
     [HttpPost("compress-and-upload")]
     public async Task<IActionResult> CompressAndUpload(
         [FromForm] IFormFile file,
-        [FromForm] string? eventId,
+        [FromForm] string? collectionId,
         [FromForm] string? masterFileName,
         [FromForm] int priceCents,
         [FromForm] int priceCommercialCents,
@@ -47,8 +47,8 @@ public class VideoCompressionController : ControllerBase
             if (file == null || file.Length == 0)
                 return BadRequest(new { error = "No file uploaded" });
 
-            if (string.IsNullOrEmpty(eventId))
-                return BadRequest(new { error = "Event ID is required" });
+            if (string.IsNullOrEmpty(collectionId))
+                return BadRequest(new { error = "Collection ID is required" });
 
             var tempDir = Path.Combine(Path.GetTempPath(), "video-compression", Guid.NewGuid().ToString());
             Directory.CreateDirectory(tempDir);
@@ -207,7 +207,7 @@ public class VideoCompressionController : ControllerBase
                 var clip = new Clip
                 {
                     Id = clipId,
-                    CollectionId = eventId,
+                    CollectionId = collectionId,
                     Title = file.FileName,
                     PriceCents = priceCents,
                     PriceCommercialCents = priceCommercialCents,

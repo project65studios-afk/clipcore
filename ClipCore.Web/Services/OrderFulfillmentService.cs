@@ -164,6 +164,24 @@ public class OrderFulfillmentService
                     p.Clip = dbClip; // Link for Email Template
                     if (!p.ClipDurationSec.HasValue) p.ClipDurationSec = dbClip.DurationSec;
 
+                    // Stamp SellerId and calculate platform fee (10%)
+                    if (dbClip.SellerId.HasValue)
+                    {
+                        p.SellerId = dbClip.SellerId;
+                        p.PlatformFeeCents = (int)Math.Round(p.PricePaidCents * 0.10);
+                        p.SellerPayoutCents = p.PricePaidCents - p.PlatformFeeCents;
+                    }
+
+                    // Track last sale time for auto-archive logic
+                    dbClip.LastSoldAt = DateTime.UtcNow;
+                    // Restore from archive if buyer just purchased an archived clip
+                    if (dbClip.IsArchived)
+                    {
+                        dbClip.IsArchived = false;
+                        dbClip.ArchivedAt = null;
+                        _logger.LogInformation("[OrderFulfillment] Clip {ClipId} was archived — will need Mux re-upload for fulfillment", dbClip.Id);
+                    }
+
                     // CRITICAL: Explicitly clear any filename that might have come from Stripe Metadata or other sources.
                     // We WANT this to be null so the system knows no order-specific file exists yet.
                     p.ClipMasterFileName = null;
@@ -196,6 +214,12 @@ public class OrderFulfillmentService
                 p.Clip = null;
 
                 await _purchaseRepository.AddAsync(p);
+
+                // Update clip's LastSoldAt (uses its own context — no conflict)
+                if (tempClip != null)
+                {
+                    await _clipRepository.UpdateAsync(tempClip);
+                }
 
                 // RESTORE CLIP:
                 // We need p.Clip back so the Email Service (later in this method) can read Title/Thumbnail.

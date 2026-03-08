@@ -463,6 +463,7 @@ if (!builder.Environment.IsDevelopment())
 if (configLoaded)
 {
     builder.Services.AddHostedService<StartupBackgroundService>();
+    builder.Services.AddHostedService<ClipArchiveService>();
 }
 
 var app = builder.Build();

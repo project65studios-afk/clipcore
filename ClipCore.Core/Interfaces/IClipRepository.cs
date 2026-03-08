@@ -13,4 +13,6 @@ public interface IClipRepository
     Task UpdateAsync(Clip clip); // For updating processing status/metadata
     Task UpdateBatchSettingsAsync(string eventId, int priceCents, int priceCommercialCents, bool allowGif, int gifPriceCents);
     Task DeleteAsync(string id);
+    Task<List<Clip>> ListForArchiveAsync(int daysSinceLastSale);
+    Task ArchiveAsync(string clipId);
 }

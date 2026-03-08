@@ -6,9 +6,9 @@
  * - Restores thumbnail generation logic.
  */
 
-export function initDirectUpload(dotNetHelper, eventId, userId) {
-    if (!eventId) {
-        dotNetHelper.invokeMethodAsync('LogError', 'No Event ID provided. Please return to Event Details and try again.');
+export function initDirectUpload(dotNetHelper, collectionId, userId) {
+    if (!collectionId) {
+        dotNetHelper.invokeMethodAsync('LogError', 'No Collection ID provided. Please return to Collection Details and try again.');
         return;
     }
 
@@ -125,7 +125,7 @@ export function initDirectUpload(dotNetHelper, eventId, userId) {
             const payload = {
                 muxUploadId: file.meta.muxUploadId,
                 clipId: file.meta.clipId,
-                eventId: uploadInfo.eventId,
+                collectionId: uploadInfo.collectionId,
                 title: file.name,
                 priceCents: uploadInfo.priceCents,
                 priceCommercialCents: uploadInfo.priceCommercialCents,
