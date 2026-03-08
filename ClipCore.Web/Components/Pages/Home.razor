@@ -391,6 +391,16 @@ else
             padding: 4rem 1.5rem;
         }
         .card-grid {
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1rem;
+        }
+    }
+
+    @@media (max-width: 480px) {
+        .hero-title {
+            font-size: 2rem;
+        }
+        .card-grid {
             grid-template-columns: 1fr;
         }
     }

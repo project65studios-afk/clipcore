@@ -10,7 +10,19 @@
 <div id="clip-card-@Clip.Id" @ref="_cardElement" @key="Clip.Id" class="video-card" data-enhance-nav="false">
     <a href="/clips/@Clip.Id" class="video-card-link" style="text-decoration: none; color: inherit; display: block;">
         <div class="video-thumb">
-            @if (IsPurchased)
+            @if (Clip.MuxAssetId?.StartsWith("errored:") == true)
+            {
+                <div class="status-badge status-error">
+                    <i class="bi bi-exclamation-triangle-fill"></i> Upload Failed
+                </div>
+            }
+            else if (!string.IsNullOrEmpty(Clip.MuxAssetId) && string.IsNullOrEmpty(Clip.PlaybackIdSigned))
+            {
+                <div class="status-badge status-processing">
+                    <i class="bi bi-hourglass-split"></i> Processing
+                </div>
+            }
+            else if (IsPurchased)
             {
                 <div class="purchased-badge">
                     <i class="bi bi-check-circle-fill"></i> Purchased
@@ -80,7 +92,7 @@
         <div class="video-info">
             <h3 class="video-title">@Clip.Title</h3>
             <div class="video-meta">
-                <span class="price-tag">$@(Clip.PriceCents / 100.00)</span>
+                <span class="price-tag">$@((Clip.PriceCents / 100.0).ToString("F2"))</span>
                 <span class="dot"></span>
                 <span>@Clip.RecordingStartedAt?.ToLocalTime().ToString("h:mm tt")</span>
             </div>

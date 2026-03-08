@@ -825,11 +825,11 @@ h3 {
 }
 
 .purchased-badge,
-.cart-badge {
+.cart-badge,
+.status-badge {
     position: absolute;
     top: 0.75rem;
     right: 0.75rem;
-    background: var(--accent-secondary);
     color: white;
     padding: 0.25rem 0.75rem;
     border-radius: var(--radius-full);
@@ -838,20 +838,27 @@ h3 {
     display: flex;
     align-items: center;
     gap: 0.4rem;
-    box-shadow: 0 4px 10px var(--accent-secondary-dim);
     z-index: 20;
 }
 
 .purchased-badge {
     background: var(--status-success);
-    color: white;
     box-shadow: 0 2px 8px var(--status-success-dim);
 }
 
 .cart-badge {
     background: var(--accent-primary);
-    color: white;
     box-shadow: 0 2px 8px var(--accent-primary-dim);
+}
+
+.status-badge.status-processing {
+    background: #d97706;
+    box-shadow: 0 2px 8px rgba(217, 119, 6, 0.4);
+}
+
+.status-badge.status-error {
+    background: #dc2626;
+    box-shadow: 0 2px 8px rgba(220, 38, 38, 0.4);
 }
 
 .tags-container {

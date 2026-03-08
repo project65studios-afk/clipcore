@@ -30,7 +30,7 @@
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
                 <div style="background: var(--bg-surface); padding: 1.5rem; border-radius: var(--radius-lg); border: 1px solid var(--border-color); display: flex; flex-direction: column; justify-content: center;">
                     <div style="color: var(--text-secondary); font-size: 0.8rem; margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 1px;">Gross Revenue</div>
-                    <div style="font-size: 1.75rem; font-weight: 700; color: var(--status-success);">$@(_totalRevenue / 100.00)</div>
+                    <div style="font-size: 1.75rem; font-weight: 700; color: var(--status-success);">$@((_totalRevenue / 100.0).ToString("F2"))</div>
                 </div>
                 <div style="background: var(--bg-surface); padding: 1.5rem; border-radius: var(--radius-lg); border: 1px solid var(--border-color); display: flex; flex-direction: column; justify-content: center;">
                     <div style="color: var(--text-secondary); font-size: 0.8rem; margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 1px;">Total Orders</div>
@@ -38,7 +38,7 @@
                 </div>
                 <div style="background: var(--bg-surface); padding: 1.5rem; border-radius: var(--radius-lg); border: 1px solid var(--border-color);">
                     <div style="color: var(--text-secondary); font-size: 0.8rem; margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 1px;">Platform Fees (10%)</div>
-                    <div style="font-size: 1.75rem; font-weight: 700; color: var(--accent-primary);">$@(_totalPlatformFee / 100.00)</div>
+                    <div style="font-size: 1.75rem; font-weight: 700; color: var(--accent-primary);">$@((_totalPlatformFee / 100.0).ToString("F2"))</div>
                 </div>
                 <div style="background: var(--bg-surface); padding: 1.5rem; border-radius: var(--radius-lg); border: 1px solid var(--border-color);">
                     <div style="color: var(--text-secondary); font-size: 0.8rem; margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 1px;">Avg. Order Value</div>
@@ -85,7 +85,7 @@
                                     <div style="font-size: 0.8rem; color: var(--text-muted);">@purchase.CustomerEmail</div>
                                 </td>
                                 <td data-label="Clip" style="padding: 1rem;">@(purchase.Clip?.Title ?? purchase.ClipTitle ?? "Deleted Clip")</td>
-                                <td data-label="Amount" style="padding: 1rem; text-align: right; font-weight: 600;">$@(purchase.PricePaidCents / 100.00)</td>
+                                <td data-label="Amount" style="padding: 1rem; text-align: right; font-weight: 600;">$@((purchase.PricePaidCents / 100.0).ToString("F2"))</td>
                             </tr>
                         }
                     </tbody>
@@ -107,7 +107,7 @@
                         var revenue = _dailyRevenue.ContainsKey(day) ? _dailyRevenue[day] : 0;
                         <div style="display: flex; justify-content: space-between; padding: 1rem; border-bottom: 1px solid var(--border-color);">
                             <span style="color: var(--text-secondary);">@day.ToString("MMM dd")</span>
-                            <span style="font-weight: 600; color: @(revenue > 0 ? "#10b981" : "var(--text-muted)")">$@(revenue / 100.00)</span>
+                            <span style="font-weight: 600; color: @(revenue > 0 ? "#10b981" : "var(--text-muted)")">$@((revenue / 100.0).ToString("F2"))</span>
                         </div>
                     }
                 </div>
@@ -143,9 +143,9 @@
                                     </div>
                                 </td>
                                 <td style="padding: 1rem; text-align: right;">@s.SalesCount</td>
-                                <td style="padding: 1rem; text-align: right; font-weight: 600; color: var(--status-success);">$@(s.TotalRevenueCents / 100.00)</td>
-                                <td style="padding: 1rem; text-align: right; color: var(--accent-primary);">$@(s.PlatformFeeCents / 100.00)</td>
-                                <td style="padding: 1rem; text-align: right; font-weight: 600;">$@(s.SellerPayoutCents / 100.00)</td>
+                                <td style="padding: 1rem; text-align: right; font-weight: 600; color: var(--status-success);">$@((s.TotalRevenueCents / 100.0).ToString("F2"))</td>
+                                <td style="padding: 1rem; text-align: right; color: var(--accent-primary);">$@((s.PlatformFeeCents / 100.0).ToString("F2"))</td>
+                                <td style="padding: 1rem; text-align: right; font-weight: 600;">$@((s.SellerPayoutCents / 100.0).ToString("F2"))</td>
                             </tr>
                         }
                     </tbody>
