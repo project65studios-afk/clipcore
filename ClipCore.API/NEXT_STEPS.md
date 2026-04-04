@@ -128,17 +128,31 @@ Hit `https://api.clipcore.com/swagger` and verify:
 
 ---
 
-## 9. What Is NOT Implemented (Frontend Work)
+## 9. Frontend (clipcore-web)
 
-The following exist in ClipCore.Web but have no API counterpart yet — add endpoints as the Next.js frontend needs them:
+The Next.js 15 frontend lives at `clipcore-web/`. See `clipcore-web/README.md` for full setup.
 
-- `GET /GetPurchasesByUser` / `GET /GetPurchasesByEmail` (my purchases page)
-- `POST /FulfillPurchase` (admin fulfillment)
-- `GET /GetAllPurchases` + fulfillment admin UI
-- Promo code endpoints (validate, list, create, delete)
-- Settings endpoints (get/set)
-- Password reset (`ForgotPassword`, `ResetPassword` — models exist in AuthModels.cs)
-- Checkout session creation (Stripe) — needs a `POST /CreateCheckoutSession` controller
+Quick start:
+```bash
+cd clipcore-web
+cp .env.local.example .env.local   # set NEXT_PUBLIC_API_URL
+npm install
+npm run dev                        # http://localhost:3000
+```
+
+For production, set `NEXT_PUBLIC_API_URL=https://api.clipcore.com` and run `npm run build && npm start`.
+
+### Still needed before go-live
+
+| Feature | What to build |
+|---|---|
+| Password reset | `POST /ForgotPassword` + `POST /ResetPassword` — models exist in `AuthModels.cs` |
+| Promo code validation | `POST /ValidatePromoCode` endpoint + wire into `/cart` page |
+| Admin fulfillment UI | `/admin/fulfillment` page using existing `GetAllPurchases` + a new `FulfillPurchase` endpoint |
+| Order lookup (guest) | `/order-lookup` page using `PurchaseData.GetPurchasesByEmail` |
+| Delivery page | `/delivery/[sessionId]` — download links for a completed order |
+| Stripe Connect (Phase 2) | Automated seller payouts |
+| CORS update | Add production Next.js URL to `AllowedOrigins` in SSM |
 
 ---
 
